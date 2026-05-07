@@ -14,6 +14,7 @@ import type {
 interface SavedVehicle {
   id: number;
   name: string;
+  type?: string | null;
   capacity: number;
 }
 
@@ -296,7 +297,7 @@ export default function RideSessionEditor(props: Props) {
                 .filter((sv) => !vehicles.some((v) => v.vehicleId === sv.id))
                 .map((sv) => (
                   <option key={sv.id} value={sv.id}>
-                    {sv.name} (cap {sv.capacity})
+                    {sv.name}{sv.type ? ` — ${sv.type}` : ""} (cap {sv.capacity})
                   </option>
                 ))}
             </select>

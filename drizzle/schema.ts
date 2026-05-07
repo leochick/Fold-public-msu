@@ -150,6 +150,7 @@ export type FunnelSweepLog = typeof funnelSweepLog.$inferSelect;
 export const vehicles = sqliteTable("vehicles", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   name: text("name").notNull(),
+  type: text("type"),
   capacity: integer("capacity").notNull(),
   notes: text("notes"),
   isActive: integer("is_active", { mode: "boolean" }).notNull().default(true),

@@ -21,6 +21,7 @@ export async function createVehicleAction(formData: FormData) {
   }
   await db.insert(vehicles).values({
     name,
+    type: nullableStr(formData.get("type")),
     capacity: Math.floor(capacity),
     notes: nullableStr(formData.get("notes")),
   });
@@ -41,6 +42,7 @@ export async function updateVehicleAction(formData: FormData) {
     .update(vehicles)
     .set({
       name,
+      type: nullableStr(formData.get("type")),
       capacity: Math.floor(capacity),
       notes: nullableStr(formData.get("notes")),
       isActive: formData.get("isActive") === "on",

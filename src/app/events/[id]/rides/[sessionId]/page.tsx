@@ -110,6 +110,7 @@ export default async function RideSessionEditorPage({
         savedVehicles={allVehicles.map((v) => ({
           id: v.id,
           name: v.name,
+          type: v.type,
           capacity: v.capacity,
         }))}
         initialVehicles={initialVehicles}
