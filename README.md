@@ -61,6 +61,8 @@ Fold uses **per-person email + password** accounts (bcrypt-hashed, cookie sessio
 
 The easiest path for a single ministry or student group is to fork this repo and deploy your own instance. Your data stays in your own Turso database; your Anthropic key is yours.
 
+> **Not technical?** [`SELF_HOST.md`](./SELF_HOST.md) is a single file you can paste into Claude or ChatGPT to get walked through the whole setup, top to bottom.
+
 ### Option A — Vercel (recommended)
 
 1. **Fork** this repo on GitHub.
