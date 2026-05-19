@@ -1,3 +1,5 @@
+export const maxDuration = 60;
+
 import { NextResponse } from "next/server";
 import { anthropic, EVENT_INSIGHTS_TOOL } from "@/lib/claude";
 import { getCurrentUser } from "@/lib/auth";

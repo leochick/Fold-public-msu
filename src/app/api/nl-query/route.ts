@@ -1,3 +1,5 @@
+export const maxDuration = 60;
+
 import { NextResponse } from "next/server";
 import { anthropic, MODEL, NL_QUERY_TOOL } from "@/lib/claude";
 import { runFilter, type FilterSpec } from "@/lib/filter-to-sql";
