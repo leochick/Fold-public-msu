@@ -1,14 +1,10 @@
 export const maxDuration = 60;
 
 import { withAuth } from "@/lib/http";
-import { mockIntakeParse } from "@/lib/demo-data";
 import { intakeParseBody } from "@/lib/contracts/intake";
 import { parseIntake } from "@/server/intake";
 
 export const POST = withAuth(
   async ({ body }) => parseIntake(body.text),
-  {
-    bodySchema: intakeParseBody,
-    demoMock: () => mockIntakeParse(),
-  }
+  { bodySchema: intakeParseBody }
 );

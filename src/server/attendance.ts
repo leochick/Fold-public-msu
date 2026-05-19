@@ -83,10 +83,31 @@ export async function commitAttendance(userId: number, body: CommitAttendanceBod
   return { ok: true, created, marked };
 }
 
-export async function callClaudeOrThrow<T>(fn: () => Promise<T>): Promise<T> {
+type ClaudeResponse = { usage?: { input_tokens: number; output_tokens: number }; model?: string };
+
+export async function callClaudeOrThrow<T extends ClaudeResponse>(fn: () => Promise<T>): Promise<T> {
+  const demo = process.env.DEMO_MODE === "1";
+  let demoId: string | null = null;
+  if (demo) {
+    const { getOrCreateDemoId, readSpent, CAP_CENTS } = await import("@/lib/demo-spend");
+    demoId = await getOrCreateDemoId();
+    const spent = await readSpent(demoId);
+    if (spent >= CAP_CENTS) {
+      throw httpErr.rateLimit(
+        "You've used the demo's $1 of free Anthropic API spend. Refresh tomorrow or self-host with your own API key — see /help."
+      );
+    }
+  }
+  let result: T;
   try {
-    return await fn();
+    result = await fn();
   } catch (err) {
     throw httpErr.upstream(err instanceof Error ? err.message : "claude failed");
   }
+  if (demo && demoId && result.usage) {
+    const { estimateCostCents, bumpSpend } = await import("@/lib/demo-spend");
+    const cents = estimateCostCents(result.model, result.usage.input_tokens, result.usage.output_tokens);
+    if (cents > 0) await bumpSpend(demoId, cents);
+  }
+  return result;
 }

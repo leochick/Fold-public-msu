@@ -128,6 +128,19 @@ async function main() {
     console.log("  skip: verification table already exists");
   }
 
+  // 5. demo_spend table (per-cookie spend cap for demo deployments)
+  console.log("\ndemo_spend:");
+  if (!(await tableExists("demo_spend"))) {
+    await client.execute(`CREATE TABLE \`demo_spend\` (
+      \`id\` text PRIMARY KEY NOT NULL,
+      \`spent_cents\` integer DEFAULT 0 NOT NULL,
+      \`updated_at\` integer DEFAULT (unixepoch()) NOT NULL
+    )`);
+    console.log("  create: demo_spend");
+  } else {
+    console.log("  skip: demo_spend table already exists");
+  }
+
   // 5. Backfill account rows from existing users.password_hash where not already present
   console.log("\nbackfill:");
   const existing = await client.execute(`

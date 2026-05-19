@@ -70,6 +70,18 @@ export const verification = sqliteTable("verification", {
 });
 // --- /BETTER AUTH ---
 
+// --- DEMO SPEND CAP ---
+// In demo mode we charge real Anthropic calls but cap each anonymous visitor's spend
+// (keyed on the fold_demo_id cookie) at $1 to prevent abuse.
+export const demoSpend = sqliteTable("demo_spend", {
+  id: text("id").primaryKey(),
+  spentCents: integer("spent_cents").notNull().default(0),
+  updatedAt: integer("updated_at", { mode: "timestamp" })
+    .notNull()
+    .default(sql`(unixepoch())`),
+});
+// --- /DEMO SPEND CAP ---
+
 export const students = sqliteTable("students", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   firstName: text("first_name").notNull(),

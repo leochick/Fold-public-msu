@@ -264,11 +264,13 @@ export default function HelpPage() {
           to happen) and the panel will start working.
         </Faq>
 
-        <Faq q="Are the AI Insights on the public demo real?">
-          No — on the public demo site, Insights are illustrative samples generated locally so
-          random visitors can&apos;t burn API tokens on the maintainer&apos;s key. To get real
-          AI-generated insights tailored to your own attendance data, fork the repo, add your
-          own Anthropic API key, and self-host. See the README for setup.
+        <Faq q="Are the AI features on the public demo real?">
+          Yes — the demo calls the real Anthropic API so Smart Intake, Ask, Modify, ride
+          parsing, and Insights all work end-to-end. To keep the maintainer&apos;s key from
+          being abused, each visitor gets about $1 of free Anthropic spend (tracked by a
+          cookie). Past that, the AI features show a polite &quot;limit reached&quot; message —
+          everything else (events, attendance, the dashboard) still works normally. For
+          unlimited use on your own roster, fork the repo and self-host with your own key.
         </Faq>
 
         <Faq q="Why did Smart Intake add someone as new when they're already in my roster?">

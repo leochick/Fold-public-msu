@@ -1,7 +1,6 @@
 export const maxDuration = 60;
 
 import { withAuth, httpErr } from "@/lib/http";
-import { mockInsights } from "@/lib/demo-data";
 import { eventInsightsBody } from "@/lib/contracts/events";
 import { anthropic, EVENT_INSIGHTS_TOOL } from "@/lib/claude";
 import { EVENT_INSIGHTS_SYSTEM } from "@/lib/prompts/event-insights";
@@ -25,8 +24,5 @@ export const POST = withAuth(
     });
     return sseResponse(stream);
   },
-  {
-    bodySchema: eventInsightsBody,
-    demoMock: () => ({ insights: mockInsights() }),
-  }
+  { bodySchema: eventInsightsBody }
 );

@@ -17,6 +17,7 @@ export const httpErr = {
   forbidden: (msg = "forbidden") => new HttpError(403, msg),
   notFound: (msg = "not found") => new HttpError(404, msg),
   conflict: (msg = "conflict") => new HttpError(409, msg),
+  rateLimit: (msg = "rate limited") => new HttpError(429, msg),
   upstream: (msg = "upstream failure") => new HttpError(502, msg),
 };
 
