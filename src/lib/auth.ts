@@ -1,47 +1,11 @@
-import { cookies } from "next/headers";
-import { randomBytes } from "node:crypto";
-import bcrypt from "bcryptjs";
-import { eq, and, gt, asc } from "drizzle-orm";
+import { headers } from "next/headers";
+import { eq, asc } from "drizzle-orm";
 import { db } from "./db";
-import { users, sessions } from "../../drizzle/schema";
-
-const COOKIE = "fold_session";
-const TTL_DAYS = 30;
+import { users } from "../../drizzle/schema";
+import { auth } from "./better-auth";
 
 export function isDemoMode() {
   return process.env.DEMO_MODE === "1";
-}
-
-export async function hashPassword(plain: string) {
-  return bcrypt.hash(plain, 10);
-}
-
-export async function verifyPassword(plain: string, hash: string) {
-  return bcrypt.compare(plain, hash);
-}
-
-export async function createSession(userId: number) {
-  const id = randomBytes(32).toString("hex");
-  const expiresAt = new Date(Date.now() + TTL_DAYS * 24 * 60 * 60 * 1000);
-  await db.insert(sessions).values({ id, userId, expiresAt });
-  const c = await cookies();
-  c.set(COOKIE, id, {
-    httpOnly: true,
-    sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
-    expires: expiresAt,
-    path: "/",
-  });
-  return id;
-}
-
-export async function destroySession() {
-  const c = await cookies();
-  const id = c.get(COOKIE)?.value;
-  if (id) {
-    await db.delete(sessions).where(eq(sessions.id, id));
-  }
-  c.delete(COOKIE);
 }
 
 export async function getCurrentUser() {
@@ -49,16 +13,15 @@ export async function getCurrentUser() {
     const rows = await db.select().from(users).orderBy(asc(users.id)).limit(1);
     return rows[0] ?? null;
   }
-  const c = await cookies();
-  const id = c.get(COOKIE)?.value;
-  if (!id) return null;
-  const rows = await db
-    .select({ user: users, session: sessions })
-    .from(sessions)
-    .innerJoin(users, eq(users.id, sessions.userId))
-    .where(and(eq(sessions.id, id), gt(sessions.expiresAt, new Date())))
-    .limit(1);
-  return rows[0]?.user ?? null;
+  const session = await auth.api.getSession({ headers: await headers() });
+  if (!session?.user) return null;
+  const userId =
+    typeof session.user.id === "number"
+      ? session.user.id
+      : Number(session.user.id);
+  if (!Number.isFinite(userId)) return null;
+  const [row] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
+  return row ?? null;
 }
 
 export async function requireUser() {

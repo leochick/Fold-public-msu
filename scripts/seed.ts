@@ -1,7 +1,8 @@
 import { createClient } from "@libsql/client";
 import { drizzle } from "drizzle-orm/libsql";
 import bcrypt from "bcryptjs";
-import { users, students, events, attendances } from "../drizzle/schema";
+import { randomBytes } from "node:crypto";
+import { users, account, students, events, attendances } from "../drizzle/schema";
 import { sql } from "drizzle-orm";
 
 const client = createClient({
@@ -11,12 +12,19 @@ const client = createClient({
 const db = drizzle(client);
 
 async function main() {
-// 1. Create admin user
+// 1. Create admin user + matching account row for better-auth credential login.
 const hash = bcrypt.hashSync("password123", 10);
 const [admin] = await db
   .insert(users)
   .values({ email: "admin@example.com", displayName: "Admin", passwordHash: hash })
   .returning();
+await db.insert(account).values({
+  id: randomBytes(16).toString("hex"),
+  accountId: String(admin.id),
+  providerId: "credential",
+  userId: admin.id,
+  password: hash,
+});
 console.log("Created user:", admin.email);
 
 // 2. Create students

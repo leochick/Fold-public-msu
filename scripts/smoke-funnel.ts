@@ -33,8 +33,8 @@ async function ensureUser(email: string, displayName: string) {
 async function mintCookie(userId: number) {
   const id = randomBytes(32).toString("hex");
   const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
-  await db.insert(sessions).values({ id, userId, expiresAt });
-  return `fold_session=${id}`;
+  await db.insert(sessions).values({ id, token: id, userId, expiresAt });
+  return `fold.session_token=${id}`;
 }
 
 async function cleanup() {

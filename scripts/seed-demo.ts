@@ -1,7 +1,8 @@
 import { createClient } from "@libsql/client";
 import { drizzle } from "drizzle-orm/libsql";
 import bcrypt from "bcryptjs";
-import { users, students, events, attendances, sessions } from "../drizzle/schema";
+import { randomBytes } from "node:crypto";
+import { users, account, students, events, attendances, sessions } from "../drizzle/schema";
 import { sql } from "drizzle-orm";
 
 const client = createClient({
@@ -25,6 +26,7 @@ async function main() {
   await db.delete(events);
   await db.delete(students);
   await db.delete(sessions);
+  await db.delete(account);
   await db.delete(users);
 
   const hash = bcrypt.hashSync("password123", 10);
@@ -36,6 +38,13 @@ async function main() {
       passwordHash: hash,
     })
     .returning();
+  await db.insert(account).values({
+    id: randomBytes(16).toString("hex"),
+    accountId: String(admin.id),
+    providerId: "credential",
+    userId: admin.id,
+    password: hash,
+  });
   console.log("Created admin user");
 
   // Friday calendar: 16 weeks back from today

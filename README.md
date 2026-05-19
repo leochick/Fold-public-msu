@@ -50,7 +50,7 @@ Open [http://localhost:3000](http://localhost:3000) and sign in with `admin@exam
 
 ## Authentication
 
-Fold uses **per-person email + password** accounts (bcrypt-hashed, cookie sessions, 30-day TTL). There is no SSO, OAuth, or magic-link option.
+Fold uses **per-person email + password** accounts via [Better Auth](https://better-auth.com) with bcrypt password hashing, DB-backed cookie sessions, and a 30-day TTL. There is no SSO, OAuth, or magic-link option out of the box (Better Auth can add them later in a few lines).
 
 - Each user signs up at `/signup` with their own email and password.
 - Set `ALLOWED_DOMAIN=yourchurch.org` to restrict signups to a single email domain. Leave it blank to allow any email.

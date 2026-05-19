@@ -1,9 +1,8 @@
-import Link from "next/link";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { db } from "@/lib/db";
-import { users } from "../../../drizzle/schema";
-import { eq } from "drizzle-orm";
-import { hashPassword, createSession, getCurrentUser } from "@/lib/auth";
+import Link from "next/link";
+import { auth } from "@/lib/better-auth";
+import { getCurrentUser } from "@/lib/auth";
 
 export default async function SignupPage({
   searchParams,
@@ -26,15 +25,16 @@ export default async function SignupPage({
     if (ALLOWED_DOMAIN && email.split("@")[1] !== ALLOWED_DOMAIN) redirect("/signup?error=domain");
     if (password.length < 12) redirect("/signup?error=short");
 
-    const [existing] = await db.select().from(users).where(eq(users.email, email)).limit(1);
-    if (existing) redirect("/signup?error=taken");
-
-    const hash = await hashPassword(password);
-    const [row] = await db
-      .insert(users)
-      .values({ email, displayName, passwordHash: hash })
-      .returning();
-    await createSession(row.id);
+    try {
+      await auth.api.signUpEmail({
+        body: { email, password, name: displayName },
+        headers: await headers(),
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "";
+      if (/already exists|user.*exists/i.test(message)) redirect("/signup?error=taken");
+      redirect("/signup?error=missing");
+    }
     redirect("/");
   }
 
@@ -65,7 +65,7 @@ export default async function SignupPage({
         <div className="space-y-1">
           <label className="label" htmlFor="password">Password</label>
           <input id="password" name="password" type="password" autoComplete="new-password" required minLength={12} className="input" />
-          <p className="text-xs text-black/50">8+ characters.</p>
+          <p className="text-xs text-black/50">12+ characters.</p>
         </div>
         <button className="btn-primary w-full" type="submit">Create account</button>
         <p className="text-xs text-black/50 dark:text-white/40 text-center">

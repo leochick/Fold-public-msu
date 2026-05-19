@@ -1,9 +1,8 @@
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { db } from "@/lib/db";
-import { users } from "../../../drizzle/schema";
-import { eq } from "drizzle-orm";
-import { verifyPassword, createSession, getCurrentUser } from "@/lib/auth";
+import { auth } from "@/lib/better-auth";
+import { getCurrentUser } from "@/lib/auth";
 
 export default async function LoginPage({
   searchParams,
@@ -19,11 +18,14 @@ export default async function LoginPage({
     const email = String(formData.get("email") || "").trim().toLowerCase();
     const password = String(formData.get("password") || "");
     if (!email || !password) redirect("/login?error=missing");
-    const [user] = await db.select().from(users).where(eq(users.email, email)).limit(1);
-    if (!user) redirect("/login?error=invalid");
-    const ok = await verifyPassword(password, user.passwordHash);
-    if (!ok) redirect("/login?error=invalid");
-    await createSession(user.id);
+    try {
+      await auth.api.signInEmail({
+        body: { email, password },
+        headers: await headers(),
+      });
+    } catch {
+      redirect("/login?error=invalid");
+    }
     redirect("/");
   }
 

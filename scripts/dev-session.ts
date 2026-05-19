@@ -11,5 +11,5 @@ const db = drizzle(client);
 
 const id = randomBytes(32).toString("hex");
 await db.insert(sessions)
-  .values({ id, userId: 1, expiresAt: new Date(Date.now() + 86400_000) });
+  .values({ id, token: id, userId: 1, expiresAt: new Date(Date.now() + 86400_000) });
 console.log(id);
