@@ -6,12 +6,12 @@ import { students, events } from "../../../../drizzle/schema";
 import { eq } from "drizzle-orm";
 import { anthropic, MODEL, PARSE_ATTENDANCE_TOOL } from "@/lib/claude";
 import { getCurrentUser, isDemoMode } from "@/lib/auth";
-import { DEMO_NOTICE } from "@/lib/demo-data";
+import { mockParseAttendance } from "@/lib/demo-data";
 
 export async function POST(req: Request) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  if (isDemoMode()) return NextResponse.json({ error: DEMO_NOTICE }, { status: 503 });
+  if (isDemoMode()) return NextResponse.json(mockParseAttendance());
 
   let body: { eventId?: number; text?: string };
   try {

@@ -10,12 +10,12 @@ import {
   PROPOSE_EVENT_BATCH_LIST_TOOL,
 } from "@/lib/claude";
 import { getCurrentUser, isDemoMode } from "@/lib/auth";
-import { DEMO_NOTICE } from "@/lib/demo-data";
+import { mockParseEventBatch } from "@/lib/demo-data";
 
 export async function POST(req: Request) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  if (isDemoMode()) return NextResponse.json({ error: DEMO_NOTICE }, { status: 503 });
+  if (isDemoMode()) return NextResponse.json(mockParseEventBatch());
 
   let body: { text?: string };
   try {

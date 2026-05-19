@@ -5,13 +5,13 @@ import { db } from "@/lib/db";
 import { students } from "../../../../drizzle/schema";
 import { anthropic, MODEL, UPDATE_STUDENTS_TOOL } from "@/lib/claude";
 import { getCurrentUser, isDemoMode } from "@/lib/auth";
-import { DEMO_NOTICE } from "@/lib/demo-data";
+import { mockParseUpdate } from "@/lib/demo-data";
 import { inArray } from "drizzle-orm";
 
 export async function POST(req: Request) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  if (isDemoMode()) return NextResponse.json({ error: DEMO_NOTICE }, { status: 503 });
+  if (isDemoMode()) return NextResponse.json(mockParseUpdate());
 
   const { text } = (await req.json()) as { text?: string };
   if (!text?.trim()) return NextResponse.json({ error: "missing text" }, { status: 400 });

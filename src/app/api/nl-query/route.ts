@@ -4,12 +4,12 @@ import { NextResponse } from "next/server";
 import { anthropic, MODEL, NL_QUERY_TOOL } from "@/lib/claude";
 import { runFilter, type FilterSpec } from "@/lib/filter-to-sql";
 import { getCurrentUser, isDemoMode } from "@/lib/auth";
-import { DEMO_NOTICE } from "@/lib/demo-data";
+import { mockNlQuery } from "@/lib/demo-data";
 
 export async function POST(req: Request) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  if (isDemoMode()) return NextResponse.json({ error: DEMO_NOTICE }, { status: 503 });
+  if (isDemoMode()) return NextResponse.json(mockNlQuery());
 
   const { query } = (await req.json()) as { query?: string };
   if (!query?.trim()) return NextResponse.json({ error: "missing query" }, { status: 400 });

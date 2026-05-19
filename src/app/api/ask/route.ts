@@ -6,13 +6,13 @@ import { students } from "../../../../drizzle/schema";
 import { anthropic, MODEL, NL_QUERY_TOOL, UPDATE_STUDENTS_TOOL } from "@/lib/claude";
 import { runFilter, type FilterSpec } from "@/lib/filter-to-sql";
 import { getCurrentUser, isDemoMode } from "@/lib/auth";
-import { DEMO_NOTICE } from "@/lib/demo-data";
+import { mockAskQuery } from "@/lib/demo-data";
 import { inArray } from "drizzle-orm";
 
 export async function POST(req: Request) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  if (isDemoMode()) return NextResponse.json({ error: DEMO_NOTICE }, { status: 503 });
+  if (isDemoMode()) return NextResponse.json(mockAskQuery());
 
   const { text } = (await req.json()) as { text?: string };
   if (!text?.trim()) return NextResponse.json({ error: "missing text" }, { status: 400 });
