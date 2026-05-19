@@ -88,13 +88,25 @@ type ClaudeResponse = { usage?: { input_tokens: number; output_tokens: number };
 export async function callClaudeOrThrow<T extends ClaudeResponse>(fn: () => Promise<T>): Promise<T> {
   const demo = process.env.DEMO_MODE === "1";
   let demoId: string | null = null;
+  let ipKey: string | null = null;
   if (demo) {
-    const { getOrCreateDemoId, readSpent, CAP_CENTS } = await import("@/lib/demo-spend");
+    const { getOrCreateDemoId, getIpKey, readSpent, CAP_CENTS, IP_CAP_CENTS } = await import(
+      "@/lib/demo-spend"
+    );
     demoId = await getOrCreateDemoId();
-    const spent = await readSpent(demoId);
-    if (spent >= CAP_CENTS) {
+    ipKey = await getIpKey();
+    const [cookieSpent, ipSpent] = await Promise.all([
+      readSpent(demoId),
+      ipKey ? readSpent(ipKey) : Promise.resolve(0),
+    ]);
+    if (cookieSpent >= CAP_CENTS) {
       throw httpErr.rateLimit(
-        "You've used the demo's $1 of free Anthropic API spend. Refresh tomorrow or self-host with your own API key — see /help."
+        "Your demo session has used $1 of free Anthropic API spend. Try again in 24h or self-host with your own API key, see /help."
+      );
+    }
+    if (ipKey && ipSpent >= IP_CAP_CENTS) {
+      throw httpErr.rateLimit(
+        "This network has hit the demo's per-IP spend cap. Try again later or self-host with your own API key, see /help."
       );
     }
   }
@@ -107,7 +119,12 @@ export async function callClaudeOrThrow<T extends ClaudeResponse>(fn: () => Prom
   if (demo && demoId && result.usage) {
     const { estimateCostCents, bumpSpend } = await import("@/lib/demo-spend");
     const cents = estimateCostCents(result.model, result.usage.input_tokens, result.usage.output_tokens);
-    if (cents > 0) await bumpSpend(demoId, cents);
+    if (cents > 0) {
+      await Promise.all([
+        bumpSpend(demoId, cents),
+        ipKey ? bumpSpend(ipKey, cents) : Promise.resolve(),
+      ]);
+    }
   }
   return result;
 }

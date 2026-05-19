@@ -1,4 +1,4 @@
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { randomBytes } from "node:crypto";
 import { eq, sql } from "drizzle-orm";
 import { db } from "./db";
@@ -9,6 +9,8 @@ const TTL_SECONDS = 24 * 60 * 60;
 
 /** Per-cookie spend cap in cents. $1 → soft error after this. */
 export const CAP_CENTS = 100;
+/** Per-IP secondary cap. Higher than per-cookie so multiple users behind a shared NAT don't trip it, but tight enough to brake cookie-rotation attacks. */
+export const IP_CAP_CENTS = 500;
 
 // Anthropic public prices (cents per million tokens) — approximate.
 // Erring slightly high so under-billing the cap is safer than over-billing.
@@ -19,6 +21,19 @@ const PRICING: Record<string, Price> = {
 };
 
 const DEFAULT_PRICING: Price = { input: 300, output: 1500 };
+
+/** Reads the caller's IP from forwarding headers. Returns null when none are present (typical for local dev). */
+export async function getIpKey(): Promise<string | null> {
+  const h = await headers();
+  const fwd =
+    h.get("x-vercel-forwarded-for") ??
+    h.get("x-forwarded-for") ??
+    h.get("x-real-ip") ??
+    "";
+  const first = fwd.split(",")[0]?.trim();
+  if (!first) return null;
+  return `ip:${first}`;
+}
 
 export async function getOrCreateDemoId(): Promise<string> {
   const c = await cookies();
