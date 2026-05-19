@@ -8,18 +8,86 @@ import QuickAdd from "./events/QuickAdd";
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
-  // 1. Attendance over time
-  const overTime = await db
-    .select({
-      eventId: events.id,
-      name: events.name,
-      date: events.startDate,
-      count: sql<number>`count(${attendances.id})`.as("c"),
-    })
-    .from(events)
-    .leftJoin(attendances, eq(attendances.eventId, events.id))
-    .groupBy(events.id)
-    .orderBy(events.startDate);
+  const cutoff30 = new Date(Date.now() - 30 * 86400_000);
+  const cutoff60 = new Date(Date.now() - 60 * 86400_000);
+
+  const [
+    overTime,
+    totalStudents,
+    repeatRows,
+    recentRows,
+    coreMembers,
+    byYear,
+    byGender,
+    byType,
+    eventsLast30,
+    attendsLast30,
+    newStudentsLast30,
+    uniqueAttendees30,
+    hotRows,
+  ] = await Promise.all([
+    db
+      .select({
+        eventId: events.id,
+        name: events.name,
+        date: events.startDate,
+        count: sql<number>`count(${attendances.id})`.as("c"),
+      })
+      .from(events)
+      .leftJoin(attendances, eq(attendances.eventId, events.id))
+      .groupBy(events.id)
+      .orderBy(events.startDate),
+    db.select({ c: sql<number>`count(*)` }).from(students),
+    db
+      .select({ sid: attendances.studentId, c: sql<number>`count(*)`.as("c") })
+      .from(attendances)
+      .groupBy(attendances.studentId),
+    db
+      .select({ sid: attendances.studentId, c: sql<number>`count(*)`.as("c") })
+      .from(attendances)
+      .innerJoin(events, eq(attendances.eventId, events.id))
+      .where(gte(events.startDate, cutoff60))
+      .groupBy(attendances.studentId),
+    db.select({ c: sql<number>`count(*)` }).from(students).where(eq(students.memberStatus, "core")),
+    db
+      .select({ year: students.year, c: sql<number>`count(*)`.as("c") })
+      .from(students)
+      .where(isNotNull(students.year))
+      .groupBy(students.year),
+    db
+      .select({ gender: students.gender, c: sql<number>`count(*)`.as("c") })
+      .from(students)
+      .where(isNotNull(students.gender))
+      .groupBy(students.gender),
+    db
+      .select({ type: events.type, c: sql<number>`count(*)`.as("c") })
+      .from(events)
+      .where(isNotNull(events.type))
+      .groupBy(events.type),
+    db.select({ c: sql<number>`count(*)` }).from(events).where(gte(events.startDate, cutoff30)),
+    db
+      .select({ c: sql<number>`count(*)` })
+      .from(attendances)
+      .innerJoin(events, eq(attendances.eventId, events.id))
+      .where(gte(events.startDate, cutoff30)),
+    db.select({ c: sql<number>`count(*)` }).from(students).where(gte(students.createdAt, cutoff30)),
+    db
+      .select({ c: sql<number>`count(distinct ${attendances.studentId})` })
+      .from(attendances)
+      .innerJoin(events, eq(attendances.eventId, events.id))
+      .where(gte(events.startDate, cutoff30)),
+    db
+      .select({
+        sid: attendances.studentId,
+        visits: sql<number>`count(*)`.as("v"),
+        lastSeen: sql<number>`max(${events.startDate})`.as("ls"),
+      })
+      .from(attendances)
+      .innerJoin(events, eq(attendances.eventId, events.id))
+      .where(gte(events.startDate, cutoff60))
+      .groupBy(attendances.studentId),
+  ]);
+
   const overTimeData = overTime.map((r) => ({
     name: r.name,
     date: new Date(r.date).toLocaleDateString("en-US", { timeZone: "UTC" }),
@@ -27,25 +95,8 @@ export default async function DashboardPage() {
     eventId: r.eventId,
   }));
 
-  // 2. Funnel
-  const totalStudents = await db.select({ c: sql<number>`count(*)` }).from(students);
-  const cutoff60 = new Date(Date.now() - 60 * 86400_000);
-  const repeatRows = await db
-    .select({ sid: attendances.studentId, c: sql<number>`count(*)`.as("c") })
-    .from(attendances)
-    .groupBy(attendances.studentId);
   const repeatSet = new Set(repeatRows.filter((r) => Number(r.c) >= 2).map((r) => r.sid));
-  const recentRows = await db
-    .select({ sid: attendances.studentId, c: sql<number>`count(*)`.as("c") })
-    .from(attendances)
-    .innerJoin(events, eq(attendances.eventId, events.id))
-    .where(gte(events.startDate, cutoff60))
-    .groupBy(attendances.studentId);
   const activeSet = new Set(recentRows.filter((r) => Number(r.c) >= 3).map((r) => r.sid));
-  const coreMembers = await db
-    .select({ c: sql<number>`count(*)` })
-    .from(students)
-    .where(eq(students.memberStatus, "core"));
 
   const funnelData = [
     { stage: "All visitors", count: Number(totalStudents[0]?.c ?? 0) },
@@ -54,49 +105,14 @@ export default async function DashboardPage() {
     { stage: "Core members", count: Number(coreMembers[0]?.c ?? 0) },
   ];
 
-  // 3. Breakdowns
-  const byYear = await db
-    .select({ year: students.year, c: sql<number>`count(*)`.as("c") })
-    .from(students)
-    .where(isNotNull(students.year))
-    .groupBy(students.year);
-  const byGender = await db
-    .select({ gender: students.gender, c: sql<number>`count(*)`.as("c") })
-    .from(students)
-    .where(isNotNull(students.gender))
-    .groupBy(students.gender);
-  const byType = await db
-    .select({ type: events.type, c: sql<number>`count(*)`.as("c") })
-    .from(events)
-    .where(isNotNull(events.type))
-    .groupBy(events.type);
-
   const breakdowns = {
     year: byYear.map((r) => ({ name: r.year ?? "—", value: Number(r.c) })),
-    gender: byGender.map((r) => ({ name: r.gender === "M" ? "Male" : r.gender === "F" ? "Female" : "—", value: Number(r.c) })),
+    gender: byGender.map((r) => ({
+      name: r.gender === "M" ? "Male" : r.gender === "F" ? "Female" : "—",
+      value: Number(r.c),
+    })),
     eventType: byType.map((r) => ({ name: r.type ?? "—", value: Number(r.c) })),
   };
-
-  // 4. 30-day snapshot
-  const cutoff30 = new Date(Date.now() - 30 * 86400_000);
-  const eventsLast30 = await db
-    .select({ c: sql<number>`count(*)` })
-    .from(events)
-    .where(gte(events.startDate, cutoff30));
-  const attendsLast30 = await db
-    .select({ c: sql<number>`count(*)` })
-    .from(attendances)
-    .innerJoin(events, eq(attendances.eventId, events.id))
-    .where(gte(events.startDate, cutoff30));
-  const newStudentsLast30 = await db
-    .select({ c: sql<number>`count(*)` })
-    .from(students)
-    .where(gte(students.createdAt, cutoff30));
-  const uniqueAttendees30 = await db
-    .select({ c: sql<number>`count(distinct ${attendances.studentId})` })
-    .from(attendances)
-    .innerJoin(events, eq(attendances.eventId, events.id))
-    .where(gte(events.startDate, cutoff30));
 
   const snapshot = {
     events: Number(eventsLast30[0]?.c ?? 0),
@@ -105,17 +121,6 @@ export default async function DashboardPage() {
     newStudents: Number(newStudentsLast30[0]?.c ?? 0),
   };
 
-  // 5. Hot prospects: non-core students sorted by 60-day attendance.
-  const hotRows = await db
-    .select({
-      sid: attendances.studentId,
-      visits: sql<number>`count(*)`.as("v"),
-      lastSeen: sql<number>`max(${events.startDate})`.as("ls"),
-    })
-    .from(attendances)
-    .innerJoin(events, eq(attendances.eventId, events.id))
-    .where(gte(events.startDate, cutoff60))
-    .groupBy(attendances.studentId);
   const sortedHot = hotRows
     .map((r) => ({ sid: r.sid, visits: Number(r.visits), lastSeen: Number(r.lastSeen) }))
     .sort((a, b) => b.visits - a.visits);
@@ -127,7 +132,11 @@ export default async function DashboardPage() {
         .where(
           and(
             inArray(students.id, hotIds),
-            or(eq(students.memberStatus, "prospect"), eq(students.memberStatus, "member"), isNull(students.memberStatus))
+            or(
+              eq(students.memberStatus, "prospect"),
+              eq(students.memberStatus, "member"),
+              isNull(students.memberStatus)
+            )
           )
         )
     : [];

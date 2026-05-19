@@ -1,34 +1,45 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { feedback, users } from "../../../drizzle/schema";
-import { desc, eq } from "drizzle-orm";
+import { desc, eq, sql } from "drizzle-orm";
 import { requireUser } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
+const PAGE_SIZE = 25;
+
 export default async function FeedbackPage({
   searchParams,
 }: {
-  searchParams: Promise<{ ok?: string; page?: string }>;
+  searchParams: Promise<{ ok?: string; page?: string; n?: string }>;
 }) {
   const me = await requireUser();
   const sp = await searchParams;
   const fromPage = sp.page ?? "";
+  const pageNum = Math.max(1, Number.parseInt(sp.n ?? "1", 10) || 1);
+  const offset = (pageNum - 1) * PAGE_SIZE;
 
-  const recent = await db
-    .select({
-      id: feedback.id,
-      text: feedback.text,
-      page: feedback.page,
-      createdAt: feedback.createdAt,
-      authorName: users.displayName,
-      authorEmail: users.email,
-      authorId: users.id,
-    })
-    .from(feedback)
-    .leftJoin(users, eq(users.id, feedback.userId))
-    .orderBy(desc(feedback.createdAt))
-    .limit(50);
+  const [recent, totalRows] = await Promise.all([
+    db
+      .select({
+        id: feedback.id,
+        text: feedback.text,
+        page: feedback.page,
+        createdAt: feedback.createdAt,
+        authorName: users.displayName,
+        authorEmail: users.email,
+        authorId: users.id,
+      })
+      .from(feedback)
+      .leftJoin(users, eq(users.id, feedback.userId))
+      .orderBy(desc(feedback.createdAt))
+      .limit(PAGE_SIZE)
+      .offset(offset),
+    db.select({ c: sql<number>`count(*)` }).from(feedback),
+  ]);
+  const total = Number(totalRows[0]?.c ?? 0);
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   async function submit(formData: FormData) {
     "use server";
@@ -92,10 +103,11 @@ export default async function FeedbackPage({
       </form>
 
       <section className="space-y-3">
-        <h2 className="font-semibold">Recent ({recent.length})</h2>
+        <h2 className="font-semibold">Recent ({total})</h2>
         {recent.length === 0 ? (
           <p className="text-sm text-black/50">No feedback yet. Be the first.</p>
         ) : (
+          <>
           <ul className="space-y-2">
             {recent.map((r) => (
               <li key={r.id} className="card">
@@ -120,6 +132,32 @@ export default async function FeedbackPage({
               </li>
             ))}
           </ul>
+          {totalPages > 1 && (
+            <nav className="flex items-center justify-between text-sm">
+              <span className="text-black/60">
+                Page {pageNum} of {totalPages}
+              </span>
+              <div className="flex gap-2">
+                {pageNum > 1 && (
+                  <Link
+                    href={`/feedback?n=${pageNum - 1}`}
+                    className="btn-ghost border border-black/10 dark:border-white/10"
+                  >
+                    ← Prev
+                  </Link>
+                )}
+                {pageNum < totalPages && (
+                  <Link
+                    href={`/feedback?n=${pageNum + 1}`}
+                    className="btn-ghost border border-black/10 dark:border-white/10"
+                  >
+                    Next →
+                  </Link>
+                )}
+              </div>
+            </nav>
+          )}
+          </>
         )}
       </section>
     </div>

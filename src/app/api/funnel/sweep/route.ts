@@ -19,17 +19,10 @@ function extractToken(req: Request): string | null {
     if (m) return m[1].trim();
   }
   const url = new URL(req.url);
-  const q = url.searchParams.get("token");
-  if (q) return q;
-  return null;
+  return url.searchParams.get("token");
 }
 
-interface AuthResult {
-  ok: boolean;
-  trigger: SweepTrigger;
-}
-
-async function authorize(req: Request): Promise<AuthResult> {
+async function authorize(req: Request): Promise<{ ok: boolean; trigger: SweepTrigger }> {
   if (tokenMatches(extractToken(req))) return { ok: true, trigger: "scheduled" };
   const user = await getCurrentUser();
   return { ok: !!user, trigger: "manual" };
@@ -43,10 +36,9 @@ async function runSweep(req: Request, trigger: SweepTrigger) {
       thresholdDays = Math.floor(body.thresholdDays);
     }
   } catch {
-    // body is optional
+    /* optional body */
   }
-  const url = new URL(req.url);
-  const qDays = url.searchParams.get("thresholdDays");
+  const qDays = new URL(req.url).searchParams.get("thresholdDays");
   if (qDays && Number.isFinite(Number(qDays)) && Number(qDays) >= 1) {
     thresholdDays = Math.floor(Number(qDays));
   }
@@ -60,7 +52,6 @@ export async function POST(req: Request) {
   return runSweep(req, auth.trigger);
 }
 
-// Also accept GET so a simple cron / fetch can call it without a body.
 export async function GET(req: Request) {
   const auth = await authorize(req);
   if (!auth.ok) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
