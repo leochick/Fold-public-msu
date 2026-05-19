@@ -1,12 +1,16 @@
 import { cookies } from "next/headers";
 import { randomBytes } from "node:crypto";
 import bcrypt from "bcryptjs";
-import { eq, and, gt } from "drizzle-orm";
+import { eq, and, gt, asc } from "drizzle-orm";
 import { db } from "./db";
 import { users, sessions } from "../../drizzle/schema";
 
 const COOKIE = "fold_session";
 const TTL_DAYS = 30;
+
+export function isDemoMode() {
+  return process.env.DEMO_MODE === "1";
+}
 
 export async function hashPassword(plain: string) {
   return bcrypt.hash(plain, 10);
@@ -41,6 +45,10 @@ export async function destroySession() {
 }
 
 export async function getCurrentUser() {
+  if (isDemoMode()) {
+    const rows = await db.select().from(users).orderBy(asc(users.id)).limit(1);
+    return rows[0] ?? null;
+  }
   const c = await cookies();
   const id = c.get(COOKIE)?.value;
   if (!id) return null;

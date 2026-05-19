@@ -4,6 +4,9 @@ const PUBLIC = new Set(["/login", "/signup"]);
 
 export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
+  if (process.env.DEMO_MODE === "1") {
+    return NextResponse.next();
+  }
   if (PUBLIC.has(pathname) || pathname.startsWith("/_next") || pathname.startsWith("/api/")) {
     return NextResponse.next();
   }

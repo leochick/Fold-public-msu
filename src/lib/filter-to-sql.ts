@@ -71,5 +71,5 @@ export async function runFilter(spec: FilterSpec) {
   }
 
   const where = conds.length ? and(...conds) : undefined;
-  return db.select().from(students).where(where).orderBy(students.firstName);
+  return db.select().from(students).where(where).orderBy(students.firstName).limit(1000);
 }

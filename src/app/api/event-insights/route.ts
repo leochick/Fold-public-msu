@@ -2,7 +2,8 @@ export const maxDuration = 60;
 
 import { NextResponse } from "next/server";
 import { anthropic, EVENT_INSIGHTS_TOOL } from "@/lib/claude";
-import { getCurrentUser } from "@/lib/auth";
+import { getCurrentUser, isDemoMode } from "@/lib/auth";
+import { mockInsights } from "@/lib/demo-data";
 import type { EventAggregates } from "@/lib/event-features";
 
 const HAIKU = "claude-haiku-4-5-20251001";
@@ -10,6 +11,9 @@ const HAIKU = "claude-haiku-4-5-20251001";
 export async function POST(req: Request) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  if (isDemoMode()) {
+    return NextResponse.json({ insights: mockInsights() });
+  }
 
   let body: { aggregates?: EventAggregates };
   try {

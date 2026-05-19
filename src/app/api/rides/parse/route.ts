@@ -5,7 +5,8 @@ import { db } from "@/lib/db";
 import { students, rideSessions } from "../../../../../drizzle/schema";
 import { eq } from "drizzle-orm";
 import { anthropic, MODEL } from "@/lib/claude";
-import { getCurrentUser } from "@/lib/auth";
+import { getCurrentUser, isDemoMode } from "@/lib/auth";
+import { DEMO_NOTICE } from "@/lib/demo-data";
 import { PROPOSE_RIDE_PLAN_TOOL } from "@/lib/rides/claude-tools";
 import { placeRiders, type SolverRider, type SolverVehicle } from "@/lib/rides/solver";
 import type {
@@ -35,6 +36,7 @@ interface ToolInput {
 export async function POST(req: Request) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  if (isDemoMode()) return NextResponse.json({ error: DEMO_NOTICE }, { status: 503 });
 
   let body: {
     sessionId?: number;

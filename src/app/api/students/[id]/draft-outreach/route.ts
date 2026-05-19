@@ -12,7 +12,8 @@ import {
 import { eq, desc } from "drizzle-orm";
 import { anthropic, MODEL } from "@/lib/claude";
 import { DRAFT_OUTREACH_TOOL } from "@/lib/funnel/draft-tools";
-import { getCurrentUser } from "@/lib/auth";
+import { getCurrentUser, isDemoMode } from "@/lib/auth";
+import { DEMO_NOTICE } from "@/lib/demo-data";
 import type { Channel } from "@/lib/funnel/types";
 
 const CHANNELS: Channel[] = ["ig_dm", "text", "phone", "email", "in_person", "other"];
@@ -37,6 +38,7 @@ export async function POST(
 ) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  if (isDemoMode()) return NextResponse.json({ error: DEMO_NOTICE }, { status: 503 });
 
   const { id } = await params;
   const sid = Number(id);

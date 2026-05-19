@@ -120,6 +120,7 @@ Both Vercel and Cloudflare let you attach a custom domain in the project setting
 | `TURSO_AUTH_TOKEN` | Turso auth token | -- |
 | `ALLOWED_DOMAIN` | Restrict signups to a specific email domain | any |
 | `HOST` | Bind address | `127.0.0.1` |
+| `DEMO_MODE` | `1` to bypass login and mock AI insights for a public demo. **Never set this on a real ministry instance.** | unset |
 
 ## Project Structure
 

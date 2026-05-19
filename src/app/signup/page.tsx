@@ -24,7 +24,7 @@ export default async function SignupPage({
     if (!email.includes("@") || email.length < 5) redirect("/signup?error=email");
     const ALLOWED_DOMAIN = process.env.ALLOWED_DOMAIN;
     if (ALLOWED_DOMAIN && email.split("@")[1] !== ALLOWED_DOMAIN) redirect("/signup?error=domain");
-    if (password.length < 8) redirect("/signup?error=short");
+    if (password.length < 12) redirect("/signup?error=short");
 
     const [existing] = await db.select().from(users).where(eq(users.email, email)).limit(1);
     if (existing) redirect("/signup?error=taken");
@@ -42,7 +42,7 @@ export default async function SignupPage({
     sp.error === "missing" ? "Please fill all fields."
     : sp.error === "email" ? "That doesn't look like a valid email."
     : sp.error === "domain" ? `Only @${process.env.ALLOWED_DOMAIN} emails can sign up.`
-    : sp.error === "short" ? "Password must be at least 8 characters."
+    : sp.error === "short" ? "Password must be at least 12 characters."
     : sp.error === "taken" ? "An account already exists for that email — try signing in instead."
     : "";
 
@@ -64,7 +64,7 @@ export default async function SignupPage({
         </div>
         <div className="space-y-1">
           <label className="label" htmlFor="password">Password</label>
-          <input id="password" name="password" type="password" autoComplete="new-password" required minLength={8} className="input" />
+          <input id="password" name="password" type="password" autoComplete="new-password" required minLength={12} className="input" />
           <p className="text-xs text-black/50">8+ characters.</p>
         </div>
         <button className="btn-primary w-full" type="submit">Create account</button>

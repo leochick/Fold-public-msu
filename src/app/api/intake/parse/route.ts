@@ -5,7 +5,8 @@ import { db } from "@/lib/db";
 import { students, users } from "../../../../../drizzle/schema";
 import { eq } from "drizzle-orm";
 import { anthropic, MODEL } from "@/lib/claude";
-import { getCurrentUser } from "@/lib/auth";
+import { getCurrentUser, isDemoMode } from "@/lib/auth";
+import { DEMO_NOTICE } from "@/lib/demo-data";
 import { PARSE_INTAKE_TOOL } from "@/lib/funnel/claude-tools";
 import { findPossibleDuplicates } from "@/lib/funnel/dedup";
 import type { IntakePreview, ParsedContact, DedupCandidateWithName } from "@/lib/funnel/types";
@@ -35,6 +36,7 @@ interface ToolInput {
 export async function POST(req: Request) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  if (isDemoMode()) return NextResponse.json({ error: DEMO_NOTICE }, { status: 503 });
 
   let body: { text?: string };
   try {

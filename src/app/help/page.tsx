@@ -264,6 +264,13 @@ export default function HelpPage() {
           to happen) and the panel will start working.
         </Faq>
 
+        <Faq q="Are the AI Insights on the public demo real?">
+          No — on the public demo site, Insights are illustrative samples generated locally so
+          random visitors can&apos;t burn API tokens on the maintainer&apos;s key. To get real
+          AI-generated insights tailored to your own attendance data, fork the repo, add your
+          own Anthropic API key, and self-host. See the README for setup.
+        </Faq>
+
         <Faq q="Why did Smart Intake add someone as new when they're already in my roster?">
           The fuzzy match was too uncertain to call it the same person — usually a nickname or
           a misspelling. You can fix it on the preview screen before committing, or use{" "}

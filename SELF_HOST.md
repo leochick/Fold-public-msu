@@ -148,6 +148,15 @@ You're done when:
 - The seed `admin@example.com` user has been deleted or had its password changed.
 - The user knows where `/help` is and where to find the maintainer's feedback page.
 
+## A note on `DEMO_MODE`
+
+There is a `DEMO_MODE=1` env var that exists *only* for running the public demo site at fold-public.vercel.app. When it's on:
+
+- The login wall is bypassed. Every visitor acts as the first user in the database.
+- All AI features (Insights, Smart Intake, Ask, Modify, ride parsing, draft outreach) return mocked or canned responses instead of calling Anthropic.
+
+**Do not enable `DEMO_MODE` on a real ministry instance.** It exposes everything to anyone with the URL. If the user asks about it, explain clearly: it is for the maintainer's public showcase, not for their deployment.
+
 ## What this isn't
 
 - This is open-source software with no SLA, no support contract, no on-call rotation. If something breaks at 2am during retreat, the user has to fix it.
