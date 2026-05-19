@@ -10,6 +10,7 @@ const links = [
   { href: "/students", label: "Students" },
   { href: "/query", label: "Ask" },
   { href: "/rides", label: "Rides" },
+  { href: "/help", label: "Help" },
 ];
 
 export default function HeaderNav({
