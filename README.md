@@ -48,6 +48,66 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000) and sign in with `admin@example.com` / `password123`.
 
+## Authentication
+
+Fold uses **per-person email + password** accounts (bcrypt-hashed, cookie sessions, 30-day TTL). There is no SSO, OAuth, or magic-link option.
+
+- Each user signs up at `/signup` with their own email and password.
+- Set `ALLOWED_DOMAIN=yourchurch.org` to restrict signups to a single email domain. Leave it blank to allow any email.
+- The seed creates an initial `admin@example.com` / `password123` account. **Change the password (or delete the user) before going to production.**
+- `AUTH_SECRET` should be a long random string. Generate one with `openssl rand -hex 32`.
+
+## Deploying Your Own Copy
+
+The easiest path for a single ministry or student group is to fork this repo and deploy your own instance. Your data stays in your own Turso database; your Anthropic key is yours.
+
+### Option A — Vercel (recommended)
+
+1. **Fork** this repo on GitHub.
+2. **Create a Turso database** (free tier):
+   ```bash
+   brew install tursodatabase/tap/turso   # or see https://docs.turso.tech
+   turso auth signup
+   turso db create fold
+   turso db show fold --url               # → TURSO_DATABASE_URL
+   turso db tokens create fold            # → TURSO_AUTH_TOKEN
+   ```
+3. **Import the fork into Vercel** at [vercel.com/new](https://vercel.com/new). Framework preset auto-detects as Next.js.
+4. **Add environment variables** in the Vercel project settings:
+   - `ANTHROPIC_API_KEY` — from [console.anthropic.com](https://console.anthropic.com)
+   - `AUTH_SECRET` — `openssl rand -hex 32`
+   - `TURSO_DATABASE_URL` and `TURSO_AUTH_TOKEN` — from step 2
+   - `ALLOWED_DOMAIN` (optional) — e.g. `yourchurch.org`
+5. **Deploy.** After the first build, run the migration once against your Turso DB from your local machine:
+   ```bash
+   TURSO_DATABASE_URL=... TURSO_AUTH_TOKEN=... npx tsx scripts/migrate.ts
+   TURSO_DATABASE_URL=... TURSO_AUTH_TOKEN=... npx tsx scripts/seed.ts
+   ```
+6. Visit your Vercel URL, sign in with the seed account, change the password, and invite your team to sign up.
+
+### Option B — Cloudflare Pages
+
+Cloudflare Pages can run Next.js via the official adapter. Slightly more setup than Vercel.
+
+1. Fork the repo and provision Turso the same way as above.
+2. Install the Cloudflare adapter in your fork:
+   ```bash
+   npm install --save-dev @cloudflare/next-on-pages
+   ```
+3. In **Cloudflare → Workers & Pages → Create → Pages → Connect to Git**, pick your fork.
+4. Build settings:
+   - **Build command:** `npx @cloudflare/next-on-pages@1`
+   - **Build output directory:** `.vercel/output/static`
+   - **Compatibility flags:** `nodejs_compat`
+5. Add the same environment variables as the Vercel section.
+6. Run the migration/seed scripts against your Turso DB from your local machine (same commands as above).
+
+> **Note:** If you hit issues with Node-only APIs on Cloudflare's edge runtime, Vercel is the smoother path. The codebase is tested primarily on Node-runtime Next.js.
+
+### Custom domain
+
+Both Vercel and Cloudflare let you attach a custom domain in the project settings — point a CNAME from your DNS provider to the platform's target and you're done.
+
 ## Configuration
 
 | Variable | Description | Default |
