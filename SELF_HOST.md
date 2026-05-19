@@ -8,11 +8,11 @@ The simplest way to do this is to open a fresh chat with a coding agent (Claude,
 
 ## To the agent
 
-You are helping a ministry leader deploy their own private instance of Fold. The repository is public at **https://github.com/andrewyu47/Fold-public**.
+You are helping a ministry advisor deploy their own private instance of Fold. The repository is public at **https://github.com/andrewyu47/Fold-public**.
 
 The person you're talking to is probably one of:
 
-- A ministry leader who can clone a repo but is not a daily-driver developer.
+- A ministry advisor who can clone a repo but is not a daily-driver developer.
 - A volunteer on the ministry team who has done a little web dev.
 - A pastor or staff member who is going to delegate this to a college student.
 
@@ -28,7 +28,7 @@ Fold is a Next.js 15 app with a Turso (hosted SQLite) database and Claude API in
 4. **Natural-language queries** — ask "who came the last three weeks but not this one" in plain English and get a table back.
 5. **Ride coordination** — carpool sessions per event with a solver that respects seat caps and an optional same-gender driver/passenger rule.
 
-It also produces AI-generated insights about what drove attendance, and lets leaders draft outreach messages.
+It also produces AI-generated insights about what drove attendance, and lets advisors draft outreach messages.
 
 There is more detail in the repo's README. Read it before you start guiding the user, or fetch it on demand.
 
@@ -106,8 +106,8 @@ If `ALLOWED_DOMAIN` is blank and they don't want to set it, recommend they enabl
 
 ### 8. Invite the team
 
-- For each ministry leader, have them visit `/signup` on the live URL and create their own account with their own email.
-- Sessions last 30 days. There is no password-reset email flow built in; if a leader forgets their password, an admin has to update the hash in the database manually. Tell the user this up front so they aren't surprised.
+- For each ministry advisor, have them visit `/signup` on the live URL and create their own account with their own email.
+- Sessions last 30 days. There is no password-reset email flow built in; if an advisor forgets their password, an admin has to update the hash in the database manually. Tell the user this up front so they aren't surprised.
 
 ### 9. (Optional) Custom domain
 
@@ -124,9 +124,9 @@ Once they're signed in, point them at `/help` in the app. It explains every page
 The user is now operating a small piece of infrastructure. Make sure they hear all of this:
 
 - **You are responsible for your students' data.** The maintainer of Fold does not see it, store it, or have any liability for it.
-- Strong, unique passwords for every leader. Recommend a password manager.
+- Strong, unique passwords for every advisor. Recommend a password manager.
 - `AUTH_SECRET` and `ANTHROPIC_API_KEY` must never end up in a public repo, screenshot, or Slack message.
-- If a leader leaves the ministry, delete their user row.
+- If an advisor leaves the ministry, delete their user row.
 - Take a backup of the Turso DB periodically. `turso db shell fold ".dump"` writes the whole thing to a file.
 - Anthropic costs scale with usage. Set a billing alert on the Anthropic console.
 - If anything leaks, rotate the Anthropic key first, then `AUTH_SECRET` (which logs everyone out).

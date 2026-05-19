@@ -179,7 +179,7 @@ export function mockParseEventBatch() {
 
 export function mockParseUpdate() {
   return {
-    explanation: "I read this as 'mark Sam Rivera as core and add a note about being a small-group leader'.",
+    explanation: "I read this as 'mark Sam Rivera as core and add a note about being a small-group advisor'.",
     ambiguous: [],
     previews: [],
     creates: [

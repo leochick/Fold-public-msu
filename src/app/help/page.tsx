@@ -239,7 +239,7 @@ export default function HelpPage() {
 
       <Section id="account" title="Your account">
         <p>
-          Fold uses per-person email and password accounts. Each leader signs up at{" "}
+          Fold uses per-person email and password accounts. Each advisor signs up at{" "}
           <Link href="/signup" className="underline">/signup</Link> with their own email. There
           is no shared org login.
         </p>
@@ -286,7 +286,7 @@ export default function HelpPage() {
         <Faq q="What's the difference between prospect, member, and core?">
           Free-form labels with these defaults: <em>prospect</em> for someone who&apos;s shown
           up but isn&apos;t committed, <em>member</em> for someone who attends regularly,{" "}
-          <em>core</em> for leadership and the people you lean on to bring others. Use whatever
+          <em>core</em> for the advisor team and the people you lean on to bring others. Use whatever
           rubric your group prefers — Fold doesn&apos;t enforce anything on these.
         </Faq>
 
@@ -302,9 +302,9 @@ export default function HelpPage() {
           works better than &quot;recent attenders.&quot;
         </Faq>
 
-        <Faq q="Can two leaders be logged in at the same time on the same account?">
+        <Faq q="Can two advisors be logged in at the same time on the same account?">
           Yes — sessions are per cookie, not per device, and there&apos;s no exclusive lock. But
-          we recommend each leader sign up with their own email so feedback, contact attempts,
+          we recommend each advisor sign up with their own email so feedback, contact attempts,
           and edits are attributed correctly.
         </Faq>
 
@@ -320,7 +320,7 @@ export default function HelpPage() {
         <p className="mt-1">
           Drop a note on the{" "}
           <Link href="/feedback" className="underline">questions & feedback</Link> page — other
-          leaders can see and respond to it, and the maintainer reads everything.
+          advisors can see and respond to it, and the maintainer reads everything.
         </p>
       </section>
     </div>
