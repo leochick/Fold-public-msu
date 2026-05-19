@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
 import { events, students, attendances } from "../../drizzle/schema";
-import { anthropic, MODEL, PROPOSE_EVENT_BATCH_TOOL, PROPOSE_EVENT_BATCH_LIST_TOOL, EVENT_INSIGHTS_TOOL } from "@/lib/claude";
+import { anthropic, HAIKU, PROPOSE_EVENT_BATCH_TOOL, PROPOSE_EVENT_BATCH_LIST_TOOL, EVENT_INSIGHTS_TOOL } from "@/lib/claude";
 import { buildParseEventBatchSystem, buildParseEventBatchUserMsg } from "@/lib/prompts/parse-event-batch";
 import { EVENT_INSIGHTS_SYSTEM } from "@/lib/prompts/event-insights";
 import { EVENT_INSIGHTS_SINGLE_SYSTEM } from "@/lib/prompts/event-insights-single";
@@ -8,8 +8,6 @@ import { httpErr } from "@/lib/http";
 import { loadBasicRoster, formatRosterCompact, fuzzyMatchInviter } from "./roster";
 import { callClaudeOrThrow } from "./attendance";
 import type { CommitEventBatchBody, ParseEventBatchBody } from "@/lib/contracts/events";
-
-const HAIKU = "claude-haiku-4-5-20251001";
 
 export async function parseEventBatch(body: ParseEventBatchBody) {
   const roster = await loadBasicRoster();
@@ -20,7 +18,7 @@ export async function parseEventBatch(body: ParseEventBatchBody) {
 
   const resp = await callClaudeOrThrow(() =>
     anthropic.messages.create({
-      model: MODEL,
+      model: HAIKU,
       max_tokens: 2048,
       system,
       tools: [PROPOSE_EVENT_BATCH_TOOL, PROPOSE_EVENT_BATCH_LIST_TOOL],

@@ -1,7 +1,7 @@
 import { db } from "@/lib/db";
 import { eq } from "drizzle-orm";
 import { events, students, attendances } from "../../drizzle/schema";
-import { anthropic, MODEL, PARSE_ATTENDANCE_TOOL } from "@/lib/claude";
+import { anthropic, HAIKU, PARSE_ATTENDANCE_TOOL } from "@/lib/claude";
 import { PARSE_ATTENDANCE_SYSTEM, buildParseAttendanceUserMsg } from "@/lib/prompts/parse-attendance";
 import { httpErr } from "@/lib/http";
 import { loadBasicRoster, formatRosterCompact } from "./roster";
@@ -19,7 +19,7 @@ export async function parseAttendance(body: ParseAttendanceBody) {
 
   const resp = await callClaudeOrThrow(() =>
     anthropic.messages.create({
-      model: MODEL,
+      model: HAIKU,
       max_tokens: 2048,
       system: PARSE_ATTENDANCE_SYSTEM,
       tools: [PARSE_ATTENDANCE_TOOL],

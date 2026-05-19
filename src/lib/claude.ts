@@ -5,6 +5,7 @@ export const anthropic = new Anthropic({
 });
 
 export const MODEL = "claude-sonnet-4-6";
+export const HAIKU = "claude-haiku-4-5-20251001";
 
 export const PARSE_ATTENDANCE_TOOL: Anthropic.Tool = {
   name: "record_attendees",
