@@ -4,6 +4,8 @@ import { students, attendances, contactAttempts, users, funnelSweepLog } from ".
 import { sql, eq, and, desc } from "drizzle-orm";
 import type { FunnelStage } from "@/lib/funnel/types";
 import FunnelSweepButton from "../funnel/FunnelSweepButton";
+import RowActions from "../RowActions";
+import { deleteStudentAction } from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -204,6 +206,7 @@ export default async function StudentsPage({
                   <th>IG</th>
                   <th>Active</th>
                   <th>Contact</th>
+                  <th></th>
                 </tr>
               </thead>
               <tbody>
@@ -220,10 +223,17 @@ export default async function StudentsPage({
                     <td>{s.igHandle ? <span className="text-black/70">@{s.igHandle}</span> : <span className="text-black/30">—</span>}</td>
                     <td>{s.isActive ? "✓" : <span className="text-black/30">—</span>}</td>
                     <td className="text-sm">{s.primaryContact ?? <span className="text-black/30">—</span>}</td>
+                    <td className="text-right">
+                      <RowActions
+                        id={s.id}
+                        deleteAction={deleteStudentAction}
+                        confirmMessage={`Delete ${s.firstName} ${s.lastName ?? ""}? This also removes their attendance and contact history. This can't be undone.`}
+                      />
+                    </td>
                   </tr>
                 ))}
                 {rows.length === 0 && (
-                  <tr><td colSpan={6} className="text-center text-black/50 py-8">No students yet. Try <Link className="underline" href="/import">/import</Link>.</td></tr>
+                  <tr><td colSpan={7} className="text-center text-black/50 py-8">No students yet. Try <Link className="underline" href="/import">/import</Link>.</td></tr>
                 )}
               </tbody>
             </table>
@@ -267,7 +277,7 @@ export default async function StudentsPage({
           ) : (
             <table>
               <thead>
-                <tr><th>Name</th><th>Year</th><th>Status</th><th>Primary contact</th><th>Last seen</th></tr>
+                <tr><th>Name</th><th>Year</th><th>Status</th><th>Primary contact</th><th>Last seen</th><th></th></tr>
               </thead>
               <tbody>
                 {coldWithLast.map((s) => (
@@ -277,6 +287,13 @@ export default async function StudentsPage({
                     <td>{s.memberStatus ? <span className="chip">{s.memberStatus}</span> : "—"}</td>
                     <td className="text-sm">{s.primaryContact ?? <span className="text-black/30">—</span>}</td>
                     <td className="text-sm text-black/60">{s.lastSeen}</td>
+                    <td className="text-right">
+                      <RowActions
+                        id={s.id}
+                        deleteAction={deleteStudentAction}
+                        confirmMessage={`Delete ${s.firstName} ${s.lastName ?? ""}? This also removes their attendance and contact history. This can't be undone.`}
+                      />
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -351,7 +368,16 @@ export default async function StudentsPage({
                         <td className="text-xs text-black/60">
                           {last ? `${Math.floor((now - last.getTime()) / (24 * 60 * 60 * 1000))}d ago` : "—"}
                         </td>
-                        <td className="text-right"><Link href={`/students/${s.id}`} className="text-xs underline">open</Link></td>
+                        <td className="text-right">
+                          <span className="inline-flex items-center gap-2">
+                            <Link href={`/students/${s.id}`} className="text-xs underline">open</Link>
+                            <RowActions
+                              id={s.id}
+                              deleteAction={deleteStudentAction}
+                              confirmMessage={`Delete ${s.firstName} ${s.lastName ?? ""}? This also removes their attendance and contact history. This can't be undone.`}
+                            />
+                          </span>
+                        </td>
                       </tr>
                     );
                   })}

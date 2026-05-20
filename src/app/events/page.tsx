@@ -4,6 +4,8 @@ import { db } from "@/lib/db";
 import { events, attendances, students } from "../../../drizzle/schema";
 import { desc, sql, eq } from "drizzle-orm";
 import QuickAdd from "./QuickAdd";
+import RowActions from "../RowActions";
+import { deleteEventAction } from "./actions";
 import EventAnalytics from "./EventAnalytics";
 import { extractFeatures, aggregate, type FeaturedEvent } from "@/lib/event-features";
 import { perEventHealth, topInviters, type StudentLite, type AttendanceLite } from "@/lib/health-metrics";
@@ -139,6 +141,7 @@ export default async function EventsPage() {
               <th>Date</th>
               <th>Location</th>
               <th>Attendees</th>
+              <th></th>
             </tr>
           </thead>
           <tbody>
@@ -151,10 +154,17 @@ export default async function EventsPage() {
                 <td>{new Date(e.startDate).toLocaleDateString()}</td>
                 <td>{e.location ?? <span className="text-black/30">—</span>}</td>
                 <td>{Number(count)}</td>
+                <td className="text-right">
+                  <RowActions
+                    id={e.id}
+                    deleteAction={deleteEventAction}
+                    confirmMessage={`Delete "${e.name}" and its ${Number(count)} attendance record(s)? This can't be undone.`}
+                  />
+                </td>
               </tr>
             ))}
             {rows.length === 0 && (
-              <tr><td colSpan={5} className="text-center text-black/50 py-8">No events yet. Create one above.</td></tr>
+              <tr><td colSpan={6} className="text-center text-black/50 py-8">No events yet. Create one above.</td></tr>
             )}
           </tbody>
         </table>
