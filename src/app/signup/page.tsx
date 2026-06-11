@@ -31,6 +31,7 @@ export default async function SignupPage({
         headers: await headers(),
       });
     } catch (err) {
+      console.error("!! CRITICAL SIGNUP FAILURE RAW ERROR !!", err);
       const message = err instanceof Error ? err.message : "";
       if (/already exists|user.*exists/i.test(message)) redirect("/signup?error=taken");
       redirect("/signup?error=missing");
