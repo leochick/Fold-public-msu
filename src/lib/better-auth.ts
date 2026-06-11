@@ -51,10 +51,7 @@ export const auth = betterAuth({
   advanced: {
     cookiePrefix: "fold",
     database: {
-      // users.id is integer autoincrement — tell BA to let SQLite generate it.
-      // session/account/verification use text PKs — we generate hex ids.
       generateId: ({ model }) => {
-        if (model === "user") return false;
         return randomBytes(16).toString("hex");
       },
     },
