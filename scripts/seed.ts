@@ -26,6 +26,7 @@ await db.insert(account).values({
   password: hash,
 });
 console.log("Created user:", admin.email);
+console.log("Created password hash:", hash)
 
 // 2. Create students
 const studentData: Array<{
