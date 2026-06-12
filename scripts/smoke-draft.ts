@@ -9,7 +9,6 @@ import { createClient } from "@libsql/client";
 import { drizzle } from "drizzle-orm/libsql";
 import { eq, desc } from "drizzle-orm";
 import { randomBytes } from "node:crypto";
-import bcrypt from "bcryptjs";
 import * as schema from "../drizzle/schema";
 const { users, sessions, students } = schema;
 
@@ -23,8 +22,7 @@ const db = drizzle(client, { schema });
 async function ensureUser(email: string, displayName: string) {
   let [u] = await db.select().from(users).where(eq(users.email, email)).limit(1);
   if (!u) {
-    const passwordHash = await bcrypt.hash("smoketest", 10);
-    [u] = await db.insert(users).values({ email, name: displayName, password: passwordHash }).returning();
+    [u] = await db.insert(users).values({ email, name: displayName, password: "smoketest" }).returning();
   }
   return u;
 }

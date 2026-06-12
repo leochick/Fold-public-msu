@@ -1,6 +1,5 @@
 import { createClient } from "@libsql/client";
 import { drizzle } from "drizzle-orm/libsql";
-import bcrypt from "bcryptjs";
 import { randomBytes } from "node:crypto";
 import { users, account, students, events, attendances, sessions } from "../drizzle/schema";
 import { sql } from "drizzle-orm";
@@ -29,13 +28,12 @@ async function main() {
   await db.delete(account);
   await db.delete(users);
 
-  const hash = bcrypt.hashSync("password123", 10);
   const [admin] = await db
     .insert(users)
     .values({
       email: "admin@example.com",
       name: "Andrew (demo)",
-      password: hash,
+      password: "password1234",
     })
     .returning();
   await db.insert(account).values({
@@ -43,7 +41,7 @@ async function main() {
     accountId: String(admin.id),
     providerId: "credential",
     userId: admin.id,
-    password: hash,
+    password: "password1234",
   });
   console.log("Created admin user");
 
