@@ -13,13 +13,15 @@ export async function getCurrentUser() {
     const rows = await db.select().from(users).orderBy(asc(users.id)).limit(1);
     return rows[0] ?? null;
   }
+
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session?.user) return null;
-  const userId =
-    typeof session.user.id === "number"
-      ? session.user.id
-      : Number(session.user.id);
-  if (!Number.isFinite(userId)) return null;
+
+  // Modern Better Auth IDs can be strings or integers.
+  // Let's pass the raw session ID cleanly to the database query:
+  const userId = session.user.id;
+  if (!userId) return null;
+
   const [row] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
   return row ?? null;
 }
