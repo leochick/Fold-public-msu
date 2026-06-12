@@ -1,7 +1,6 @@
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { randomBytes } from "node:crypto";
-import bcrypt from "bcryptjs";
 import { db } from "./db";
 import * as schema from "../../drizzle/schema";
 
