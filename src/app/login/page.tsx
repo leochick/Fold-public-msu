@@ -18,15 +18,27 @@ export default async function LoginPage({
     const email = String(formData.get("email") || "").trim().toLowerCase();
     const password = String(formData.get("password") || "");
     if (!email || !password) redirect("/login?error=missing");
+
+    let isSuccess = false;
+
     try {
       await auth.api.signInEmail({
         body: { email, password },
         headers: await headers(),
       });
-    } catch {
+      isSuccess = true;
+    } catch (err) {
+      // If the error is a Next.js redirect signal, let it pass through normally
+      if (err instanceof Error && err.message === "NEXT_REDIRECT") {
+        throw err;
+      }
       redirect("/login?error=invalid");
     }
-    redirect("/");
+
+    // Only redirect down here once the asynchronous auth headers are locked in
+    if (isSuccess) {
+      redirect("/");
+    }
   }
 
   return (
