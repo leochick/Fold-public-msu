@@ -27,7 +27,11 @@ export default async function SignupPage({
 
     try {
       await auth.api.signUpEmail({
-        body: { email, password, name: displayName },
+        body: {
+          email: email,
+          password: password,
+          name: displayName
+        },
         headers: await headers(),
       });
     } catch (err) {
