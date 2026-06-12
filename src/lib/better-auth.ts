@@ -35,10 +35,6 @@ export const auth = betterAuth({
     enabled: true,
     minPasswordLength: 12,
     autoSignIn: true,
-    password: {
-      hash: async (password) => await bcrypt.hash(password, 10),
-      verify: async ({ hash, password }) => await bcrypt.compare(password, hash),
-    },
   },
   advanced: {
     cookiePrefix: "fold",
