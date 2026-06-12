@@ -25,8 +25,6 @@ export const auth = betterAuth({
     modelName: "users",
     fields: {
       name: "displayName",
-      // Tell Better Auth to write its password strings into your password_hash column
-      password: "passwordHash",
     },
   },
   session: {
