@@ -17,11 +17,13 @@ export async function getCurrentUser() {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session?.user) return null;
 
-  // Modern Better Auth IDs can be strings or integers.
-  // Let's pass the raw session ID cleanly to the database query:
-  const userId = session.user.id;
-  if (!userId) return null;
+  // Explicitly cast the session user ID string to a number for TypeScript alignment
+  const userId = Number(session.user.id);
 
+  // Guard clause against NaN or invalid numbers
+  if (isNaN(userId)) return null;
+
+  // Now users.id (number) matches userId (number) perfectly!
   const [row] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
   return row ?? null;
 }
