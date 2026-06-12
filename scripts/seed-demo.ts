@@ -35,7 +35,7 @@ async function main() {
     .values({
       email: "admin@example.com",
       displayName: "Andrew (demo)",
-      passwordHash: hash,
+      password: hash,
     })
     .returning();
   await db.insert(account).values({
