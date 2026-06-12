@@ -103,7 +103,7 @@ export default async function StudentsPage({
     const allAttempts = await db
       .select({ studentId: contactAttempts.studentId, attemptedAt: contactAttempts.attemptedAt, responded: contactAttempts.responded, attemptedByUserId: contactAttempts.attemptedByUserId })
       .from(contactAttempts).orderBy(desc(contactAttempts.attemptedAt));
-    const userRows = await db.select({ id: users.id, displayName: users.displayName }).from(users);
+    const userRows = await db.select({ id: users.id, displayName: users.name }).from(users);
     const userById = new Map(userRows.map((u) => [u.id, u.displayName]));
 
     const attemptStats = new Map<number, { count: number; lastAt: Date | null; lastResponded: boolean; leaderIds: Set<number> }>();

@@ -33,7 +33,7 @@ export async function parseIntake(text: string): Promise<IntakePreview> {
     })
     .from(students);
 
-  const allUsers = await db.select({ id: users.id, displayName: users.displayName }).from(users);
+  const allUsers = await db.select({ id: users.id, displayName: users.name }).from(users);
   const userById = new Map(allUsers.map((u) => [u.id, u.displayName]));
 
   const rosterCompact = roster

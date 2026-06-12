@@ -78,7 +78,7 @@ export default async function FunnelPage({
     .from(attendances)
     .orderBy(desc(attendances.recordedAt));
 
-  const userRows = await db.select({ id: users.id, displayName: users.displayName }).from(users);
+  const userRows = await db.select({ id: users.id, displayName: users.name }).from(users);
   const userById = new Map(userRows.map((u) => [u.id, u.displayName]));
 
   // Aggregate per student

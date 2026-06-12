@@ -225,7 +225,7 @@ export async function draftOutreach(
       attemptedAt: contactAttempts.attemptedAt,
       responded: contactAttempts.responded,
       notes: contactAttempts.notes,
-      byName: users.displayName,
+      byName: users.name,
     })
     .from(contactAttempts)
     .leftJoin(users, eq(users.id, contactAttempts.attemptedByUserId))

@@ -27,7 +27,7 @@ export default async function FeedbackPage({
         text: feedback.text,
         page: feedback.page,
         createdAt: feedback.createdAt,
-        authorName: users.displayName,
+        authorName: users.name,
         authorEmail: users.email,
         authorId: users.id,
       })

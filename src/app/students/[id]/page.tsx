@@ -38,7 +38,7 @@ export default async function StudentPage({ params }: { params: Promise<{ id: st
       attemptedAt: contactAttempts.attemptedAt,
       responded: contactAttempts.responded,
       notes: contactAttempts.notes,
-      byName: users.displayName,
+      byName: users.name,
     })
     .from(contactAttempts)
     .leftJoin(users, eq(users.id, contactAttempts.attemptedByUserId))
