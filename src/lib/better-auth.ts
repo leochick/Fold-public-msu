@@ -23,9 +23,6 @@ export const auth = betterAuth({
   }),
   user: {
     modelName: "users",
-    fields: {
-      name: "displayName",
-    },
   },
   session: {
     modelName: "sessions",
