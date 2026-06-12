@@ -19,7 +19,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                 <Link href="/" className="font-semibold tracking-tight">
                   ✶ Fold
                 </Link>
-                <HeaderNav displayName={user.displayName} signOutAction={destroySessionAction} />
+                <HeaderNav displayName={user.name} signOutAction={destroySessionAction} />
               </div>
             </header>
           )}

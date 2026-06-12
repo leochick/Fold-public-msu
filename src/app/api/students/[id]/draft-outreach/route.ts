@@ -8,7 +8,7 @@ export const POST = withAuth<{ id: string }, typeof draftOutreachBody>(
   async ({ user, params, body }) => {
     const sid = Number(params.id);
     if (!Number.isFinite(sid)) throw httpErr.badRequest("bad id");
-    return draftOutreach(user.displayName, sid, body);
+    return draftOutreach(user.name, sid, body);
   },
   { bodySchema: draftOutreachBody }
 );
