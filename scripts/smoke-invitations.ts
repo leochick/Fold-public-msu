@@ -35,7 +35,7 @@ async function ensureUser() {
   let [u] = await db.select().from(users).where(eq(users.email, email)).limit(1);
   if (!u) {
     const passwordHash = await bcrypt.hash("smoketest", 10);
-    [u] = await db.insert(users).values({ email, displayName: "Test Admin", password: passwordHash }).returning();
+    [u] = await db.insert(users).values({ email, name: "Test Admin", password: passwordHash }).returning();
   }
   return u;
 }

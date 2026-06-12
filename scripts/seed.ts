@@ -16,7 +16,7 @@ async function main() {
 const hash = bcrypt.hashSync("password123", 10);
 const [admin] = await db
   .insert(users)
-  .values({ email: "admin@example.com", displayName: "Admin", password: hash })
+  .values({ email: "admin@example.com", name: "Admin", password: hash })
   .returning();
 await db.insert(account).values({
   id: randomBytes(16).toString("hex"),

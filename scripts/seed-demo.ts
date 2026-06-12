@@ -34,7 +34,7 @@ async function main() {
     .insert(users)
     .values({
       email: "admin@example.com",
-      displayName: "Andrew (demo)",
+      name: "Andrew (demo)",
       password: hash,
     })
     .returning();
