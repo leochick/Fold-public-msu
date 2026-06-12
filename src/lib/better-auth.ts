@@ -35,10 +35,9 @@ export const auth = betterAuth({
     enabled: true,
     minPasswordLength: 12,
     autoSignIn: true,
-    // Use bcrypt so the backfilled hashes from the pre-better-auth era still verify.
     password: {
-      hash: (password) => bcrypt.hash(password, 10),
-      verify: ({ hash, password }) => bcrypt.compare(password, hash),
+      hash: async (password) => await bcrypt.hash(password, 10),
+      verify: async ({ hash, password }) => await bcrypt.compare(password, hash),
     },
   },
   advanced: {

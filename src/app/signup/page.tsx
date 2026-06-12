@@ -28,8 +28,8 @@ export default async function SignupPage({
     try {
       await auth.api.signUpEmail({
         body: {
-          email: email,
-          password: password,
+          email,
+          password,
           name: displayName
         },
         headers: await headers(),
