@@ -14,34 +14,34 @@ export default async function SignupPage({
   const sp = await searchParams;
 
   async function signup(formData: FormData) {
-    "use server";
-    const email = String(formData.get("email") || "").trim().toLowerCase();
-    const displayName = String(formData.get("displayName") || "").trim();
-    const password = String(formData.get("password") || "");
+  "use server";
 
-    if (!email || !displayName || !password) redirect("/signup?error=missing");
-    if (!email.includes("@") || email.length < 5) redirect("/signup?error=email");
-    const ALLOWED_DOMAIN = process.env.ALLOWED_DOMAIN;
-    if (ALLOWED_DOMAIN && email.split("@")[1] !== ALLOWED_DOMAIN) redirect("/signup?error=domain");
-    if (password.length < 12) redirect("/signup?error=short");
+  const resolvedHeaders = await headers();
 
-    try {
-      await auth.api.signUpEmail({
-        body: {
-          email,
-          password,
-          name: displayName
-        },
-        headers: await headers(),
-      });
-    } catch (err) {
-      console.error("!! CRITICAL SIGNUP FAILURE RAW ERROR !!", err);
-      const message = err instanceof Error ? err.message : "";
-      if (/already exists|user.*exists/i.test(message)) redirect("/signup?error=taken");
-      redirect("/signup?error=missing");
-    }
-    redirect("/");
+  const targetEmail = String(formData.get("email") || "").trim().toLowerCase();
+  const targetPassword = String(formData.get("password") || "");
+  const targetName = String(formData.get("name") || "").trim();
+
+  if (!targetEmail || !targetPassword || !targetName) {
+    redirect("/signup?error=missing");
   }
+
+  try {
+    await auth.api.signUpEmail({
+      body: {
+        email: targetEmail,
+        password: targetPassword,
+        name: targetName
+      },
+      headers: resolvedHeaders,
+    });
+  } catch (err) {
+    if (err instanceof Error && err.message === "NEXT_REDIRECT") throw err;
+    redirect("/signup?error=invalid");
+  }
+
+  redirect("/");
+}
 
   const errorMsg =
     sp.error === "missing" ? "Please fill all fields."
