@@ -18,20 +18,23 @@ export default async function SignupPage({
 
   const resolvedHeaders = await headers();
 
-  const targetEmail = String(formData.get("email") || "").trim().toLowerCase();
-  const targetPassword = String(formData.get("password") || "");
-  const targetName = String(formData.get("name") || "").trim();
+  const email = String(formData.get("email") || "").trim().toLowerCase();
+  const password = String(formData.get("password") || "");
 
-  if (!targetEmail || !targetPassword || !targetName) {
+  // Try reading both "name" and "displayName" to be absolutely safe
+  const displayName = String(formData.get("name") || formData.get("displayName") || "").trim();
+
+  // If this triggers the error, it means an input value is literally blank
+  if (!email || !password || !displayName) {
     redirect("/signup?error=missing");
   }
 
   try {
     await auth.api.signUpEmail({
       body: {
-        email: targetEmail,
-        password: targetPassword,
-        name: targetName
+        email,
+        password,
+        name: displayName
       },
       headers: resolvedHeaders,
     });
@@ -61,7 +64,7 @@ export default async function SignupPage({
         {errorMsg && <div className="text-sm text-red-600">{errorMsg}</div>}
         <div className="space-y-1">
           <label className="label" htmlFor="displayName">Your name</label>
-          <input id="displayName" name="displayName" required className="input" placeholder="e.g. Alex Rivera" />
+          <input id="displayName" name="name" required className="input" placeholder="e.g. Alex Rivera" />
         </div>
         <div className="space-y-1">
           <label className="label" htmlFor="email">Email</label>
