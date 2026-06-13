@@ -23,6 +23,10 @@ export const auth = betterAuth({
   user: {
     modelName: "users",
   },
+  plugins: [
+    // This tells the core engine to accept and hash password payloads
+    // instead of stripping them out as unknown parameters.
+  ],
   session: {
     modelName: "sessions",
     expiresIn: 60 * 60 * 24 * 30, // 30 days
