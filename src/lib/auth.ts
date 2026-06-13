@@ -17,11 +17,11 @@ export async function getCurrentUser() {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session?.user) return null;
 
-  // Since user.id will be an auto-incremented integer string ("16"), parse it to a number
-  const userId = Number(session.user.id);
-  if (!userId || isNaN(userId)) return null;
+  const userId = session.user.id;
+  if (!userId) return null;
 
-  const [row] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
+  // Perform a clean comparison by casting the target match explicitly
+  const [row] = await db.select().from(users).where(eq(users.id, Number(userId))).limit(1);
   return row ?? null;
 }
 
