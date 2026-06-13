@@ -40,7 +40,7 @@ async function main() {
     id: randomBytes(16).toString("hex"),
     accountId: String(admin.id),
     providerId: "credential",
-    userId: admin.id,
+    userId: String(admin.id),
     password: "password1234",
   });
   console.log("Created admin user");

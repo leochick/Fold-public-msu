@@ -28,7 +28,7 @@ async function ensureUser(email: string, displayName: string) {
   return u;
 }
 
-async function mintCookie(userId: number) {
+async function mintCookie(userId: string) {
   const id = randomBytes(32).toString("hex");
   const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
   await db.insert(sessions).values({ id, token: id, userId, expiresAt });
@@ -47,8 +47,8 @@ async function main() {
 
   const leaderA = await ensureUser("smoke-a@example.com", "Leader A");
   const leaderB = await ensureUser("smoke-b@example.com", "Leader B");
-  const cookieA = await mintCookie(leaderA.id);
-  const cookieB = await mintCookie(leaderB.id);
+  const cookieA = await mintCookie(String(leaderA.id));
+  const cookieB = await mintCookie(String(leaderB.id));
 
   console.log("\n=== Window A: paste 'Jordan Chen, freshman bro, IG @jordanc99, met at the booth tonight' ===");
   const parseA = await fetch(BASE + "/api/intake/parse", {

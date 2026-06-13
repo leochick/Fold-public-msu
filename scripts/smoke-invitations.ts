@@ -38,7 +38,7 @@ async function ensureUser() {
   return u;
 }
 
-async function mintCookie(userId: number) {
+async function mintCookie(userId: string) {
   const id = randomBytes(32).toString("hex");
   await db.insert(sessions).values({ id, token: id, userId, expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000) });
   return `fold.session_token=${id}`;
@@ -71,7 +71,7 @@ async function ensureInviter() {
 async function main() {
   await cleanup();
   const u = await ensureUser();
-  const cookie = await mintCookie(u.id);
+  const cookie = await mintCookie(String(u.id));
   const mike = await ensureInviter();
 
   console.log(`Inviter pre-seeded: ${mike.firstName} ${mike.lastName} (#${mike.id})`);

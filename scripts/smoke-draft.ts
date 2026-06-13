@@ -27,7 +27,7 @@ async function ensureUser(email: string, displayName: string) {
   return u;
 }
 
-async function mintCookie(userId: number) {
+async function mintCookie(userId: string) {
   const id = randomBytes(32).toString("hex");
   const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
   await db.insert(sessions).values({ id, token: id, userId, expiresAt });
@@ -36,7 +36,7 @@ async function mintCookie(userId: number) {
 
 async function main() {
   const u = await ensureUser("smoke-draft@example.com", "Test Admin");
-  const cookie = await mintCookie(u.id);
+  const cookie = await mintCookie(String(u.id));
 
   // Pick a student that has notes or contact attempts so Claude has something to lean on.
   const candidates = await db

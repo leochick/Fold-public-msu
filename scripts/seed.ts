@@ -20,7 +20,7 @@ await db.insert(account).values({
   id: randomBytes(16).toString("hex"),
   accountId: String(admin.id),
   providerId: "credential",
-  userId: admin.id,
+  userId: String(admin.id),
   password: "password123",
 });
 console.log("Created user:", admin.email);
