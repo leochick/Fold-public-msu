@@ -29,7 +29,7 @@ async function main() {
   await db.delete(account);
   await db.delete(users);
 
-  const hash = bcrypt.hashSync("password123", 10);
+  const hash = bcrypt.hashSync("password1234", 10);
   const [admin] = await db
     .insert(users)
     .values({

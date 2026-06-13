@@ -13,7 +13,7 @@ const db = drizzle(client);
 
 async function main() {
 // 1. Create admin user + matching account row for better-auth credential login.
-const hash = bcrypt.hashSync("password123", 10);
+const hash = bcrypt.hashSync("password1234", 10);
 const [admin] = await db
   .insert(users)
   .values({ email: "admin@example.com", displayName: "Admin", passwordHash: hash })

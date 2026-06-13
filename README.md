@@ -46,7 +46,7 @@ npx tsx scripts/seed.ts
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) and sign in with `admin@example.com` / `password123`.
+Open [http://localhost:3000](http://localhost:3000) and sign in with `admin@example.com` / `password1234`.
 
 ## Authentication
 
@@ -54,7 +54,7 @@ Fold uses **per-person email + password** accounts via [Better Auth](https://bet
 
 - Each user signs up at `/signup` with their own email and password.
 - Set `ALLOWED_DOMAIN=yourchurch.org` to restrict signups to a single email domain. Leave it blank to allow any email.
-- The seed creates an initial `admin@example.com` / `password123` account. **Change the password (or delete the user) before going to production.**
+- The seed creates an initial `admin@example.com` / `password1234` account. **Change the password (or delete the user) before going to production.**
 - `AUTH_SECRET` should be a long random string. Generate one with `openssl rand -hex 32`.
 
 ## Deploying Your Own Copy

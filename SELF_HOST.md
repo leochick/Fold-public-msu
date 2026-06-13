@@ -89,7 +89,7 @@ TURSO_DATABASE_URL=... TURSO_AUTH_TOKEN=... npx tsx scripts/migrate.ts
 TURSO_DATABASE_URL=... TURSO_AUTH_TOKEN=... npx tsx scripts/seed.ts
 ```
 
-The seed creates a default admin user: `admin@example.com` / `password123`. This is intentionally trivial because it's about to be changed.
+The seed creates a default admin user: `admin@example.com` / `password1234`. This is intentionally trivial because it's about to be changed.
 
 ### 7. Lock down the seed account
 
