@@ -17,14 +17,12 @@ export async function getCurrentUser() {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session?.user) return null;
 
-  // Explicitly cast the session user ID string to a number for TypeScript alignment
-  const userId = Number(session.user.id);
+  // Stop using Number() or checking for NaN. Better Auth uses strings here.
+  const userId = session.user.id;
+  if (!userId) return null;
 
-  // Guard clause against NaN or invalid numbers
-  if (isNaN(userId)) return null;
-
-  // Now users.id (number) matches userId (number) perfectly!
-  const [row] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
+  // Cast users.id to string or match it directly depending on how your schema settled
+  const [row] = await db.select().from(users).where(eq(users.id, userId as any)).limit(1);
   return row ?? null;
 }
 
