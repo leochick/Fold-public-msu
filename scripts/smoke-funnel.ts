@@ -23,7 +23,7 @@ const db = drizzle(client, { schema });
 async function ensureUser(email: string, displayName: string) {
   let [u] = await db.select().from(users).where(eq(users.email, email)).limit(1);
   if (!u) {
-    [u] = await db.insert(users).values({ email, name: displayName, password: "smoketest" }).returning();
+    [u] = await db.insert(users).values({ id: randomBytes(16).toString("hex"), email, name: displayName, password: "smoketest" }).returning();
   }
   return u;
 }

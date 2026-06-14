@@ -20,8 +20,8 @@ export async function getCurrentUser() {
   const userId = session.user.id;
   if (!userId) return null;
 
-  // Perform a clean comparison by casting the target match explicitly
-  const [row] = await db.select().from(users).where(eq(users.id, Number(userId))).limit(1);
+  // No number casting needed—this is now a pure string-to-string match!
+  const [row] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
   return row ?? null;
 }
 

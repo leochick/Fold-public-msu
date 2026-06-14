@@ -77,13 +77,13 @@ export default async function StudentsPage({
     .orderBy(students.firstName);
 
   // --- Funnel data (only loaded when on funnel tab) ---
-  type FunnelStudent = { id: number; firstName: string; lastName: string | null; funnelStage: string; addedByUserId: number | null; firstMetContext: string | null; createdAt: Date };
+  type FunnelStudent = { id: number; firstName: string; lastName: string | null; funnelStage: string; addedByUserId: string | null; firstMetContext: string | null; createdAt: Date };
   let funnelData: {
     allStudents: FunnelStudent[];
     filtered: FunnelStudent[];
     countByStage: Record<string, number>;
-    attemptStats: Map<number, { count: number; lastAt: Date | null; lastResponded: boolean; leaderIds: Set<number> }>;
-    userById: Map<number, string>;
+    attemptStats: Map<number, { count: number; lastAt: Date | null; lastResponded: boolean; leaderIds: Set<string> }>;
+    userById: Map<string, string>;
     recentSweeps: any[];
     activeStage: FunnelStage | null;
     activeFilter: FilterKey | null;
@@ -106,9 +106,9 @@ export default async function StudentsPage({
     const userRows = await db.select({ id: users.id, displayName: users.name }).from(users);
     const userById = new Map(userRows.map((u) => [u.id, u.displayName]));
 
-    const attemptStats = new Map<number, { count: number; lastAt: Date | null; lastResponded: boolean; leaderIds: Set<number> }>();
+    const attemptStats = new Map<number, { count: number; lastAt: Date | null; lastResponded: boolean; leaderIds: Set<string> }>();
     for (const a of allAttempts) {
-      const s = attemptStats.get(a.studentId) ?? { count: 0, lastAt: null, lastResponded: false, leaderIds: new Set<number>() };
+      const s = attemptStats.get(a.studentId) ?? { count: 0, lastAt: null, lastResponded: false, leaderIds: new Set<string>() };
       s.count += 1;
       if (!s.lastAt || a.attemptedAt > s.lastAt) { s.lastAt = a.attemptedAt; s.lastResponded = !!a.responded; }
       if (a.attemptedByUserId) s.leaderIds.add(a.attemptedByUserId);

@@ -61,7 +61,7 @@ export async function parseEventBatch(body: ParseEventBatchBody) {
   return { mode: "single" as const, event: out.event, attendees };
 }
 
-export async function commitEventBatch(userId: number, body: CommitEventBatchBody) {
+export async function commitEventBatch(userId: string, body: CommitEventBatchBody) {
   if (body.mode === "batch") {
     const created: Array<{ id: number; name: string; date: string }> = [];
     for (const ev of body.events) {

@@ -89,7 +89,7 @@ export async function hydrateUpdatePreview(out: {
   };
 }
 
-export async function commitUpdates(userId: number, body: z.infer<typeof commitUpdatesBody>) {
+export async function commitUpdates(userId: string, body: z.infer<typeof commitUpdatesBody>) {
   let applied = 0;
   let created = 0;
   let deleted = 0;
@@ -167,7 +167,7 @@ export async function setFunnelStage(studentId: number, body: z.infer<typeof fun
   return { ok: true };
 }
 
-export async function logContact(userId: number, body: z.infer<typeof contactLogBody>) {
+export async function logContact(userId: string, body: z.infer<typeof contactLogBody>) {
   const [s] = await db
     .select()
     .from(students)

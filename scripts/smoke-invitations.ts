@@ -33,7 +33,7 @@ async function ensureUser() {
   const email = "smoke-invites@example.com";
   let [u] = await db.select().from(users).where(eq(users.email, email)).limit(1);
   if (!u) {
-    [u] = await db.insert(users).values({ email, name: "Test Admin", password: "smoketest" }).returning();
+    [u] = await db.insert(users).values({ id: randomBytes(16).toString("hex"), email, name: "Test Admin", password: "smoketest" }).returning();
   }
   return u;
 }

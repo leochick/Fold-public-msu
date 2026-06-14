@@ -84,7 +84,7 @@ export default async function FunnelPage({
   // Aggregate per student
   const attemptStats = new Map<
     number,
-    { count: number; lastAt: Date | null; lastResponded: boolean; leaderIds: Set<number> }
+    { count: number; lastAt: Date | null; lastResponded: boolean; leaderIds: Set<string> }
   >();
   for (const a of allAttempts) {
     const s =
@@ -92,7 +92,7 @@ export default async function FunnelPage({
         count: 0,
         lastAt: null,
         lastResponded: false,
-        leaderIds: new Set<number>(),
+        leaderIds: new Set<string>(),
       };
     s.count += 1;
     if (!s.lastAt || a.attemptedAt > s.lastAt) {

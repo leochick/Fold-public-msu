@@ -31,6 +31,7 @@ async function main() {
   const [admin] = await db
     .insert(users)
     .values({
+      id: randomBytes(16).toString("hex"),
       email: "admin@example.com",
       name: "Andrew (demo)",
       password: "password1234",
@@ -114,7 +115,7 @@ async function main() {
     memberStatus: "prospect" | "member" | "core";
     funnelStage: "active";
     isActive: boolean;
-    addedByUserId: number;
+    addedByUserId: string;
     createdAt: Date;
   }> = [];
 

@@ -42,12 +42,6 @@ export const auth = betterAuth({
   advanced: {
     cookiePrefix: "fold",
     database: {
-      generateId: ({ model }) => {
-        // Let Turso handle auto-incrementing integers for the users table
-        if (model === "user") return false;
-        // Generate string hex IDs for sessions, accounts, and verifications
-        return randomBytes(16).toString("hex");
-      },
     },
   },
   trustedOrigins: [baseURL],

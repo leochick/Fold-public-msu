@@ -289,7 +289,7 @@ export function validateRides(input: {
 }
 
 export async function commitRides(
-  userId: number,
+  userId: string,
   input: {
     sessionId: number;
     enforceGenderRule: boolean;

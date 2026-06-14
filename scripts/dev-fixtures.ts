@@ -31,6 +31,6 @@ const [s2] = await db
     year: "senior",
   })
   .returning();
-await db.insert(attendances).values({ studentId: s1.id, eventId: evt.id, recordedBy: 1 });
-await db.insert(attendances).values({ studentId: s2.id, eventId: evt.id, recordedBy: 1 });
+await db.insert(attendances).values({ studentId: s1.id, eventId: evt.id, recordedBy: "1234" });
+await db.insert(attendances).values({ studentId: s2.id, eventId: evt.id, recordedBy: "1234" });
 console.log("seeded:", { event: evt.id, students: [s1.id, s2.id] });

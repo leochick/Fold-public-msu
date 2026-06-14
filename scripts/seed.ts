@@ -14,7 +14,7 @@ async function main() {
 // 1. Create admin user + matching account row for better-auth credential login.
 const [admin] = await db
   .insert(users)
-  .values({ email: "admin@example.com", name: "Admin", password: "password123" })
+  .values({ id: randomBytes(32).toString("hex"), email: "admin@example.com", name: "Admin", password: "password123" })
   .returning();
 await db.insert(account).values({
   id: randomBytes(16).toString("hex"),

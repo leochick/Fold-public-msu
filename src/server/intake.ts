@@ -130,7 +130,7 @@ function bumpStage(current: FunnelStage, attempted: boolean, responded: boolean)
   return current === "inactive" && (attempted || responded) ? target : current;
 }
 
-export async function commitIntake(userId: number, contacts: ParsedContact[]) {
+export async function commitIntake(userId: string, contacts: ParsedContact[]) {
   let created = 0;
   let attemptsLogged = 0;
   let stageChanges = 0;

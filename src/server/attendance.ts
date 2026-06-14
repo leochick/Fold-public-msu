@@ -46,7 +46,7 @@ export async function parseAttendance(body: ParseAttendanceBody) {
   };
 }
 
-export async function commitAttendance(userId: number, body: CommitAttendanceBody) {
+export async function commitAttendance(userId: string, body: CommitAttendanceBody) {
   let created = 0;
   let marked = 0;
 

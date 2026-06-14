@@ -2,7 +2,7 @@ import { sqliteTable, text, integer, uniqueIndex, type AnySQLiteColumn } from "d
 import { sql } from "drizzle-orm";
 
 export const users = sqliteTable("users", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
+  id: text("id").primaryKey(),
   email: text("email").notNull().unique(),
   password: text("password"),
   name: text("name").notNull(),
@@ -100,7 +100,7 @@ export const students = sqliteTable("students", {
   notes: text("notes"),
   courseMaterial: text("course_material", { mode: "json" }).$type<string[]>(),
   // --- WELCOME FUNNEL ---
-  addedByUserId: integer("added_by_user_id").references(() => users.id, { onDelete: "set null" }),
+  addedByUserId: text("added_by_user_id").references(() => users.id, { onDelete: "set null" }),
   firstMetContext: text("first_met_context"),
   firstMetAt: integer("first_met_at", { mode: "timestamp" }),
   funnelStage: text("funnel_stage", {
@@ -145,7 +145,7 @@ export const attendances = sqliteTable(
     eventId: integer("event_id")
       .notNull()
       .references(() => events.id, { onDelete: "cascade" }),
-    recordedBy: integer("recorded_by").references(() => users.id, { onDelete: "set null" }),
+    recordedBy: text("recorded_by").references(() => users.id, { onDelete: "set null" }),
     recordedAt: integer("recorded_at", { mode: "timestamp" })
       .notNull()
       .default(sql`(unixepoch())`),
@@ -158,7 +158,7 @@ export const attendances = sqliteTable(
 
 export const feedback = sqliteTable("feedback", {
   id: integer("id").primaryKey({ autoIncrement: true }),
-  userId: integer("user_id").references(() => users.id, { onDelete: "set null" }),
+  userId: text("user_id").references(() => users.id, { onDelete: "set null" }),
   text: text("text").notNull(),
   page: text("page"),
   createdAt: integer("created_at", { mode: "timestamp" })
@@ -184,7 +184,7 @@ export const contactAttempts = sqliteTable("contact_attempts", {
   studentId: integer("student_id")
     .notNull()
     .references(() => students.id, { onDelete: "cascade" }),
-  attemptedByUserId: integer("attempted_by_user_id").references(() => users.id, { onDelete: "set null" }),
+  attemptedByUserId: text("attempted_by_user_id").references(() => users.id, { onDelete: "set null" }),
   channel: text("channel", { enum: ["ig_dm", "text", "phone", "email", "in_person", "other"] }).notNull(),
   channelDetail: text("channel_detail"),
   attemptedAt: integer("attempted_at", { mode: "timestamp" })
@@ -229,7 +229,7 @@ export const rideSessions = sqliteTable("ride_sessions", {
     .references(() => events.id, { onDelete: "cascade" }),
   label: text("label").notNull(),
   enforceGenderRule: integer("enforce_gender_rule", { mode: "boolean" }).notNull().default(true),
-  recordedBy: integer("recorded_by").references(() => users.id, { onDelete: "set null" }),
+  recordedBy: text("recorded_by").references(() => users.id, { onDelete: "set null" }),
   notes: text("notes"),
   createdAt: integer("created_at", { mode: "timestamp" })
     .notNull()
