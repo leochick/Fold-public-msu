@@ -83,6 +83,10 @@ export const api = {
       ),
     logContact: (b: In<typeof students.contactLogBody>) =>
       post<Awaited<ReturnType<typeof svStudents.logContact>>>("/api/contacts/log", b),
+    parseBatch: (b: { text: string }) =>
+      post<any>("/api/students/parse-batch", b),
+    commitBatch: (b: { items: any[] }) =>
+      post<any>("/api/students/commit-batch", b),
   },
   query: {
     nl: (b: In<typeof query.nlQueryBody>) =>

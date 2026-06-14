@@ -9,7 +9,11 @@ import {
 } from "./shared";
 
 export const parseUpdateBody = z.object({ text: nonEmptyText });
+export const parseStudentsBatchBody = z.object({
+  text: nonEmptyText,
+});
 export type ParseUpdateBody = z.infer<typeof parseUpdateBody>;
+export type ParseStudentsBatchBody = z.infer<typeof parseStudentsBatchBody>;
 
 const patchSchema = z
   .object({
@@ -73,6 +77,25 @@ export const commitUpdatesBody = z.object({
     .default([]),
 });
 
+export const commitStudentsBatchBody = z.object({
+  items: z.array(
+    z.object({
+      action: z.enum(["create", "merge", "skip"]),
+      incoming: z.object({
+        firstName: z.string().min(1),
+        lastName: z.string().nullable().optional(),
+        gender: z.enum(["M", "F"]).nullable().optional(),
+        year: z.enum(["freshman", "sophomore", "junior", "senior", "grad", "other"]).nullable().optional(),
+        phone: z.string().nullable().optional(),
+        email: z.string().nullable().optional(),
+        igHandle: z.string().nullable().optional(),
+        notes: z.string().nullable().optional(),
+      }),
+      existingId: z.number().int().optional(),
+    })
+  ).min(1),
+});
+
 export const funnelStageBody = z.object({ stage: funnelStageSchema });
 
 export const draftOutreachBody = z.object({
@@ -80,7 +103,9 @@ export const draftOutreachBody = z.object({
   purpose: z.string().optional(),
   refinement: z.string().optional(),
 });
+
 export type DraftOutreachBody = z.infer<typeof draftOutreachBody>;
+export type CommitStudentsBatchBody = z.infer<typeof commitStudentsBatchBody>;
 
 export const contactLogBody = z.object({
   studentId: z.number().int().positive(),

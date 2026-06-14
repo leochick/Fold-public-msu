@@ -6,6 +6,7 @@ import type { FunnelStage } from "@/lib/funnel/types";
 import FunnelSweepButton from "../funnel/FunnelSweepButton";
 import RowActions from "../RowActions";
 import { deleteStudentAction } from "./actions";
+import QuickAddStudents from "./QuickAddStudents";
 
 export const dynamic = "force-dynamic";
 
@@ -167,6 +168,8 @@ export default async function StudentsPage({
         <h1 className="text-2xl font-semibold">Students</h1>
         <Link href="/students/new" className="btn-primary">+ New student</Link>
       </div>
+
+      <QuickAddStudents />
 
       <div className="flex gap-1 border-b border-black/10 dark:border-white/10">
         <Link

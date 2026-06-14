@@ -1,0 +1,136 @@
+import { db } from "@/lib/db";
+import { students } from "../../drizzle/schema";
+import { eq } from "drizzle-orm";
+import { anthropic, MODEL } from "@/lib/claude";
+import { PARSE_STUDENTS_BATCH_TOOL } from "@/lib/rides/claude-tools";
+import { findPossibleDuplicates } from "@/lib/funnel/dedup";
+import { PARSE_STUDENTS_BATCH_SYSTEM, buildParseStudentsUserMsg } from "@/lib/prompts/parse-students-batch";
+import { callClaudeOrThrow } from "./attendance";
+import { httpErr } from "@/lib/http";
+import type { CommitStudentsBatchBody } from "@/lib/contracts/students";
+
+export async function parseStudentsBatch(text: string) {
+  // 1. Fetch current basic roster metadata to run deep client-side deduplication loops
+  const roster = await db
+    .select({
+      id: students.id,
+      firstName: students.firstName,
+      lastName: students.lastName,
+      igHandle: students.igHandle,
+      phone: students.phone,
+      email: students.email,
+      createdAt: students.createdAt,
+    })
+    .from(students);
+
+  const userMsg = buildParseStudentsUserMsg(text);
+
+  // 2. Query Claude for structure
+  const resp = await callClaudeOrThrow(() =>
+    anthropic.messages.create({
+      model: MODEL,
+      max_tokens: 2048,
+      system: PARSE_STUDENTS_BATCH_SYSTEM,
+      tools: [PARSE_STUDENTS_BATCH_TOOL],
+      tool_choice: { type: "tool", name: PARSE_STUDENTS_BATCH_TOOL.name },
+      messages: [{ role: "user", content: userMsg }],
+    })
+  );
+
+  const toolUse = resp.content.find((b) => b.type === "tool_use");
+  if (!toolUse || toolUse.type !== "tool_use") throw httpErr.upstream("AI generation mapping error");
+
+  const input = toolUse.input as { students?: any[]; explanation?: string };
+  const processedItems = [];
+  const now = new Date();
+
+  // 3. Cycle through parsed outputs and analyze similarity metrics
+  for (const item of input.students ?? []) {
+    const candidates = findPossibleDuplicates(
+      {
+        firstName: item.firstName,
+        lastName: item.lastName,
+        igHandle: item.igHandle,
+        phone: item.phone,
+        email: item.email,
+      },
+      roster,
+      now
+    );
+
+    const hasMatch = candidates.length > 0;
+    let fullMatchedRecord = null;
+
+    if (hasMatch) {
+      // Pull back the full information context of our highest matching hit
+      const [matchedRow] = await db
+        .select()
+        .from(students)
+        .where(eq(students.id, candidates[0].studentId))
+        .limit(1);
+      fullMatchedRecord = matchedRow || null;
+    }
+
+    processedItems.push({
+      incoming: item,
+      isDuplicate: hasMatch,
+      existingRecord: fullMatchedRecord,
+    });
+  }
+
+  return {
+    items: processedItems,
+    explanation: input.explanation ?? "Extraction processing completed successfully."
+  };
+}
+
+export async function commitStudentsBatch(userId: string, body: CommitStudentsBatchBody) {
+  let created = 0;
+  let merged = 0;
+
+  for (const item of body.items) {
+    if (item.action === "skip") continue;
+
+    if (item.action === "create") {
+      await db.insert(students).values({
+        firstName: item.incoming.firstName,
+        lastName: item.incoming.lastName ?? null,
+        gender: (item.incoming.gender as any) ?? null,
+        year: (item.incoming.year as any) ?? null,
+        phone: item.incoming.phone ?? null,
+        email: item.incoming.email ?? null,
+        igHandle: item.incoming.igHandle ?? null,
+        notes: item.incoming.notes ?? null,
+        addedByUserId: userId,
+        funnelStage: "new",
+      });
+      created++;
+    }
+
+    if (item.action === "merge" && item.existingId) {
+      // Fetch original row values to keep from overwriting good records with blank fields
+      const [old] = await db.select().from(students).where(eq(students.id, item.existingId)).limit(1);
+      
+      if (old) {
+        await db
+          .update(students)
+          .set({
+            lastName: item.incoming.lastName || old.lastName,
+            gender: (item.incoming.gender as any) || old.gender,
+            year: (item.incoming.year as any) || old.year,
+            phone: item.incoming.phone || old.phone,
+            email: item.incoming.email || old.email,
+            igHandle: item.incoming.igHandle || old.igHandle,
+            notes: item.incoming.notes 
+              ? `${old.notes ?? ""}\n[AI Merge Notes]: ${item.incoming.notes}`.trim()
+              : old.notes,
+            updatedAt: new Date(),
+          })
+          .where(eq(students.id, item.existingId));
+        merged++;
+      }
+    }
+  }
+
+  return { success: true, created, merged };
+}

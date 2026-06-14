@@ -148,3 +148,43 @@ export const PROPOSE_RIDE_PLAN_TOOL: Anthropic.Tool = {
     required: ["riders", "explanation"],
   },
 };
+
+export const PARSE_STUDENTS_BATCH_TOOL: Anthropic.Tool = {
+  name: "parse_students_batch",
+  description:
+    "Parse a free-text stream or roster dump containing information about multiple students. " +
+    "Extract names, graduation/class years, genders, handles, and any miscellaneous notes cleanly into structured array fields.",
+  input_schema: {
+    type: "object",
+    properties: {
+      students: {
+        type: "array",
+        description: "Array of all discovered students extracted from the user text chunk.",
+        items: {
+          type: "object",
+          properties: {
+            firstName: { type: "string", description: "Required first name." },
+            lastName: { type: "string", description: "Optional last name if provided." },
+            gender: { type: "string", enum: ["M", "F"], description: "Infer M for bro/guy/brother, F for girl/sister if present." },
+            year: {
+              type: "string",
+              enum: ["freshman", "sophomore", "junior", "senior", "grad", "other"],
+              description: "Class or school year tracking bucket alignment."
+            },
+            phone: { type: "string", description: "Phone number string if present." },
+            email: { type: "string", description: "Email string address if present." },
+            igHandle: { type: "string", description: "Instagram account handle explicitly without the leading @ symbol." },
+            notes: { type: "string", description: "Any other parsed metadata, context notes, or description lines." },
+            rawText: { type: "string", description: "The verbatim snippet string from the prompt that targets this person." }
+          },
+          required: ["firstName", "rawText"]
+        }
+      },
+      explanation: {
+        type: "string",
+        description: "A very brief one-sentence wrap-up of what was parsed."
+      }
+    },
+    required: ["students", "explanation"]
+  }
+};

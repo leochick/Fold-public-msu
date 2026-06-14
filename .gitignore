@@ -21,3 +21,5 @@ data/fold.db-shm
 AttendanceDocs/
 .vercel
 .env*.local
+
+repomox-output.xml

@@ -9,3 +9,4 @@ export * from "./rides-parse-fleet";
 export * from "./draft-outreach";
 export * from "./event-insights";
 export * from "./event-insights-single";
+export * from "./parse-students-batch";
