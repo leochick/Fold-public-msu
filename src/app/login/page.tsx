@@ -15,30 +15,29 @@ export default async function LoginPage({
 
   async function login(formData: FormData) {
     "use server";
+
+    // 1. Resolve your asynchronous headers context FIRST
+    const resolvedHeaders = await headers();
+
     const email = String(formData.get("email") || "").trim().toLowerCase();
     const password = String(formData.get("password") || "");
     if (!email || !password) redirect("/login?error=missing");
 
-    let isSuccess = false;
-
     try {
+      // 2. Supply the static reference to the API payload
       await auth.api.signInEmail({
         body: { email, password },
-        headers: await headers(),
+        headers: resolvedHeaders,
       });
-      isSuccess = true;
     } catch (err) {
-      // If the error is a Next.js redirect signal, let it pass through normally
       if (err instanceof Error && err.message === "NEXT_REDIRECT") {
         throw err;
       }
       redirect("/login?error=invalid");
     }
 
-    // Only redirect down here once the asynchronous auth headers are locked in
-    if (isSuccess) {
-      redirect("/");
-    }
+    // 3. Clean direct redirect
+    redirect("/");
   }
 
   return (
