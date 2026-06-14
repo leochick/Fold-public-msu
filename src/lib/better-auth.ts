@@ -1,8 +1,8 @@
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
-import { randomBytes } from "node:crypto";
 import { db } from "./db";
 import * as schema from "../../drizzle/schema";
+import { nextCookies } from "better-auth/next-js";
 
 const baseURL =
   process.env.BETTER_AUTH_URL
@@ -24,8 +24,7 @@ export const auth = betterAuth({
     modelName: "users",
   },
   plugins: [
-    // This tells the core engine to accept and hash password payloads
-    // instead of stripping them out as unknown parameters.
+    nextCookies()
   ],
   session: {
     modelName: "sessions",

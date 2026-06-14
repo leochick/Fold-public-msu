@@ -16,27 +16,26 @@ export default async function LoginPage({
   async function login(formData: FormData) {
     "use server";
 
-    // 1. Resolve your asynchronous headers context FIRST
     const resolvedHeaders = await headers();
-
     const email = String(formData.get("email") || "").trim().toLowerCase();
     const password = String(formData.get("password") || "");
+
     if (!email || !password) redirect("/login?error=missing");
 
     try {
-      // 2. Supply the static reference to the API payload
       await auth.api.signInEmail({
         body: { email, password },
         headers: resolvedHeaders,
       });
     } catch (err) {
+      // If Better Auth or Next.js issues a redirect, pass it through directly!
       if (err instanceof Error && err.message === "NEXT_REDIRECT") {
         throw err;
       }
       redirect("/login?error=invalid");
     }
 
-    // 3. Clean direct redirect
+    // Direct, clean fallback route redirect
     redirect("/");
   }
 
