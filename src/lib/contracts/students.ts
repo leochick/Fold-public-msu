@@ -114,3 +114,9 @@ export const contactLogBody = z.object({
   responded: z.boolean().optional(),
   notes: z.string().optional(),
 });
+
+export const linkStudentEventBody = z.object({
+  studentId: z.number().int().positive(),
+  eventId: z.number().int().positive(),
+});
+export type LinkStudentEventBody = z.infer<typeof linkStudentEventBody>;

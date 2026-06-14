@@ -2,7 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { students, attendances, events, contactAttempts, users } from "../../../../drizzle/schema";
-import { eq, desc, ne, asc } from "drizzle-orm";
+import { eq, desc, ne, asc, notInArray } from "drizzle-orm";
 import StudentForm from "./StudentForm";
 import { parseStudent } from "@/lib/parse-student";
 import ContactLog from "./ContactLog";
@@ -13,6 +13,7 @@ import {
   type StudentLite,
   type AttendanceLite,
 } from "@/lib/health-metrics";
+import AddEventCardClient from "./AddEventCardClient";
 
 export const dynamic = "force-dynamic";
 
@@ -29,6 +30,13 @@ export default async function StudentPage({ params }: { params: Promise<{ id: st
     .innerJoin(events, eq(events.id, attendances.eventId))
     .where(eq(attendances.studentId, id))
     .orderBy(desc(attendances.recordedAt));
+
+  const attendedEventIds = history.map((h) => h.e.id);
+  const unassignedEventsList = await db
+    .select()
+    .from(events)
+    .where(attendedEventIds.length > 0 ? notInArray(events.id, attendedEventIds) : undefined)
+    .orderBy(desc(events.startDate));
 
   const attemptRows = await db
     .select({
@@ -186,6 +194,11 @@ export default async function StudentPage({ params }: { params: Promise<{ id: st
         currentStage={s.funnelStage as FunnelStage}
       />
 
+      <AddEventCardClient 
+        studentId={id} 
+        unassignedEvents={unassignedEventsList.map((e) => ({ id: e.id, name: e.name, date: e.startDate }))} 
+      />
+
       <div className="card">
         <h2 className="font-semibold mb-2">Attendance history ({history.length})</h2>
         {history.length === 0 ? (
@@ -193,7 +206,7 @@ export default async function StudentPage({ params }: { params: Promise<{ id: st
         ) : (
           <ul className="space-y-1 text-sm">
             {history.map(({ a, e }) => (
-              <li key={a.id} className="flex justify-between">
+              <li key={a.id} className="py-2 flex justify-between border-t border-black/5 dark:divide-white/5 first:border-t-0 first:pt-0">
                 <Link href={`/events/${e.id}`} className="hover:underline">{e.name}</Link>
                 <span className="text-black/50">{new Date(e.startDate).toLocaleDateString("en-US", { timeZone: "UTC" })}</span>
               </li>
