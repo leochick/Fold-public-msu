@@ -17,80 +17,99 @@ export default function AddEventCardClient({
   unassignedEvents: DropdownEvent[];
 }) {
   const router = useRouter();
-  const [selectedEventId, setSelectedEventId] = useState("");
-  const [isPending, startTransition] = useTransition();
+  const [selectedEventIds, setSelectedEventIds] = useState<number[]>([]);
+  const [isSaving, startTransition] = useTransition();
   const [error, setError] = useState("");
 
-  const handleSaveLink = async () => {
-    if (!selectedEventId) return;
+  const handleToggleCheckbox = (eventId: number) => {
+    setSelectedEventIds((prev) =>
+      prev.includes(eventId)
+        ? prev.filter((id) => id !== eventId)
+        : [...prev, eventId]
+    );
+  };
+
+  const handleSaveBatchLinks = async () => {
+    if (selectedEventIds.length === 0) return;
     setError("");
 
     startTransition(async () => {
       try {
-        const res = await fetch("/api/students/link-event", {
+        // Pointing EXACTLY to the new path to avoid the 404 HTML payload mismatch!
+        const res = await fetch("/api/students/commit-batch-attendance", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             studentId,
-            eventId: Number(selectedEventId),
+            eventIds: selectedEventIds,
           }),
         });
         
+        const data = await res.json();
         if (!res.ok) {
-          const data = await res.json();
-          throw new Error(data.error ?? "Failed linking event.");
+          throw new Error(data.error ?? "Failed linking selected events.");
         }
 
-        setSelectedEventId("");
+        setSelectedEventIds([]);
         router.refresh();
       } catch (err: any) {
-        setError(err.message || "Network execution error.");
+        setError(err.message || "Network transaction failure.");
       }
     });
   };
 
   return (
-    <div className="card space-y-4">
+    <div className="card space-y-4 border-accent/20">
       <div>
-        <h2 className="font-semibold">⚡ Link to Past Event</h2>
+        <h2 className="font-semibold">⚡ Link to Past Events</h2>
         <p className="text-xs text-black/60">
-          Manually add this student to an existing event attendance roster.
+          Select all existing events this student attended to update their status in bulk.
         </p>
       </div>
 
-      <div className="flex flex-col sm:flex-row gap-3 items-end">
-        <div className="w-full space-y-1">
-          <label className="label" htmlFor="link-event-select">Select Event</label>
-          <select
-            id="link-event-select"
-            className="input bg-transparent"
-            value={selectedEventId}
-            disabled={isPending || unassignedEvents.length === 0}
-            onChange={(e) => setSelectedEventId(e.target.value)}
-          >
-            {unassignedEvents.length === 0 ? (
-              <option value="">No unassigned events available</option>
-            ) : (
-              <>
-                <option value="">— Choose an event —</option>
-                {unassignedEvents.map((e) => (
-                  <option key={e.id} value={e.id}>
-                    {e.name} ({new Date(e.date).toLocaleDateString("en-US", { timeZone: "UTC" })})
-                  </option>
-                ))}
-              </>
-            )}
-          </select>
+      {unassignedEvents.length === 0 ? (
+        <p className="text-sm text-black/40 italic">No remaining unassigned events available.</p>
+      ) : (
+        <div className="space-y-3">
+          {/* Scrollable multi-select panel matching Fold's native layout system */}
+          <div className="overflow-y-auto max-h-48 border border-black/10 dark:border-white/10 rounded-lg p-2 space-y-1 bg-black/5 dark:bg-black/20">
+            {unassignedEvents.map((e) => (
+              <label 
+                key={e.id} 
+                className="flex items-center gap-3 p-2 rounded hover:bg-black/5 dark:hover:bg-white/5 cursor-pointer text-sm"
+              >
+                <input
+                  type="checkbox"
+                  className="h-4 w-4 rounded accent-accent"
+                  checked={selectedEventIds.includes(e.id)}
+                  disabled={isSaving}
+                  onChange={() => handleToggleCheckbox(e.id)}
+                />
+                <span className="flex-1 truncate">
+                  {e.name}{" "}
+                  <span className="text-xs text-black/40 dark:text-white/40 ml-1">
+                    ({new Date(e.date).toLocaleDateString("en-US", { timeZone: "UTC" })})
+                  </span>
+                </span>
+              </label>
+            ))}
+          </div>
+
+          <div className="flex items-center justify-between pt-1">
+            <span className="text-xs text-black/50">
+              {selectedEventIds.length} event(s) selected
+            </span>
+            <button
+              onClick={handleSaveBatchLinks}
+              disabled={isSaving || selectedEventIds.length === 0}
+              className="btn-primary py-1.5 text-xs"
+            >
+              {isSaving ? "Linking records..." : "Save Selection"}
+            </button>
+          </div>
         </div>
-        
-        <button
-          onClick={handleSaveLink}
-          disabled={isPending || !selectedEventId}
-          className="btn-primary w-full sm:w-auto shrink-0"
-        >
-          {isPending ? "Saving..." : "Save"}
-        </button>
-      </div>
+      )}
+
       {error && <p className="text-xs text-red-600 font-medium">{error}</p>}
     </div>
   );
