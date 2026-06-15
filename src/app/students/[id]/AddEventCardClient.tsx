@@ -35,8 +35,7 @@ export default function AddEventCardClient({
 
     startTransition(async () => {
       try {
-        // Pointing EXACTLY to the new path to avoid the 404 HTML payload mismatch!
-        const res = await fetch("/api/students/commit-batch-attendance", {
+        const res = await fetch("/api/commit-batch-attendance", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
