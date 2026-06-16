@@ -43,34 +43,40 @@ export async function parseStudentsBatch(text: string) {
   const now = new Date();
 
   for (const item of input.students ?? []) {
-    const candidates = findPossibleDuplicates(
-      {
+        const candidates = findPossibleDuplicates(
+        {
         firstName: item.firstName,
         lastName: item.lastName,
         igHandle: item.igHandle,
         phone: item.phone,
         email: item.email,
-      },
-      roster,
-      now
+        },
+        roster,
+        now
     );
 
     const hasMatch = candidates.length > 0;
-    let fullMatchedRecord = null;
+    const existingRecords = [];
 
+    // Gather ALL matched candidates instead of just grabbing the first one
     if (hasMatch) {
-      const [matchedRow] = await db
-        .select()
-        .from(students)
-        .where(eq(students.id, candidates[0].studentId))
-        .limit(1);
-      fullMatchedRecord = matchedRow || null;
+        for (const candidate of candidates) {
+        const [matchedRow] = await db
+            .select()
+            .from(students)
+            .where(eq(students.id, candidate.studentId))
+            .limit(1);
+
+        if (matchedRow) {
+            existingRecords.push(matchedRow);
+        }
+        }
     }
 
     processedItems.push({
-      incoming: item,
-      isDuplicate: hasMatch,
-      existingRecord: fullMatchedRecord,
+        incoming: item,
+        isDuplicate: hasMatch,
+        existingRecords, // Pass the array of matches down to the frontend
     });
   }
 

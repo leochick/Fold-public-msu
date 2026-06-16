@@ -3,8 +3,8 @@ import Link from "next/link";
 import { db } from "@/lib/db";
 import { events, attendances, students } from "../../../../drizzle/schema";
 import { eq, desc, and, lt, inArray } from "drizzle-orm";
-import AttendanceDumper from "./AttendanceDumper";
 import EventInsights from "./EventInsights";
+import EventAttendeeDumper from "./EventAttendeeDumper";
 
 export const dynamic = "force-dynamic";
 
@@ -108,7 +108,7 @@ export default async function EventPage({ params }: { params: Promise<{ id: stri
 
       {present.length > 0 && <EventInsights eventId={eventId} stats={eventStats} />}
 
-      <AttendanceDumper eventId={eventId} />
+      <EventAttendeeDumper eventId={eventId} />
 
       <Link
         href={`/events/${eventId}/rides`}
