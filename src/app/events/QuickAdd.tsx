@@ -346,62 +346,92 @@ function BatchEventsPreview({
   onCommit,
   pending,
 }: {
-  events: EventDraft[];
-  onChange: (events: EventDraft[]) => void;
+  events: any[];
+  onChange: (events: any[]) => void;
   onCommit: () => void;
   pending: boolean;
 }) {
-  const update = (i: number, patch: Partial<EventDraft>) =>
-    onChange(events.map((x, idx) => (idx === i ? { ...x, ...patch } : x)));
-  const remove = (i: number) => onChange(events.filter((_, idx) => idx !== i));
+  const handleActionToggle = (index: number, action: "create" | "merge" | "skip") => {
+    const clone = [...events];
+    clone[index].chosenAction = action;
+    onChange(clone);
+  };
 
-  const allValid = events.length > 0 && events.every((e) => e.name?.trim() && e.date);
+  const allValid = events.length > 0 && events.every((e) => e.chosenAction === "skip" || (e.incoming.name?.trim() && e.incoming.date));
 
   return (
     <div className="space-y-3 pt-3 border-t border-black/5 dark:border-white/10">
       <div className="label">Proposed events ({events.length})</div>
-      {events.length === 0 && (
-        <p className="text-sm text-black/50">Nothing found.</p>
-      )}
-      {events.map((ev, i) => (
-        <div key={i} className="rounded-lg border border-black/10 dark:border-white/10 p-3 space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="chip">#{i + 1}</span>
-            <button onClick={() => remove(i)} className="text-xs text-black/40 hover:text-red-600">drop</button>
+      
+      <div className="space-y-3 max-h-[400px] overflow-y-auto">
+        {events.map((ev, i) => (
+          <div key={i} className="p-3 border rounded-xl bg-black/5 dark:bg-white/5 space-y-3 text-sm">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <span className="font-semibold text-base">{ev.incoming.name}</span>
+                <span className="ml-2 text-xs text-black/40">({ev.incoming.date})</span>
+              </div>
+              
+              {/* Event Action Selectors */}
+              <div className="flex gap-1">
+                {ev.isDuplicate && (
+                  <button
+                    type="button"
+                    onClick={() => handleActionToggle(i, "merge")}
+                    className={`px-3 py-1 text-xs font-medium rounded-lg transition ${ev.chosenAction === "merge" ? "bg-amber-600 text-white" : "bg-black/5 hover:bg-black/10"}`}
+                  >
+                    Merge fields
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => handleActionToggle(i, "create")}
+                  className={`px-3 py-1 text-xs font-medium rounded-lg transition ${ev.chosenAction === "create" ? "bg-accent text-white" : "bg-black/5 hover:bg-black/10"}`}
+                >
+                  Create New
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleActionToggle(i, "skip")}
+                  className={`px-3 py-1 text-xs font-medium rounded-lg transition ${ev.chosenAction === "skip" ? "bg-red-600 text-white" : "bg-black/5 hover:bg-black/10"}`}
+                >
+                  Skip
+                </button>
+              </div>
+            </div>
+
+            {ev.isDuplicate && ev.existingRecord ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-3 bg-white dark:bg-zinc-800 border rounded-lg text-xs">
+                <div>
+                  <div className="font-semibold text-black/40 uppercase tracking-wider text-[10px]">AI Parsed Event</div>
+                  <div>Location: <span className="font-medium">{ev.incoming.location || "—"}</span></div>
+                  <div>Type: <span className="font-medium">{ev.incoming.type || "—"}</span></div>
+                </div>
+                <div className="border-l pl-4 border-black/10">
+                  <div className="font-semibold text-amber-600 uppercase tracking-wider text-[10px]">⚠️ Conflicting Past Event</div>
+                  <div>Location: <span className="font-medium">{ev.existingRecord.location || "—"}</span></div>
+                  <div>Type: <span className="font-medium">{ev.existingRecord.type || "—"}</span></div>
+                </div>
+              </div>
+            ) : (
+              <div className="p-2 bg-emerald-500/10 text-emerald-700 text-xs rounded-lg font-medium">
+                ✓ Unique Schedule Date: Safe to append as a new event log.
+              </div>
+            )}
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
-            <input
-              className="input md:col-span-2"
-              placeholder="Name"
-              value={ev.name}
-              onChange={(e) => update(i, { name: e.target.value })}
-            />
-            <input
-              className="input"
-              type="date"
-              value={ev.date}
-              onChange={(e) => update(i, { date: e.target.value })}
-            />
-            <input
-              className="input"
-              placeholder="Type"
-              value={ev.type ?? ""}
-              onChange={(e) => update(i, { type: e.target.value })}
-            />
-            <input
-              className="input md:col-span-4"
-              placeholder="Location"
-              value={ev.location ?? ""}
-              onChange={(e) => update(i, { location: e.target.value })}
-            />
-          </div>
-        </div>
-      ))}
+        ))}
+      </div>
+
       <div className="flex justify-end">
-        <button className="btn-primary" disabled={pending || !allValid} onClick={onCommit}>
-          {pending ? "Saving…" : `Create ${events.length} event${events.length === 1 ? "" : "s"}`}
+        <button 
+          className="btn-primary" 
+          disabled={pending || !allValid || events.filter(x => x.chosenAction !== "skip").length === 0} 
+          onClick={onCommit}
+        >
+          {pending ? "Saving..." : `Execute Changes (${events.filter(x => x.chosenAction !== "skip").length})`}
         </button>
       </div>
     </div>
   );
 }
+

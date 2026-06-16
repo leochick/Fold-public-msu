@@ -120,3 +120,23 @@ export const linkStudentEventBody = z.object({
   eventId: z.number().int().positive(),
 });
 export type LinkStudentEventBody = z.infer<typeof linkStudentEventBody>;
+
+export const batchConfirmEntrySchema = z.object({
+  action: z.enum(["merge", "create", "skip"]),
+  incoming: z.object({
+    firstName: z.string().min(1),
+    lastName: z.string().nullable().optional(),
+    gender: z.enum(["M", "F"]).nullable().optional(),
+    year: z.enum(["freshman", "sophomore", "junior", "senior", "grad", "other"]).nullable().optional(),
+    phone: z.string().nullable().optional(),
+    email: z.string().nullable().optional(),
+    igHandle: z.string().nullable().optional(),
+    notes: z.string().nullable().optional(),
+  }),
+  existingId: z.number().int().optional(),
+});
+
+export const commitStudentRosterBatchBody = z.object({
+  items: z.array(batchConfirmEntrySchema).min(1),
+});
+export type CommitStudentRosterBatchBody = z.infer<typeof commitStudentRosterBatchBody>;

@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
 import { events, students, attendances } from "../../drizzle/schema";
-import { anthropic, HAIKU, PROPOSE_EVENT_BATCH_TOOL, PROPOSE_EVENT_BATCH_LIST_TOOL, EVENT_INSIGHTS_TOOL } from "@/lib/claude";
+import { anthropic, HAIKU, MODEL, PROPOSE_EVENT_BATCH_TOOL, PROPOSE_EVENT_BATCH_LIST_TOOL, EVENT_INSIGHTS_TOOL } from "@/lib/claude";
 import { buildParseEventBatchSystem, buildParseEventBatchUserMsg } from "@/lib/prompts/parse-event-batch";
 import { EVENT_INSIGHTS_SYSTEM } from "@/lib/prompts/event-insights";
 import { EVENT_INSIGHTS_SINGLE_SYSTEM } from "@/lib/prompts/event-insights-single";
@@ -8,6 +8,7 @@ import { httpErr } from "@/lib/http";
 import { loadBasicRoster, formatRosterCompact, fuzzyMatchInviter } from "./roster";
 import { callClaudeOrThrow } from "./attendance";
 import type { CommitEventBatchBody, ParseEventBatchBody } from "@/lib/contracts/events";
+import { and, eq, sql } from "drizzle-orm";
 
 export async function parseEventBatch(body: ParseEventBatchBody) {
   const roster = await loadBasicRoster();
@@ -18,7 +19,7 @@ export async function parseEventBatch(body: ParseEventBatchBody) {
 
   const resp = await callClaudeOrThrow(() =>
     anthropic.messages.create({
-      model: HAIKU,
+      model: MODEL,
       max_tokens: 2048,
       system,
       tools: [PROPOSE_EVENT_BATCH_TOOL, PROPOSE_EVENT_BATCH_LIST_TOOL],
@@ -28,20 +29,46 @@ export async function parseEventBatch(body: ParseEventBatchBody) {
   );
 
   const tu = resp.content.find((b) => b.type === "tool_use");
-  if (!tu || tu.type !== "tool_use") throw httpErr.upstream("claude returned no tool use");
+  if (!tu || tu.type !== "tool_use") throw httpErr.upstream("Extraction error.");
+
+  // Fetch all existing events to compute string similarity and timestamp collisions
+  const currentEventsList = await db.select().from(events);
 
   if (tu.name === PROPOSE_EVENT_BATCH_LIST_TOOL.name) {
     const out = tu.input as {
       events?: Array<{ name: string; date: string; type?: string; location?: string }>;
     };
     const list = (out.events ?? []).filter((e) => e.name?.trim() && e.date);
-    return { mode: "batch" as const, events: list };
+    
+    // Map initial actions by looking for event name + date conflicts
+    const processedEvents = list.map((ev) => {
+      const match = currentEventsList.find(
+        (x) => 
+          x.name.toLowerCase().trim() === ev.name.toLowerCase().trim() &&
+          new Date(x.startDate).toISOString().slice(0, 10) === ev.date
+      );
+      return {
+        incoming: ev,
+        isDuplicate: !!match,
+        existingRecord: match || null,
+        chosenAction: match ? "merge" : "create"
+      };
+    });
+
+    return { mode: "batch" as const, events: processedEvents };
   }
 
   const out = tu.input as {
-    event: unknown;
+    event: { name: string; date: string; type?: string; location?: string };
     attendees?: Array<Record<string, unknown>>;
   };
+
+  const targetMatch = currentEventsList.find(
+    (x) => 
+      x.name.toLowerCase().trim() === out.event.name.toLowerCase().trim() &&
+      new Date(x.startDate).toISOString().slice(0, 10) === out.event.date
+  );
+
   const attendees = (out.attendees ?? []).map((a) => {
     if (a.match === "existing" && typeof a.studentId === "number") {
       const r = roster.find((x) => x.id === a.studentId);
@@ -58,30 +85,43 @@ export async function parseEventBatch(body: ParseEventBatchBody) {
     }
     return a;
   });
-  return { mode: "single" as const, event: out.event, attendees };
+
+  return { 
+    mode: "single" as const, 
+    event: {
+      incoming: out.event,
+      isDuplicate: !!targetMatch,
+      existingRecord: targetMatch || null,
+      chosenAction: targetMatch ? "merge" : "create"
+    }, 
+    attendees 
+  };
 }
 
 export async function commitEventBatch(userId: string, body: CommitEventBatchBody) {
+  // Replace inside commitEventBatch inside src/server/events.ts:
   if (body.mode === "batch") {
-    const created: Array<{ id: number; name: string; date: string }> = [];
-    for (const ev of body.events) {
-      const [y, m, day] = ev.date.split("-").map(Number);
+    const created: any[] = [];
+    for (const item of (body as any).events) {
+      if (item.action === "skip") continue;
+      
+      const [y, m, day] = item.incoming.date.split("-").map(Number);
       const d = new Date(y, m - 1, day);
-      if (isNaN(d.getTime())) continue;
-      const [row] = await db
-        .insert(events)
-        .values({
-          name: ev.name.trim(),
-          type: ev.type?.trim() || null,
+      
+      if (item.action === "create") {
+        const [row] = await db.insert(events).values({
+          name: item.incoming.name.trim(),
+          type: item.incoming.type?.trim() || null,
           startDate: d,
-          location: ev.location?.trim() || null,
-        })
-        .returning();
-      created.push({
-        id: row.id,
-        name: row.name,
-        date: row.startDate.toISOString().slice(0, 10),
-      });
+          location: item.incoming.location?.trim() || null,
+        }).returning();
+        created.push(row);
+      } else if (item.action === "merge" && item.existingId) {
+        await db.update(events).set({
+          type: item.incoming.type?.trim() || undefined,
+          location: item.incoming.location?.trim() || undefined,
+        }).where(eq(events.id, item.existingId));
+      }
     }
     return { ok: true, mode: "batch" as const, created };
   }

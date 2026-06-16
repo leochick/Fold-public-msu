@@ -60,6 +60,12 @@ export default function QuickAddStudents() {
     });
   };
 
+  const handleActionToggle = (index: number, action: "create" | "merge" | "skip") => {
+    setItems((prev) =>
+      prev.map((item, idx) => (idx === index ? { ...item, chosenAction: action } : item))
+    );
+  };
+
   const handleSaveCommit = async () => {
     setError("");
     startSavingTransition(async () => {
@@ -83,7 +89,7 @@ export default function QuickAddStudents() {
         setViewState("input");
         router.refresh();
       } catch (err: any) {
-        setError(err.message || "Failed committing values to table context.");
+        setError(err.message || "Failed committing values.");
       }
     });
   };
@@ -91,9 +97,9 @@ export default function QuickAddStudents() {
   return (
     <div className="card space-y-3 border-accent/30">
       <div>
-        <h2 className="font-semibold">⚡ AI Quick Add Students</h2>
+        <h2 className="font-semibold">⚡ AI Quick Add Students Roster</h2>
         <p className="text-xs text-black/60">
-          Paste text chunks or messages to ingest multiple student records simultaneously.
+          Paste unstructured rosters or message clips here to ingest student profiles in bulk.
         </p>
       </div>
 
@@ -104,7 +110,7 @@ export default function QuickAddStudents() {
             onChange={(e) => setText(e.target.value)}
             rows={3}
             className="input font-sans text-sm"
-            placeholder={`Example: "Add Leo Chick, freshman guy, handle @leochick and Sarah Conner soph, phone 555-0101"`}
+            placeholder={`e.g. "Add Leo Chick, freshman bro, handle @leochick and Sarah Conner soph, phone 555-0101"`}
           />
           <button
             onClick={handleProcessText}
@@ -118,70 +124,73 @@ export default function QuickAddStudents() {
         <div className="space-y-4 pt-2 border-t border-black/5 dark:border-white/10">
           {explanation && <p className="text-xs text-black/50 italic">{explanation}</p>}
 
-          <div className="overflow-x-auto border border-black/5 dark:border-white/10 rounded-lg max-h-72">
-            <table className="w-full text-left border-collapse">
-              <thead className="bg-black/5 dark:bg-white/5 sticky top-0 text-xs uppercase tracking-wider font-semibold">
-                <tr>
-                  <th className="p-3">Extracted Student</th>
-                  <th className="p-3">Duplicate Strategy</th>
-                  <th className="p-3">Action</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-black/5 dark:divide-white/5">
-                {items.map((item, i) => (
-                  <tr key={i} className="hover:bg-black/5 dark:hover:bg-white/5 text-sm">
-                    <td className="p-3">
-                      <div className="font-medium">{item.incoming.firstName} {item.incoming.lastName ?? ""}</div>
-                      <div className="text-xs text-black/40">
-                        {[item.incoming.year, item.incoming.gender, item.incoming.igHandle, item.incoming.phone, item.incoming.email].filter(Boolean).join(" • ")}
-                      </div>
-                    </td>
-                    <td className="p-3">
-                      {item.isDuplicate ? (
-                        <div className="chip bg-amber-500/15 text-amber-700 font-medium">
-                          ⚠ Duplication Alert: matches {item.existingRecord?.firstName} {item.existingRecord?.lastName ?? ""}
-                        </div>
-                      ) : (
-                        <div className="chip bg-emerald-500/15 text-emerald-700 font-medium">
-                          ✓ Unmatched Roster Entry
-                        </div>
-                      )}
-                    </td>
-                    <td className="p-3">
-                      <select
-                        value={item.chosenAction}
-                        onChange={(e) => {
-                          const clone = [...items];
-                          clone[i].chosenAction = e.target.value as any;
-                          setItems(clone);
-                        }}
-                        className="input max-w-[160px] py-1 text-xs"
+          <div className="space-y-3 max-h-96 overflow-y-auto pr-1">
+            {items.map((item, i) => (
+              <div key={i} className="p-3 border rounded-xl bg-black/5 dark:bg-white/5 space-y-3 text-sm">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <span className="font-semibold text-base">{item.incoming.firstName} {item.incoming.lastName ?? ""}</span>
+                    <span className="ml-2 text-xs text-black/40">Incoming Roster Data</span>
+                  </div>
+                  
+                  {/* Interactive Option Selector State Buttons */}
+                  <div className="flex gap-1">
+                    {item.isDuplicate && (
+                      <button
+                        onClick={() => handleActionToggle(i, "merge")}
+                        className={`px-3 py-1 text-xs font-medium rounded-lg transition ${item.chosenAction === "merge" ? "bg-amber-600 text-white" : "bg-black/5 hover:bg-black/10"}`}
                       >
-                        <option value="create">Insert New Profile</option>
-                        {item.isDuplicate && <option value="merge">Overwrite / Patch Existing</option>}
-                        <option value="skip">Ignore Entry</option>
-                      </select>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                        Merge
+                      </button>
+                    )}
+                    <button
+                      onClick={() => handleActionToggle(i, "create")}
+                      className={`px-3 py-1 text-xs font-medium rounded-lg transition ${item.chosenAction === "create" ? "bg-accent text-white" : "bg-black/5 hover:bg-black/10"}`}
+                    >
+                      Create New
+                    </button>
+                    <button
+                      onClick={() => handleActionToggle(i, "skip")}
+                      className={`px-3 py-1 text-xs font-medium rounded-lg transition ${item.chosenAction === "skip" ? "bg-red-600 text-white" : "bg-black/5 hover:bg-black/10"}`}
+                    >
+                      Skip
+                    </button>
+                  </div>
+                </div>
+
+                {/* Comparative Metadata Breakdown Viewer Grid */}
+                {item.isDuplicate && item.existingRecord ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-3 bg-white dark:bg-zinc-800 border rounded-lg text-xs">
+                    <div className="space-y-1">
+                      <div className="font-semibold text-black/40 uppercase tracking-wider text-[10px]">AI Parsed Fields</div>
+                      <div>Year: <span className="font-medium">{item.incoming.year || "—"}</span></div>
+                      <div>Gender: <span className="font-medium">{item.incoming.gender || "—"}</span></div>
+                      <div>Phone: <span className="font-medium">{item.incoming.phone || "—"}</span></div>
+                      <div>IG: <span className="font-medium">{item.incoming.igHandle ? `@${item.incoming.igHandle}` : "—"}</span></div>
+                    </div>
+                    <div className="space-y-1 border-l pl-4 border-black/10">
+                      <div className="font-semibold text-amber-600 uppercase tracking-wider text-[10px]">⚠️ Matched Record Conflict</div>
+                      <div>Name: <span className="font-medium">{item.existingRecord.firstName} {item.existingRecord.lastName ?? ""}</span></div>
+                      <div>Year: <span className="font-medium">{item.existingRecord.year || "—"}</span></div>
+                      <div>Phone: <span className="font-medium">{item.existingRecord.phone || "—"}</span></div>
+                      <div>IG: <span className="font-medium">{item.existingRecord.igHandle ? `@${item.existingRecord.igHandle}` : "—"}</span></div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="p-2 bg-emerald-500/10 text-emerald-700 text-xs rounded-lg font-medium">
+                    ✓ Clean Entry: No matching profile found in the database. Will be saved cleanly as a fresh record.
+                  </div>
+                )}
+              </div>
+            ))}
           </div>
 
           <div className="flex gap-2 justify-end">
-            <button
-              onClick={() => setViewState("input")}
-              disabled={isSaving}
-              className="btn-ghost text-xs"
-            >
+            <button onClick={() => setViewState("input")} disabled={isSaving} className="btn-ghost text-xs">
               Back
             </button>
-            <button
-              onClick={handleSaveCommit}
-              disabled={isSaving || items.length === 0}
-              className="btn-primary text-xs"
-            >
-              {isSaving ? "Saving changes..." : `Commit Records (${items.filter(x => x.chosenAction !== "skip").length})`}
+            <button onClick={handleSaveCommit} disabled={isSaving || items.length === 0} className="btn-primary text-xs">
+              {isSaving ? "Saving changes..." : `Commit Roster Entries (${items.filter(x => x.chosenAction !== "skip").length})`}
             </button>
           </div>
         </div>

@@ -7,10 +7,9 @@ import { findPossibleDuplicates } from "@/lib/funnel/dedup";
 import { PARSE_STUDENTS_BATCH_SYSTEM, buildParseStudentsUserMsg } from "@/lib/prompts/parse-students-batch";
 import { callClaudeOrThrow } from "./attendance";
 import { httpErr } from "@/lib/http";
-import type { CommitStudentsBatchBody } from "@/lib/contracts/students";
+import type { CommitStudentRosterBatchBody } from "@/lib/contracts/students";
 
 export async function parseStudentsBatch(text: string) {
-  // 1. Fetch current basic roster metadata to run deep client-side deduplication loops
   const roster = await db
     .select({
       id: students.id,
@@ -25,7 +24,6 @@ export async function parseStudentsBatch(text: string) {
 
   const userMsg = buildParseStudentsUserMsg(text);
 
-  // 2. Query Claude for structure
   const resp = await callClaudeOrThrow(() =>
     anthropic.messages.create({
       model: MODEL,
@@ -38,13 +36,12 @@ export async function parseStudentsBatch(text: string) {
   );
 
   const toolUse = resp.content.find((b) => b.type === "tool_use");
-  if (!toolUse || toolUse.type !== "tool_use") throw httpErr.upstream("AI generation mapping error");
+  if (!toolUse || toolUse.type !== "tool_use") throw httpErr.upstream("AI mapping failure.");
 
   const input = toolUse.input as { students?: any[]; explanation?: string };
   const processedItems = [];
   const now = new Date();
 
-  // 3. Cycle through parsed outputs and analyze similarity metrics
   for (const item of input.students ?? []) {
     const candidates = findPossibleDuplicates(
       {
@@ -62,7 +59,6 @@ export async function parseStudentsBatch(text: string) {
     let fullMatchedRecord = null;
 
     if (hasMatch) {
-      // Pull back the full information context of our highest matching hit
       const [matchedRow] = await db
         .select()
         .from(students)
@@ -80,11 +76,11 @@ export async function parseStudentsBatch(text: string) {
 
   return {
     items: processedItems,
-    explanation: input.explanation ?? "Extraction processing completed successfully."
+    explanation: input.explanation ?? "Processing completed."
   };
 }
 
-export async function commitStudentsBatch(userId: string, body: CommitStudentsBatchBody) {
+export async function commitStudentsBatch(userId: string, body: CommitStudentRosterBatchBody) {
   let created = 0;
   let merged = 0;
 
@@ -108,9 +104,7 @@ export async function commitStudentsBatch(userId: string, body: CommitStudentsBa
     }
 
     if (item.action === "merge" && item.existingId) {
-      // Fetch original row values to keep from overwriting good records with blank fields
       const [old] = await db.select().from(students).where(eq(students.id, item.existingId)).limit(1);
-      
       if (old) {
         await db
           .update(students)
@@ -122,7 +116,7 @@ export async function commitStudentsBatch(userId: string, body: CommitStudentsBa
             email: item.incoming.email || old.email,
             igHandle: item.incoming.igHandle || old.igHandle,
             notes: item.incoming.notes 
-              ? `${old.notes ?? ""}\n[AI Merge Notes]: ${item.incoming.notes}`.trim()
+              ? `${old.notes ?? ""}\n[AI Merge]: ${item.incoming.notes}`.trim()
               : old.notes,
             updatedAt: new Date(),
           })
