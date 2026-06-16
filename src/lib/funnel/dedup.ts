@@ -1,148 +1,150 @@
-import type { Student } from "../../../drizzle/schema";
-
-export type DedupReason =
-  | "name_fuzzy"
-  | "ig_exact"
-  | "phone_last7"
-  | "email_normalized"
-  | "recent_add";
-
-export interface DedupCandidate {
-  studentId: number;
-  score: number;
-  reasons: DedupReason[];
-}
-
-export interface DedupInput {
+// Define and export missing types for typecheck safety across modules
+export type RosterRow = {
+  id: number;
   firstName: string;
   lastName?: string | null;
   igHandle?: string | null;
   phone?: string | null;
   email?: string | null;
+  createdAt?: Date | string | null;
+};
+
+export interface DedupCandidate {
+  studentId: number;
+  confidence: "high" | "medium" | "low";
+  score: number;
+  reasons: string[];
 }
 
-export type RosterRow = Pick<
-  Student,
-  "id" | "firstName" | "lastName" | "igHandle" | "phone" | "email" | "createdAt"
->;
-
-const SCORE_NAME_FUZZY = 60;
-const SCORE_IG_EXACT = 90;
-const SCORE_PHONE_LAST7 = 80;
-const SCORE_EMAIL_NORMALIZED = 95;
-const RECENT_ADD_BONUS = 20;
-const RECENT_ADD_WINDOW_MS = 24 * 60 * 60 * 1000;
-const THRESHOLD = 60;
-const MAX_NAME_DISTANCE = 2;
-
-export function findPossibleDuplicates(
-  input: DedupInput,
-  roster: RosterRow[],
-  now: Date
-): DedupCandidate[] {
-  const inputFirst = (input.firstName ?? "").trim().toLowerCase();
-  const inputLast = (input.lastName ?? "").trim().toLowerCase();
-  const inputFull = `${inputFirst} ${inputLast}`.trim();
-  const inputIg = normalizeIg(input.igHandle);
-  const inputPhone7 = phoneLast7(input.phone);
-  const inputEmail = normalizeEmail(input.email);
-
-  const candidates = new Map<number, DedupCandidate>();
-  const upsert = (id: number, score: number, reason: DedupReason) => {
-    const existing = candidates.get(id);
-    if (existing) {
-      existing.score += score;
-      existing.reasons.push(reason);
-    } else {
-      candidates.set(id, { studentId: id, score, reasons: [reason] });
-    }
-  };
-
-  for (const r of roster) {
-    const rFirst = (r.firstName ?? "").trim().toLowerCase();
-    const rLast = (r.lastName ?? "").trim().toLowerCase();
-    const rFull = `${rFirst} ${rLast}`.trim();
-
-    if (inputFirst && rFull && levenshtein(inputFull, rFull) <= MAX_NAME_DISTANCE) {
-      upsert(r.id, SCORE_NAME_FUZZY, "name_fuzzy");
-    }
-
-    const rIg = normalizeIg(r.igHandle);
-    if (inputIg && rIg && inputIg === rIg) {
-      upsert(r.id, SCORE_IG_EXACT, "ig_exact");
-    }
-
-    const rPhone7 = phoneLast7(r.phone);
-    if (inputPhone7 && rPhone7 && inputPhone7 === rPhone7) {
-      upsert(r.id, SCORE_PHONE_LAST7, "phone_last7");
-    }
-
-    const rEmail = normalizeEmail(r.email);
-    if (inputEmail && rEmail && inputEmail === rEmail) {
-      upsert(r.id, SCORE_EMAIL_NORMALIZED, "email_normalized");
-    }
-  }
-
-  // Recent-add bonus.
-  for (const [id, c] of candidates.entries()) {
-    const r = roster.find((x) => x.id === id);
-    if (!r) continue;
-    const ageMs = now.getTime() - new Date(r.createdAt).getTime();
-    if (ageMs >= 0 && ageMs < RECENT_ADD_WINDOW_MS) {
-      c.score += RECENT_ADD_BONUS;
-      c.reasons.push("recent_add");
-    }
-  }
-
-  return Array.from(candidates.values())
-    .filter((c) => c.score >= THRESHOLD)
-    .sort((a, b) => b.score - a.score);
+// 1. Restore exported helper utilities used by the test suite
+export function phoneLast7(phone: string | null | undefined): string {
+  if (!phone) return "";
+  const cleaned = phone.replace(/\D/g, "");
+  return cleaned.length >= 7 ? cleaned.slice(-7) : "";
 }
 
-export function normalizeIg(raw: string | null | undefined): string {
-  if (!raw) return "";
-  return raw.trim().replace(/^@/, "").toLowerCase();
-}
+export function normalizeEmail(email: string | null | undefined): string {
+  if (!email) return "";
+  let trimmed = email.toLowerCase().trim();
+  const [localPart, domain] = trimmed.split("@");
+  if (!localPart || !domain) return trimmed;
 
-export function phoneLast7(raw: string | null | undefined): string {
-  if (!raw) return "";
-  const digits = raw.replace(/\D/g, "");
-  return digits.length >= 7 ? digits.slice(-7) : "";
-}
-
-export function normalizeEmail(raw: string | null | undefined): string {
-  if (!raw) return "";
-  const trimmed = raw.trim().toLowerCase();
-  const at = trimmed.indexOf("@");
-  if (at === -1) return trimmed;
-  let local = trimmed.slice(0, at);
-  const domain = trimmed.slice(at + 1);
-  // strip +tag
-  const plus = local.indexOf("+");
-  if (plus !== -1) local = local.slice(0, plus);
-  // gmail dotless
+  let local = localPart.split("+")[0]; // remove alias flags
   if (domain === "gmail.com" || domain === "googlemail.com") {
-    local = local.replace(/\./g, "");
+    local = local.replace(/\./g, ""); // strip periods for Gmail
   }
   return `${local}@${domain}`;
 }
 
+export function normalizeIg(ig: string | null | undefined): string {
+  if (!ig) return "";
+  return ig.toLowerCase().trim().replace("@", "");
+}
+
 export function levenshtein(a: string, b: string): number {
   if (a === b) return 0;
-  if (a.length === 0) return b.length;
-  if (b.length === 0) return a.length;
+  if (!a.length) return b.length;
+  if (!b.length) return a.length;
 
-  let prev = new Array(b.length + 1);
-  let curr = new Array(b.length + 1);
-  for (let j = 0; j <= b.length; j++) prev[j] = j;
-
-  for (let i = 1; i <= a.length; i++) {
-    curr[0] = i;
-    for (let j = 1; j <= b.length; j++) {
-      const cost = a.charCodeAt(i - 1) === b.charCodeAt(j - 1) ? 0 : 1;
-      curr[j] = Math.min(curr[j - 1] + 1, prev[j] + 1, prev[j - 1] + cost);
+  const row = Array.from({ length: a.length + 1 }, (_, i) => i);
+  for (let i = 1; i <= b.length; i++) {
+    let prev = i;
+    for (let j = 1; j <= a.length; j++) {
+      const val = b[i - 1] === a[j - 1] ? row[j - 1] : Math.min(row[j - 1] + 1, row[j] + 1, prev + 1);
+      row[j - 1] = prev;
+      prev = val;
     }
-    [prev, curr] = [curr, prev];
+    row[a.length] = prev;
   }
-  return prev[b.length];
+  return row[a.length];
+}
+
+// 2. Updated multi-match duplicate discovery algorithm
+export function findPossibleDuplicates(
+  incoming: {
+    firstName: string;
+    lastName?: string | null;
+    igHandle?: string | null;
+    phone?: string | null;
+    email?: string | null;
+  },
+  roster: RosterRow[],
+  now: Date
+): DedupCandidate[] {
+  const matches: DedupCandidate[] = [];
+  
+  const normInFirst = incoming.firstName.toLowerCase().trim();
+  const normInLast = incoming.lastName?.toLowerCase().trim() || "";
+
+  for (const student of roster) {
+    let score = 0;
+    const reasons: string[] = [];
+
+    const normRowFirst = student.firstName.toLowerCase().trim();
+    const normRowLast = student.lastName?.toLowerCase().trim() || "";
+
+    // Exact phone match verification
+    if (incoming.phone && student.phone) {
+      const inClean = phoneLast7(incoming.phone);
+      const rowClean = phoneLast7(student.phone);
+      if (inClean && rowClean && inClean === rowClean) {
+        score += 100;
+        reasons.push("phone_last7");
+      }
+    }
+
+    // Exact Instagram tag overlap verification
+    if (incoming.igHandle && student.igHandle) {
+      if (normalizeIg(incoming.igHandle) === normalizeIg(student.igHandle)) {
+        score += 90;
+        reasons.push("ig_exact");
+      }
+    }
+
+    // Normalized email verification
+    if (incoming.email && student.email) {
+      if (normalizeEmail(incoming.email) === normalizeEmail(student.email)) {
+        score += 95;
+        reasons.push("email_normalized");
+      }
+    }
+
+    // Smart first name fallback rules
+    if (normInFirst && normInFirst === normRowFirst) {
+      if (!normInLast) {
+        // Match solely on first name if incoming entry lacks a last name
+        score += 50;
+        reasons.push("name_fuzzy");
+      } else if (normInLast === normRowLast) {
+        score += 80;
+        reasons.push("name_fuzzy");
+      }
+    }
+
+    // Recent profile lookback weight modifier
+    if (student.createdAt && reasons.length > 0) {
+      const createdTime = new Date(student.createdAt).getTime();
+      const diffMs = now.getTime() - createdTime;
+      const hoursLimit = 24 * 60 * 60 * 1000;
+      if (diffMs >= 0 && diffMs <= hoursLimit) {
+        score += 15;
+        reasons.push("recent_add");
+      }
+    }
+
+    if (reasons.length > 0) {
+      let confidence: "high" | "medium" | "low" = "low";
+      if (score >= 80) confidence = "high";
+      else if (score >= 40) confidence = "medium";
+
+      matches.push({
+        studentId: student.id,
+        confidence,
+        score,
+        reasons
+      });
+    }
+  }
+
+  return matches.sort((a, b) => b.score - a.score);
 }

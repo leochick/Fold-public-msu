@@ -39,7 +39,7 @@ export interface ParsedContact {
 export interface DedupCandidateWithName extends DedupCandidate {
   displayName: string;
   addedByDisplayName?: string;
-  createdAt: string; // ISO
+  createdAt?: string | Date | null;
 }
 
 export interface IntakePreview {
