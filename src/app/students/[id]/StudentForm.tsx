@@ -114,12 +114,18 @@ function Checkbox({ label, name, defaultChecked }: { label: string; name: string
   );
 }
 
-const COURSES = ["Orientation", "Study Group 101", "Community Bootcamp", "Leadership Track"];
+const COURSES = [
+  "Course 101",
+  "ERT",
+  "Sixth Hour",
+  "Connection Team",
+  "Student Leader"
+];
 
 function CourseChecks({ defaultValues }: { defaultValues: string[] }) {
   return (
     <div className="space-y-2">
-      <span className="label">Course material completed</span>
+      <span className="label">Course material in progress or completed</span>
       <div className="grid grid-cols-2 gap-2">
         {COURSES.map((c) => (
           <label key={c} className="flex items-center gap-2 text-sm">
