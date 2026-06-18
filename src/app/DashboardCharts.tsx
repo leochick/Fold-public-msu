@@ -4,6 +4,8 @@ import {
   LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer,
   BarChart, Bar, CartesianGrid, PieChart, Pie, Cell, Legend,
 } from "recharts";
+import { C101Widget } from "../components/C101Widget";
+import { Suspense } from "react";
 
 const COLORS = ["#7c3aed", "#10b981", "#f59e0b", "#ef4444", "#3b82f6", "#a855f7"];
 
@@ -49,6 +51,15 @@ export default function DashboardCharts({
           </ResponsiveContainer>
         )}
       </div>
+
+      <Suspense fallback={
+        <div className="grid gap-6 md:grid-cols-2 mt-6 animate-pulse">
+          <div className="bg-zinc-100 dark:bg-zinc-800 h-64 rounded-xl" />
+          <div className="bg-zinc-100 dark:bg-zinc-800 h-64 rounded-xl" />
+        </div>
+      }>
+        <C101Widget />
+      </Suspense>
 
       <div className="card lg:col-span-2">
         <h3 className="font-semibold mb-2">Breakdowns</h3>
