@@ -4,22 +4,32 @@ import {
   LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer,
   BarChart, Bar, CartesianGrid, PieChart, Pie, Cell, Legend,
 } from "recharts";
-import { C101Widget } from "../components/C101Widget";
-import { Suspense } from "react";
 
 const COLORS = ["#7c3aed", "#10b981", "#f59e0b", "#ef4444", "#3b82f6", "#a855f7"];
 
-type OverTime = { name: string; date: string; count: number; eventId: number }[];
-type Funnel = { stage: string; count: number }[];
-type Breakdowns = {
-  year: { name: string; value: number }[];
-  gender: { name: string; value: number }[];
-  eventType: { name: string; value: number }[];
-};
+interface DashboardStudent {
+  id: number;
+  firstName: string;
+  lastName: string | null;
+  email: string | null;
+  funnelStage: "new" | "reaching_out" | "connected" | "met" | "active" | "engaged" | "inactive";
+}
+
+interface DashboardChartsProps {
+  overTime: any; // update with your exact type definitions
+  funnel: any;
+  breakdowns: any;
+  completedC101: DashboardStudent[];
+  pendingC101: DashboardStudent[];
+}
 
 export default function DashboardCharts({
-  overTime, funnel, breakdowns,
-}: { overTime: OverTime; funnel: Funnel; breakdowns: Breakdowns }) {
+  overTime,
+  funnel,
+  breakdowns,
+  completedC101,
+  pendingC101,
+}: DashboardChartsProps) {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
       <div className="card">
@@ -39,7 +49,7 @@ export default function DashboardCharts({
 
       <div className="card">
         <h3 className="font-semibold mb-2">Engagement funnel</h3>
-        {funnel.every((f) => f.count === 0) ? <Empty /> : (
+        {funnel.every((f:any) => f.count === 0) ? <Empty /> : (
           <ResponsiveContainer width="100%" height={220}>
             <BarChart data={funnel} layout="vertical" margin={{ left: 40 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.06)" />
@@ -52,14 +62,86 @@ export default function DashboardCharts({
         )}
       </div>
 
-      <Suspense fallback={
-        <div className="grid gap-6 md:grid-cols-2 mt-6 animate-pulse">
-          <div className="bg-zinc-100 dark:bg-zinc-800 h-64 rounded-xl" />
-          <div className="bg-zinc-100 dark:bg-zinc-800 h-64 rounded-xl" />
+      {/* Course 101 Widget Section within DashboardCharts */}
+      <div className="grid gap-6 md:grid-cols-2 mt-6">
+        
+        {/* List 1: Completed Course 101 */}
+        <div className="card space-y-4">
+          <div>
+            <div className="flex items-center justify-between">
+              <h3 className="font-semibold text-lg">Completed Course 101</h3>
+              <span className="chip bg-green-500/10 text-green-600 dark:text-green-400 text-xs px-2 py-0.5 rounded">
+                {completedC101.length} Students
+              </span>
+            </div>
+            <p className="text-xs text-black/50 dark:text-white/50 mt-1">
+              Active and Engaged students who have completed C101.
+            </p>
+          </div>
+
+          <div className="max-h-64 overflow-y-auto divide-y divide-black/5 dark:divide-white/5 pr-2">
+            {completedC101.length === 0 ? (
+              <p className="text-sm text-black/40 dark:text-white/40 py-4 italic text-center">
+                No students have taken C101 yet.
+              </p>
+            ) : (
+              completedC101.map((student) => (
+                <div key={student.id} className="py-2.5 flex flex-col justify-center">
+                  <span className="text-sm font-medium">
+                    {`${student.firstName} ${student.lastName ?? ""}`.trim()}
+                  </span>
+                  {student.email && (
+                    <span className="text-xs text-black/40 dark:text-white/40">
+                      {student.email}
+                    </span>
+                  )}
+                </div>
+              ))
+            )}
+          </div>
         </div>
-      }>
-        <C101Widget />
-      </Suspense>
+
+        {/* List 2: Should Take Course 101 */}
+        <div className="card space-y-4">
+          <div>
+            <div className="flex items-center justify-between">
+              <h3 className="font-semibold text-lg">Should Take Course 101</h3>
+              <span className="chip bg-amber-500/10 text-amber-600 dark:text-amber-400 text-xs px-2 py-0.5 rounded">
+                {pendingC101.length} Missing
+              </span>
+            </div>
+            <p className="text-xs text-black/50 dark:text-white/50 mt-1">
+              Active and Engaged students missing this prerequisite.
+            </p>
+          </div>
+
+          <div className="max-h-64 overflow-y-auto divide-y divide-black/5 dark:divide-white/5 pr-2">
+            {pendingC101.length === 0 ? (
+              <p className="text-sm text-black/40 dark:text-white/40 py-4 italic text-center">
+                All active and engaged students are up to date!
+              </p>
+            ) : (
+              pendingC101.map((student) => (
+                <div key={student.id} className="py-2.5 flex items-center justify-between">
+                  <div className="flex flex-col">
+                    <span className="text-sm font-medium">
+                      {`${student.firstName} ${student.lastName ?? ""}`.trim()}
+                    </span>
+                    {student.email && (
+                      <span className="text-xs text-black/40 dark:text-white/40">
+                        {student.email}
+                    </span>
+                    )}
+                  </div>
+                  <span className="chip text-xs px-2 py-0.5 bg-black/5 dark:bg-white/5 uppercase tracking-wider font-mono text-[10px]">
+                    {student.funnelStage}
+                  </span>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      </div>
 
       <div className="card lg:col-span-2">
         <h3 className="font-semibold mb-2">Breakdowns</h3>

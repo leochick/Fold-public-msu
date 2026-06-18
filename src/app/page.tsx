@@ -114,6 +114,33 @@ export default async function DashboardPage() {
     eventType: byType.map((r) => ({ name: r.type ?? "—", value: Number(r.c) })),
   };
 
+  const allTargetStudents = await db
+    .select({
+      id: students.id,
+      firstName: students.firstName,
+      lastName: students.lastName,
+      email: students.email,
+      funnelStage: students.funnelStage,
+      courseMaterial: students.courseMaterial,
+    })
+    .from(students)
+    .where(
+      or(
+        eq(students.funnelStage, "active"),
+        eq(students.funnelStage, "engaged")
+      )
+    );
+
+    const completedStudents = allTargetStudents.filter((student) => {
+    const materials = student.courseMaterial as string[] | null;
+    return Array.isArray(materials) && materials.includes("C101");
+  });
+
+  const pendingStudents = allTargetStudents.filter((student) => {
+    const materials = student.courseMaterial as string[] | null;
+    return !Array.isArray(materials) || !materials.includes("C101");
+  });
+
   const snapshot = {
     events: Number(eventsLast30[0]?.c ?? 0),
     attendances: Number(attendsLast30[0]?.c ?? 0),
@@ -173,7 +200,13 @@ export default async function DashboardPage() {
         <Stat label="New students (30d)" value={snapshot.newStudents} />
       </section>
 
-      <DashboardCharts overTime={overTimeData} funnel={funnelData} breakdowns={breakdowns} />
+      <DashboardCharts 
+        overTime={overTimeData} 
+        funnel={funnelData} 
+        breakdowns={breakdowns}
+        completedC101={completedStudents}
+        pendingC101={pendingStudents}
+      />
 
       <section className="card overflow-x-auto">
         <div className="flex items-center justify-between mb-3">
