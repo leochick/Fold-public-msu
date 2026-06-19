@@ -12,7 +12,7 @@ interface DashboardStudent {
   firstName: string;
   lastName: string | null;
   email: string | null;
-  funnelStage: "new" | "reaching_out" | "connected" | "met" | "active" | "engaged" | "inactive";
+  engagementStage: "active" | "engaged";
 }
 
 interface DashboardChartsProps {
@@ -79,7 +79,7 @@ export default function DashboardCharts({
               </span>
             </div>
             <p className="text-xs text-black/50 dark:text-white/50 mt-1">
-              Active and Engaged students with attendance in {rangeLabel} who have completed C101.
+              Active (1+ visit) and Engaged (3+ visits) in {rangeLabel} who have completed C101.
             </p>
           </div>
 
@@ -115,7 +115,7 @@ export default function DashboardCharts({
               </span>
             </div>
             <p className="text-xs text-black/50 dark:text-white/50 mt-1">
-              Active and Engaged students with attendance in {rangeLabel} missing this prerequisite.
+              Active (1+ visit) and Engaged (3+ visits) in {rangeLabel} missing this prerequisite.
             </p>
           </div>
 
@@ -138,7 +138,7 @@ export default function DashboardCharts({
                     )}
                   </div>
                   <span className="chip text-xs px-2 py-0.5 bg-black/5 dark:bg-white/5 uppercase tracking-wider font-mono text-[10px]">
-                    {student.funnelStage}
+                    {student.engagementStage}
                   </span>
                 </div>
               ))

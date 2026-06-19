@@ -3,6 +3,11 @@ import { db } from "@/lib/db";
 import { students, events, attendances } from "../../drizzle/schema";
 import { sql, eq, and, gte, lte, isNotNull, inArray, or, isNull } from "drizzle-orm";
 import { dashboardDateRangeLabel, resolveDashboardDateRange } from "@/lib/dashboard-date-range";
+import {
+  classifyEngagementInRange,
+  isActiveOrEngagedInRange,
+  type RangeEngagementStage,
+} from "@/lib/dashboard-engagement";
 import DashboardCharts from "./DashboardCharts";
 import DashboardDateFilter from "./DashboardDateFilter";
 import QuickAdd from "./events/QuickAdd";
@@ -129,41 +134,37 @@ export default async function DashboardPage({
     eventType: byType.map((r) => ({ name: r.type ?? "—", value: Number(r.c) })),
   };
 
-  const studentsInRange = await db
-    .selectDistinct({ id: students.id })
-    .from(students)
-    .innerJoin(attendances, eq(attendances.studentId, students.id))
-    .innerJoin(events, eq(attendances.eventId, events.id))
-    .where(eventDateRange);
-
-  const studentIdsInRange = studentsInRange.map((r) => r.id);
+  const studentsInRange = repeatRows.filter((r) => isActiveOrEngagedInRange(Number(r.c)));
+  const engagementByStudent = new Map<number, RangeEngagementStage>(
+    studentsInRange.map((r) => [r.sid, classifyEngagementInRange(Number(r.c))!])
+  );
+  const targetStudentIds = studentsInRange.map((r) => r.sid);
 
   const allTargetStudents =
-    studentIdsInRange.length > 0
+    targetStudentIds.length > 0
       ? await db
           .select({
             id: students.id,
             firstName: students.firstName,
             lastName: students.lastName,
             email: students.email,
-            funnelStage: students.funnelStage,
             courseMaterial: students.courseMaterial,
           })
           .from(students)
-          .where(
-            and(
-              inArray(students.id, studentIdsInRange),
-              or(eq(students.funnelStage, "active"), eq(students.funnelStage, "engaged"))
-            )
-          )
+          .where(inArray(students.id, targetStudentIds))
       : [];
 
-  const completedStudents = allTargetStudents.filter((student) => {
+  const c101Students = allTargetStudents.map((student) => ({
+    ...student,
+    engagementStage: engagementByStudent.get(student.id)!,
+  }));
+
+  const completedStudents = c101Students.filter((student) => {
     const materials = student.courseMaterial as string[] | null;
     return Array.isArray(materials) && materials.includes("C101");
   });
 
-  const pendingStudents = allTargetStudents.filter((student) => {
+  const pendingStudents = c101Students.filter((student) => {
     const materials = student.courseMaterial as string[] | null;
     return !Array.isArray(materials) || !materials.includes("C101");
   });
