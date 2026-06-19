@@ -21,6 +21,7 @@ interface DashboardChartsProps {
   breakdowns: any;
   completedC101: DashboardStudent[];
   pendingC101: DashboardStudent[];
+  rangeLabel: string;
 }
 
 export default function DashboardCharts({
@@ -29,11 +30,13 @@ export default function DashboardCharts({
   breakdowns,
   completedC101,
   pendingC101,
+  rangeLabel,
 }: DashboardChartsProps) {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
       <div className="card">
         <h3 className="font-semibold mb-2">Attendance over time</h3>
+        <p className="text-xs text-black/50 mb-2">{rangeLabel}</p>
         {overTime.length === 0 ? <Empty /> : (
           <ResponsiveContainer width="100%" height={220}>
             <LineChart data={overTime}>
@@ -49,6 +52,7 @@ export default function DashboardCharts({
 
       <div className="card">
         <h3 className="font-semibold mb-2">Engagement funnel</h3>
+        <p className="text-xs text-black/50 mb-2">{rangeLabel}</p>
         {funnel.every((f:any) => f.count === 0) ? <Empty /> : (
           <ResponsiveContainer width="100%" height={220}>
             <BarChart data={funnel} layout="vertical" margin={{ left: 40 }}>
@@ -75,7 +79,7 @@ export default function DashboardCharts({
               </span>
             </div>
             <p className="text-xs text-black/50 dark:text-white/50 mt-1">
-              Active and Engaged students who have completed C101.
+              Active and Engaged students with attendance in {rangeLabel} who have completed C101.
             </p>
           </div>
 
@@ -111,7 +115,7 @@ export default function DashboardCharts({
               </span>
             </div>
             <p className="text-xs text-black/50 dark:text-white/50 mt-1">
-              Active and Engaged students missing this prerequisite.
+              Active and Engaged students with attendance in {rangeLabel} missing this prerequisite.
             </p>
           </div>
 
@@ -145,6 +149,7 @@ export default function DashboardCharts({
 
       <div className="card lg:col-span-2">
         <h3 className="font-semibold mb-2">Breakdowns</h3>
+        <p className="text-xs text-black/50 mb-2">{rangeLabel}</p>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <PieMini title="By year" data={breakdowns.year} />
           <PieMini title="By gender" data={breakdowns.gender} />

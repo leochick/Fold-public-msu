@@ -1,29 +1,35 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { students, events, attendances } from "../../drizzle/schema";
-import { sql, eq, and, gte, isNotNull, inArray, or, isNull } from "drizzle-orm";
+import { sql, eq, and, gte, lte, isNotNull, inArray, or, isNull } from "drizzle-orm";
+import { dashboardDateRangeLabel, resolveDashboardDateRange } from "@/lib/dashboard-date-range";
 import DashboardCharts from "./DashboardCharts";
+import DashboardDateFilter from "./DashboardDateFilter";
 import QuickAdd from "./events/QuickAdd";
 
 export const dynamic = "force-dynamic";
 
-export default async function DashboardPage() {
-  const cutoff30 = new Date(Date.now() - 30 * 86400_000);
-  const cutoff60 = new Date(Date.now() - 60 * 86400_000);
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ from?: string; to?: string }>;
+}) {
+  const sp = await searchParams;
+  const { from, to, fromStr, toStr } = resolveDashboardDateRange(sp);
+  const rangeLabel = dashboardDateRangeLabel(from, to);
+  const eventDateRange = and(gte(events.startDate, from), lte(events.startDate, to));
 
   const [
     overTime,
-    totalStudents,
     repeatRows,
-    recentRows,
     coreMembers,
     byYear,
     byGender,
     byType,
-    eventsLast30,
-    attendsLast30,
-    newStudentsLast30,
-    uniqueAttendees30,
+    eventsInRange,
+    attendsInRange,
+    newStudentsInRange,
+    uniqueAttendeesInRange,
     hotRows,
   ] = await Promise.all([
     db
@@ -35,47 +41,55 @@ export default async function DashboardPage() {
       })
       .from(events)
       .leftJoin(attendances, eq(attendances.eventId, events.id))
+      .where(eventDateRange)
       .groupBy(events.id)
       .orderBy(events.startDate),
-    db.select({ c: sql<number>`count(*)` }).from(students),
-    db
-      .select({ sid: attendances.studentId, c: sql<number>`count(*)`.as("c") })
-      .from(attendances)
-      .groupBy(attendances.studentId),
     db
       .select({ sid: attendances.studentId, c: sql<number>`count(*)`.as("c") })
       .from(attendances)
       .innerJoin(events, eq(attendances.eventId, events.id))
-      .where(gte(events.startDate, cutoff60))
+      .where(eventDateRange)
       .groupBy(attendances.studentId),
-    db.select({ c: sql<number>`count(*)` }).from(students).where(eq(students.memberStatus, "core")),
     db
-      .select({ year: students.year, c: sql<number>`count(*)`.as("c") })
+      .select({ c: sql<number>`count(distinct ${students.id})` })
       .from(students)
-      .where(isNotNull(students.year))
+      .innerJoin(attendances, eq(attendances.studentId, students.id))
+      .innerJoin(events, eq(attendances.eventId, events.id))
+      .where(and(eventDateRange, eq(students.memberStatus, "core"))),
+    db
+      .select({ year: students.year, c: sql<number>`count(distinct ${students.id})`.as("c") })
+      .from(students)
+      .innerJoin(attendances, eq(attendances.studentId, students.id))
+      .innerJoin(events, eq(attendances.eventId, events.id))
+      .where(and(eventDateRange, isNotNull(students.year)))
       .groupBy(students.year),
     db
-      .select({ gender: students.gender, c: sql<number>`count(*)`.as("c") })
+      .select({ gender: students.gender, c: sql<number>`count(distinct ${students.id})`.as("c") })
       .from(students)
-      .where(isNotNull(students.gender))
+      .innerJoin(attendances, eq(attendances.studentId, students.id))
+      .innerJoin(events, eq(attendances.eventId, events.id))
+      .where(and(eventDateRange, isNotNull(students.gender)))
       .groupBy(students.gender),
     db
       .select({ type: events.type, c: sql<number>`count(*)`.as("c") })
       .from(events)
-      .where(isNotNull(events.type))
+      .where(and(eventDateRange, isNotNull(events.type)))
       .groupBy(events.type),
-    db.select({ c: sql<number>`count(*)` }).from(events).where(gte(events.startDate, cutoff30)),
+    db.select({ c: sql<number>`count(*)` }).from(events).where(eventDateRange),
     db
       .select({ c: sql<number>`count(*)` })
       .from(attendances)
       .innerJoin(events, eq(attendances.eventId, events.id))
-      .where(gte(events.startDate, cutoff30)),
-    db.select({ c: sql<number>`count(*)` }).from(students).where(gte(students.createdAt, cutoff30)),
+      .where(eventDateRange),
+    db
+      .select({ c: sql<number>`count(*)` })
+      .from(students)
+      .where(and(gte(students.createdAt, from), lte(students.createdAt, to))),
     db
       .select({ c: sql<number>`count(distinct ${attendances.studentId})` })
       .from(attendances)
       .innerJoin(events, eq(attendances.eventId, events.id))
-      .where(gte(events.startDate, cutoff30)),
+      .where(eventDateRange),
     db
       .select({
         sid: attendances.studentId,
@@ -84,7 +98,7 @@ export default async function DashboardPage() {
       })
       .from(attendances)
       .innerJoin(events, eq(attendances.eventId, events.id))
-      .where(gte(events.startDate, cutoff60))
+      .where(eventDateRange)
       .groupBy(attendances.studentId),
   ]);
 
@@ -96,12 +110,13 @@ export default async function DashboardPage() {
   }));
 
   const repeatSet = new Set(repeatRows.filter((r) => Number(r.c) >= 2).map((r) => r.sid));
-  const activeSet = new Set(recentRows.filter((r) => Number(r.c) >= 3).map((r) => r.sid));
+  const activeSet = new Set(repeatRows.filter((r) => Number(r.c) >= 3).map((r) => r.sid));
+  const visitorCount = repeatRows.length;
 
   const funnelData = [
-    { stage: "All visitors", count: Number(totalStudents[0]?.c ?? 0) },
+    { stage: "All visitors", count: visitorCount },
     { stage: "Repeat (2+)", count: repeatSet.size },
-    { stage: "Active (3+ in 60d)", count: activeSet.size },
+    { stage: "Active (3+)", count: activeSet.size },
     { stage: "Core members", count: Number(coreMembers[0]?.c ?? 0) },
   ];
 
@@ -114,24 +129,36 @@ export default async function DashboardPage() {
     eventType: byType.map((r) => ({ name: r.type ?? "—", value: Number(r.c) })),
   };
 
-  const allTargetStudents = await db
-    .select({
-      id: students.id,
-      firstName: students.firstName,
-      lastName: students.lastName,
-      email: students.email,
-      funnelStage: students.funnelStage,
-      courseMaterial: students.courseMaterial,
-    })
+  const studentsInRange = await db
+    .selectDistinct({ id: students.id })
     .from(students)
-    .where(
-      or(
-        eq(students.funnelStage, "active"),
-        eq(students.funnelStage, "engaged")
-      )
-    );
+    .innerJoin(attendances, eq(attendances.studentId, students.id))
+    .innerJoin(events, eq(attendances.eventId, events.id))
+    .where(eventDateRange);
 
-    const completedStudents = allTargetStudents.filter((student) => {
+  const studentIdsInRange = studentsInRange.map((r) => r.id);
+
+  const allTargetStudents =
+    studentIdsInRange.length > 0
+      ? await db
+          .select({
+            id: students.id,
+            firstName: students.firstName,
+            lastName: students.lastName,
+            email: students.email,
+            funnelStage: students.funnelStage,
+            courseMaterial: students.courseMaterial,
+          })
+          .from(students)
+          .where(
+            and(
+              inArray(students.id, studentIdsInRange),
+              or(eq(students.funnelStage, "active"), eq(students.funnelStage, "engaged"))
+            )
+          )
+      : [];
+
+  const completedStudents = allTargetStudents.filter((student) => {
     const materials = student.courseMaterial as string[] | null;
     return Array.isArray(materials) && materials.includes("C101");
   });
@@ -142,10 +169,10 @@ export default async function DashboardPage() {
   });
 
   const snapshot = {
-    events: Number(eventsLast30[0]?.c ?? 0),
-    attendances: Number(attendsLast30[0]?.c ?? 0),
-    uniquePeople: Number(uniqueAttendees30[0]?.c ?? 0),
-    newStudents: Number(newStudentsLast30[0]?.c ?? 0),
+    events: Number(eventsInRange[0]?.c ?? 0),
+    attendances: Number(attendsInRange[0]?.c ?? 0),
+    uniquePeople: Number(uniqueAttendeesInRange[0]?.c ?? 0),
+    newStudents: Number(newStudentsInRange[0]?.c ?? 0),
   };
 
   const sortedHot = hotRows
@@ -181,7 +208,7 @@ export default async function DashboardPage() {
         status: s.memberStatus,
         primaryContact: s.primaryContact,
         visits: r.visits,
-        lastSeen: new Date(r.lastSeen * 1000).toLocaleDateString("en-US", { timeZone: "UTC" }),
+        lastSeen: new Date(Number(r.lastSeen) * 1000).toLocaleDateString("en-US", { timeZone: "UTC" }),
       };
     });
 
@@ -191,21 +218,24 @@ export default async function DashboardPage() {
         <h1 className="text-2xl font-semibold">Dashboard</h1>
       </div>
 
+      <DashboardDateFilter key={`${fromStr}-${toStr}`} from={fromStr} to={toStr} />
+
       <QuickAdd />
 
       <section className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <Stat label="Events (30d)" value={snapshot.events} />
-        <Stat label="Total check-ins (30d)" value={snapshot.attendances} />
-        <Stat label="Unique people (30d)" value={snapshot.uniquePeople} />
-        <Stat label="New students (30d)" value={snapshot.newStudents} />
+        <Stat label="Events" value={snapshot.events} />
+        <Stat label="Total check-ins" value={snapshot.attendances} />
+        <Stat label="Unique people" value={snapshot.uniquePeople} />
+        <Stat label="New students" value={snapshot.newStudents} />
       </section>
 
-      <DashboardCharts 
-        overTime={overTimeData} 
-        funnel={funnelData} 
+      <DashboardCharts
+        overTime={overTimeData}
+        funnel={funnelData}
         breakdowns={breakdowns}
         completedC101={completedStudents}
         pendingC101={pendingStudents}
+        rangeLabel={rangeLabel}
       />
 
       <section className="card overflow-x-auto">
@@ -213,18 +243,18 @@ export default async function DashboardPage() {
           <div>
             <h2 className="font-semibold">Active prospects</h2>
             <p className="text-xs text-black/60">
-              Non-core members ranked by attendance in the last 60 days. Highest priority for follow-up.
+              Non-core members ranked by attendance from {rangeLabel}. Highest priority for follow-up.
             </p>
           </div>
           <Link href="/students" className="text-xs text-black/60 hover:underline">all students →</Link>
         </div>
         {hotProspects.length === 0 ? (
-          <p className="text-sm text-black/50">No recent attendance yet.</p>
+          <p className="text-sm text-black/50">No attendance in this date range yet.</p>
         ) : (
           <table>
             <thead>
               <tr>
-                <th>Name</th><th>Year</th><th>Status</th><th>Visits (60d)</th><th>Primary contact</th><th>Last seen</th>
+                <th>Name</th><th>Year</th><th>Status</th><th>Visits</th><th>Primary contact</th><th>Last seen</th>
               </tr>
             </thead>
             <tbody>
