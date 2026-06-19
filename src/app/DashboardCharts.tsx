@@ -7,11 +7,14 @@ import {
 
 const COLORS = ["#7c3aed", "#10b981", "#f59e0b", "#ef4444", "#3b82f6", "#a855f7"];
 
-interface DashboardStudent {
+interface CompletedC101Student {
   id: number;
   firstName: string;
   lastName: string | null;
   email: string | null;
+}
+
+interface PendingC101Student extends CompletedC101Student {
   engagementStage: "active" | "engaged";
 }
 
@@ -19,8 +22,8 @@ interface DashboardChartsProps {
   overTime: any; // update with your exact type definitions
   funnel: any;
   breakdowns: any;
-  completedC101: DashboardStudent[];
-  pendingC101: DashboardStudent[];
+  completedC101: CompletedC101Student[];
+  pendingC101: PendingC101Student[];
   rangeLabel: string;
 }
 
@@ -66,31 +69,63 @@ export default function DashboardCharts({
         )}
       </div>
 
-      {/* Course 101 Widget Section within DashboardCharts */}
-      <div className="grid gap-6 md:grid-cols-2 mt-6">
-        
-        {/* List 1: Completed Course 101 */}
-        <div className="card space-y-4">
-          <div>
-            <div className="flex items-center justify-between">
-              <h3 className="font-semibold text-lg">Completed Course 101</h3>
-              <span className="chip bg-green-500/10 text-green-600 dark:text-green-400 text-xs px-2 py-0.5 rounded">
-                {completedC101.length} Students
-              </span>
-            </div>
-            <p className="text-xs text-black/50 dark:text-white/50 mt-1">
-              Active (1+ visit) and Engaged (3+ visits) in {rangeLabel} who have completed C101.
-            </p>
+      <div className="card lg:col-span-2 space-y-4">
+        <div>
+          <div className="flex items-center justify-between">
+            <h3 className="font-semibold text-lg">Completed Course 101</h3>
+            <span className="chip bg-green-500/10 text-green-600 dark:text-green-400 text-xs px-2 py-0.5 rounded">
+              {completedC101.length} Students
+            </span>
           </div>
+          <p className="text-xs text-black/50 dark:text-white/50 mt-1">
+            Students with attendance in {rangeLabel} who have completed C101.
+          </p>
+        </div>
 
-          <div className="max-h-64 overflow-y-auto divide-y divide-black/5 dark:divide-white/5 pr-2">
-            {completedC101.length === 0 ? (
-              <p className="text-sm text-black/40 dark:text-white/40 py-4 italic text-center">
-                No students have taken C101 yet.
-              </p>
-            ) : (
-              completedC101.map((student) => (
-                <div key={student.id} className="py-2.5 flex flex-col justify-center">
+        <div className="max-h-64 overflow-y-auto divide-y divide-black/5 dark:divide-white/5 pr-2">
+          {completedC101.length === 0 ? (
+            <p className="text-sm text-black/40 dark:text-white/40 py-4 italic text-center">
+              No students have taken C101 yet.
+            </p>
+          ) : (
+            completedC101.map((student) => (
+              <div key={student.id} className="py-2.5 flex flex-col justify-center">
+                <span className="text-sm font-medium">
+                  {`${student.firstName} ${student.lastName ?? ""}`.trim()}
+                </span>
+                {student.email && (
+                  <span className="text-xs text-black/40 dark:text-white/40">
+                    {student.email}
+                  </span>
+                )}
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+
+      <div className="card lg:col-span-2 space-y-4">
+        <div>
+          <div className="flex items-center justify-between">
+            <h3 className="font-semibold text-lg">Should Take Course 101</h3>
+            <span className="chip bg-amber-500/10 text-amber-600 dark:text-amber-400 text-xs px-2 py-0.5 rounded">
+              {pendingC101.length} Missing
+            </span>
+          </div>
+          <p className="text-xs text-black/50 dark:text-white/50 mt-1">
+            Active (1+ visit) and Engaged (3+ visits) in {rangeLabel} missing this prerequisite.
+          </p>
+        </div>
+
+        <div className="max-h-64 overflow-y-auto divide-y divide-black/5 dark:divide-white/5 pr-2">
+          {pendingC101.length === 0 ? (
+            <p className="text-sm text-black/40 dark:text-white/40 py-4 italic text-center">
+              All active and engaged students are up to date!
+            </p>
+          ) : (
+            pendingC101.map((student) => (
+              <div key={student.id} className="py-2.5 flex items-center justify-between">
+                <div className="flex flex-col">
                   <span className="text-sm font-medium">
                     {`${student.firstName} ${student.lastName ?? ""}`.trim()}
                   </span>
@@ -100,50 +135,12 @@ export default function DashboardCharts({
                     </span>
                   )}
                 </div>
-              ))
-            )}
-          </div>
-        </div>
-
-        {/* List 2: Should Take Course 101 */}
-        <div className="card space-y-4">
-          <div>
-            <div className="flex items-center justify-between">
-              <h3 className="font-semibold text-lg">Should Take Course 101</h3>
-              <span className="chip bg-amber-500/10 text-amber-600 dark:text-amber-400 text-xs px-2 py-0.5 rounded">
-                {pendingC101.length} Missing
-              </span>
-            </div>
-            <p className="text-xs text-black/50 dark:text-white/50 mt-1">
-              Active (1+ visit) and Engaged (3+ visits) in {rangeLabel} missing this prerequisite.
-            </p>
-          </div>
-
-          <div className="max-h-64 overflow-y-auto divide-y divide-black/5 dark:divide-white/5 pr-2">
-            {pendingC101.length === 0 ? (
-              <p className="text-sm text-black/40 dark:text-white/40 py-4 italic text-center">
-                All active and engaged students are up to date!
-              </p>
-            ) : (
-              pendingC101.map((student) => (
-                <div key={student.id} className="py-2.5 flex items-center justify-between">
-                  <div className="flex flex-col">
-                    <span className="text-sm font-medium">
-                      {`${student.firstName} ${student.lastName ?? ""}`.trim()}
-                    </span>
-                    {student.email && (
-                      <span className="text-xs text-black/40 dark:text-white/40">
-                        {student.email}
-                    </span>
-                    )}
-                  </div>
-                  <span className="chip text-xs px-2 py-0.5 bg-black/5 dark:bg-white/5 uppercase tracking-wider font-mono text-[10px]">
-                    {student.engagementStage}
-                  </span>
-                </div>
-              ))
-            )}
-          </div>
+                <span className="chip text-xs px-2 py-0.5 bg-black/5 dark:bg-white/5 uppercase tracking-wider font-mono text-[10px]">
+                  {student.engagementStage}
+                </span>
+              </div>
+            ))
+          )}
         </div>
       </div>
 

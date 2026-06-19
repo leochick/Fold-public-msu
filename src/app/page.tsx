@@ -134,15 +134,17 @@ export default async function DashboardPage({
     eventType: byType.map((r) => ({ name: r.type ?? "—", value: Number(r.c) })),
   };
 
-  const studentsInRange = repeatRows.filter((r) => isActiveOrEngagedInRange(Number(r.c)));
-  const engagementByStudent = new Map<number, RangeEngagementStage>(
-    studentsInRange.map((r) => [r.sid, classifyEngagementInRange(Number(r.c))!])
-  );
-  const targetStudentIds = studentsInRange.map((r) => r.sid);
+  const attendanceInRangeIds = repeatRows.map((r) => r.sid);
 
-  const allTargetStudents =
-    targetStudentIds.length > 0
-      ? await db
+  const studentsActiveOrEngaged = repeatRows.filter((r) => isActiveOrEngagedInRange(Number(r.c)));
+  const engagementByStudent = new Map<number, RangeEngagementStage>(
+    studentsActiveOrEngaged.map((r) => [r.sid, classifyEngagementInRange(Number(r.c))!])
+  );
+  const activeOrEngagedIds = studentsActiveOrEngaged.map((r) => r.sid);
+
+  const [completedRaw, pendingRaw] = await Promise.all([
+    attendanceInRangeIds.length > 0
+      ? db
           .select({
             id: students.id,
             firstName: students.firstName,
@@ -151,23 +153,35 @@ export default async function DashboardPage({
             courseMaterial: students.courseMaterial,
           })
           .from(students)
-          .where(inArray(students.id, targetStudentIds))
-      : [];
+          .where(inArray(students.id, attendanceInRangeIds))
+      : [],
+    activeOrEngagedIds.length > 0
+      ? db
+          .select({
+            id: students.id,
+            firstName: students.firstName,
+            lastName: students.lastName,
+            email: students.email,
+            courseMaterial: students.courseMaterial,
+          })
+          .from(students)
+          .where(inArray(students.id, activeOrEngagedIds))
+      : [],
+  ]);
 
-  const c101Students = allTargetStudents.map((student) => ({
-    ...student,
-    engagementStage: engagementByStudent.get(student.id)!,
-  }));
-
-  const completedStudents = c101Students.filter((student) => {
-    const materials = student.courseMaterial as string[] | null;
+  const hasC101 = (courseMaterial: unknown) => {
+    const materials = courseMaterial as string[] | null;
     return Array.isArray(materials) && materials.includes("C101");
-  });
+  };
 
-  const pendingStudents = c101Students.filter((student) => {
-    const materials = student.courseMaterial as string[] | null;
-    return !Array.isArray(materials) || !materials.includes("C101");
-  });
+  const completedStudents = completedRaw.filter((student) => hasC101(student.courseMaterial));
+
+  const pendingStudents = pendingRaw
+    .filter((student) => !hasC101(student.courseMaterial))
+    .map((student) => ({
+      ...student,
+      engagementStage: engagementByStudent.get(student.id)!,
+    }));
 
   const snapshot = {
     events: Number(eventsInRange[0]?.c ?? 0),
