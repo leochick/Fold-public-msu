@@ -171,7 +171,7 @@ export default async function DashboardPage({
 
   const hasC101 = (courseMaterial: unknown) => {
     const materials = courseMaterial as string[] | null;
-    return Array.isArray(materials) && materials.includes("C101");
+    return Array.isArray(materials) && materials.includes("Course 101");
   };
 
   const completedStudents = completedRaw.filter((student) => hasC101(student.courseMaterial));
