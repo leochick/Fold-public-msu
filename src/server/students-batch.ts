@@ -9,6 +9,62 @@ import { callClaudeOrThrow } from "./attendance";
 import { httpErr } from "@/lib/http";
 import type { CommitStudentRosterBatchBody } from "@/lib/contracts/students";
 
+function mergeCourseMaterial(existing: string[] | null | undefined, toAdd?: string[]) {
+  if (!toAdd?.length) return existing ?? null;
+  return [...new Set([...(existing ?? []), ...toAdd])];
+}
+
+function buildCreateValues(userId: string, incoming: CommitStudentRosterBatchBody["items"][number]["incoming"]) {
+  return {
+    firstName: incoming.firstName,
+    lastName: incoming.lastName ?? null,
+    gender: incoming.gender ?? null,
+    year: incoming.year ?? null,
+    phone: incoming.phone ?? null,
+    email: incoming.email ?? null,
+    igHandle: incoming.igHandle ?? null,
+    memberStatus: incoming.memberStatus ?? null,
+    isActive: incoming.isActive ?? true,
+    contactedViaIg: incoming.contactedViaIg ?? false,
+    funnelStage: incoming.funnelStage ?? "new",
+    primaryContact: incoming.primaryContact ?? null,
+    goals: incoming.goals ?? null,
+    courseMaterial: mergeCourseMaterial(null, incoming.courseMaterialAdd),
+    notes: incoming.notes ?? null,
+    addedByUserId: userId,
+  } as const;
+}
+
+function buildMergePatch(
+  old: typeof students.$inferSelect,
+  incoming: CommitStudentRosterBatchBody["items"][number]["incoming"]
+) {
+  const patch: Record<string, unknown> = { updatedAt: new Date() };
+
+  if (incoming.lastName) patch.lastName = incoming.lastName;
+  if (incoming.gender) patch.gender = incoming.gender;
+  if (incoming.year) patch.year = incoming.year;
+  if (incoming.phone) patch.phone = incoming.phone;
+  if (incoming.email) patch.email = incoming.email;
+  if (incoming.igHandle) patch.igHandle = incoming.igHandle;
+  if (incoming.memberStatus != null) patch.memberStatus = incoming.memberStatus;
+  if (incoming.isActive != null) patch.isActive = incoming.isActive;
+  if (incoming.contactedViaIg != null) patch.contactedViaIg = incoming.contactedViaIg;
+  if (incoming.funnelStage != null) patch.funnelStage = incoming.funnelStage;
+  if (incoming.primaryContact) patch.primaryContact = incoming.primaryContact;
+  if (incoming.goals) patch.goals = incoming.goals;
+
+  if (incoming.courseMaterialAdd?.length) {
+    patch.courseMaterial = mergeCourseMaterial(old.courseMaterial ?? null, incoming.courseMaterialAdd);
+  }
+
+  if (incoming.notes) {
+    patch.notes = `${old.notes ?? ""}\n[AI Merge]: ${incoming.notes}`.trim();
+  }
+
+  return patch;
+}
+
 export async function parseStudentsBatch(text: string) {
   const roster = await db
     .select({
@@ -94,18 +150,7 @@ export async function commitStudentsBatch(userId: string, body: CommitStudentRos
     if (item.action === "skip") continue;
 
     if (item.action === "create") {
-      await db.insert(students).values({
-        firstName: item.incoming.firstName,
-        lastName: item.incoming.lastName ?? null,
-        gender: (item.incoming.gender as any) ?? null,
-        year: (item.incoming.year as any) ?? null,
-        phone: item.incoming.phone ?? null,
-        email: item.incoming.email ?? null,
-        igHandle: item.incoming.igHandle ?? null,
-        notes: item.incoming.notes ?? null,
-        addedByUserId: userId,
-        funnelStage: "new",
-      });
+      await db.insert(students).values(buildCreateValues(userId, item.incoming));
       created++;
     }
 
@@ -114,18 +159,7 @@ export async function commitStudentsBatch(userId: string, body: CommitStudentRos
       if (old) {
         await db
           .update(students)
-          .set({
-            lastName: item.incoming.lastName || old.lastName,
-            gender: (item.incoming.gender as any) || old.gender,
-            year: (item.incoming.year as any) || old.year,
-            phone: item.incoming.phone || old.phone,
-            email: item.incoming.email || old.email,
-            igHandle: item.incoming.igHandle || old.igHandle,
-            notes: item.incoming.notes 
-              ? `${old.notes ?? ""}\n[AI Merge]: ${item.incoming.notes}`.trim()
-              : old.notes,
-            updatedAt: new Date(),
-          })
+          .set(buildMergePatch(old, item.incoming))
           .where(eq(students.id, item.existingId));
         merged++;
       }

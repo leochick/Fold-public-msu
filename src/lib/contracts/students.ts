@@ -7,6 +7,30 @@ import {
   nonEmptyText,
   yearSchema,
 } from "./shared";
+import { COURSE_MATERIAL_OPTIONS } from "@/lib/courses";
+
+const courseMaterialSchema = z.array(z.enum(COURSE_MATERIAL_OPTIONS));
+
+export const batchRosterIncomingSchema = z.object({
+  firstName: z.string().min(1),
+  lastName: z.string().nullable().optional(),
+  gender: genderSchema.nullable().optional(),
+  year: yearSchema.nullable().optional(),
+  phone: z.string().nullable().optional(),
+  email: z.string().nullable().optional(),
+  igHandle: z.string().nullable().optional(),
+  memberStatus: memberStatusSchema.nullable().optional(),
+  isActive: z.boolean().nullable().optional(),
+  contactedViaIg: z.boolean().nullable().optional(),
+  funnelStage: funnelStageSchema.nullable().optional(),
+  primaryContact: z.string().nullable().optional(),
+  goals: z.string().nullable().optional(),
+  courseMaterialAdd: courseMaterialSchema.optional(),
+  notes: z.string().nullable().optional(),
+  rawText: z.string().optional(),
+});
+
+export type BatchRosterIncoming = z.infer<typeof batchRosterIncomingSchema>;
 
 export const parseUpdateBody = z.object({ text: nonEmptyText });
 export const parseStudentsBatchBody = z.object({
@@ -81,16 +105,7 @@ export const commitStudentsBatchBody = z.object({
   items: z.array(
     z.object({
       action: z.enum(["create", "merge", "skip"]),
-      incoming: z.object({
-        firstName: z.string().min(1),
-        lastName: z.string().nullable().optional(),
-        gender: z.enum(["M", "F"]).nullable().optional(),
-        year: z.enum(["freshman", "sophomore", "junior", "senior", "grad", "other"]).nullable().optional(),
-        phone: z.string().nullable().optional(),
-        email: z.string().nullable().optional(),
-        igHandle: z.string().nullable().optional(),
-        notes: z.string().nullable().optional(),
-      }),
+      incoming: batchRosterIncomingSchema,
       existingId: z.number().int().optional(),
     })
   ).min(1),
@@ -123,16 +138,7 @@ export type LinkStudentEventBody = z.infer<typeof linkStudentEventBody>;
 
 export const batchConfirmEntrySchema = z.object({
   action: z.enum(["merge", "create", "skip"]),
-  incoming: z.object({
-    firstName: z.string().min(1),
-    lastName: z.string().nullable().optional(),
-    gender: z.enum(["M", "F"]).nullable().optional(),
-    year: z.enum(["freshman", "sophomore", "junior", "senior", "grad", "other"]).nullable().optional(),
-    phone: z.string().nullable().optional(),
-    email: z.string().nullable().optional(),
-    igHandle: z.string().nullable().optional(),
-    notes: z.string().nullable().optional(),
-  }),
+  incoming: batchRosterIncomingSchema,
   existingId: z.number().int().optional(),
 });
 

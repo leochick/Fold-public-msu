@@ -1,4 +1,5 @@
 import type { Student } from "../../../../drizzle/schema";
+import { COURSE_MATERIAL_OPTIONS } from "@/lib/courses";
 
 export default function StudentForm({
   action,
@@ -114,20 +115,12 @@ function Checkbox({ label, name, defaultChecked }: { label: string; name: string
   );
 }
 
-const COURSES = [
-  "Course 101",
-  "ERT",
-  "Sixth Hour",
-  "Connection Team",
-  "Student Leader"
-];
-
 function CourseChecks({ defaultValues }: { defaultValues: string[] }) {
   return (
     <div className="space-y-2">
       <span className="label">Course material in progress or completed</span>
       <div className="grid grid-cols-2 gap-2">
-        {COURSES.map((c) => (
+        {COURSE_MATERIAL_OPTIONS.map((c) => (
           <label key={c} className="flex items-center gap-2 text-sm">
             <input type="checkbox" name="courseMaterial" value={c} defaultChecked={defaultValues.includes(c)} className="h-4 w-4" />
             <span>{c}</span>
