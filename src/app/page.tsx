@@ -239,14 +239,15 @@ export default async function DashboardPage({
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
-      <div className="flex gap-6 items-start">
-        <SavedViewsSidebar views={savedViews} activeFrom={fromStr} activeTo={toStr} />
+      <div className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-8 items-start">
+        <div className="row-start-1 col-start-1" aria-hidden />
+        <h1 className="row-start-1 col-start-2 text-2xl font-semibold">Dashboard</h1>
 
-        <div className="flex-1 min-w-0 space-y-8">
-          <div>
-            <h1 className="text-2xl font-semibold">Dashboard</h1>
-          </div>
+        <div className="row-start-2 col-start-1 self-start">
+          <SavedViewsSidebar views={savedViews} activeFrom={fromStr} activeTo={toStr} />
+        </div>
 
+        <div className="row-start-2 col-start-2 min-w-0 space-y-8">
           <DashboardDateFilter key={`${fromStr}-${toStr}`} from={fromStr} to={toStr} />
 
           <QuickAdd />

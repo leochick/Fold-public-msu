@@ -65,7 +65,7 @@ export default function SavedViewsSidebar({
       className={`shrink-0 transition-all ${collapsed ? "w-10" : "w-56"}`}
       aria-label="Saved views"
     >
-      <div className="card sticky top-4 p-3">
+      <div className="card sticky top-4">
         <button
           type="button"
           className="flex w-full items-center justify-between gap-2 text-left"
