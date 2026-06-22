@@ -274,3 +274,21 @@ export type NewVehicle = typeof vehicles.$inferInsert;
 export type RideSession = typeof rideSessions.$inferSelect;
 export type Ride = typeof rides.$inferSelect;
 export type RideAssignment = typeof rideAssignments.$inferSelect;
+
+export const views = sqliteTable("views", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  name: text("name").notNull(),
+  startDate: integer("start_date", { mode: "timestamp" }).notNull(),
+  endDate: integer("end_date", { mode: "timestamp" }).notNull(),
+  addedByUserId: text("added_by_user_id").references(() => users.id, { onDelete: "set null" }),
+  isDefault: integer("is_default", { mode: "boolean" }).notNull().default(false),
+  createdAt: integer("created_at", { mode: "timestamp" })
+    .notNull()
+    .default(sql`(unixepoch())`),
+  updatedAt: integer("updated_at", { mode: "timestamp" })
+    .notNull()
+    .default(sql`(unixepoch())`),
+});
+
+export type View = typeof views.$inferSelect;
+export type NewView = typeof views.$inferInsert;

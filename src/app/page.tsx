@@ -8,8 +8,10 @@ import {
   isActiveOrEngagedInRange,
   type RangeEngagementStage,
 } from "@/lib/dashboard-engagement";
+import { getDefaultDashboardView, listDashboardViews } from "@/server/dashboard-views";
 import DashboardCharts from "./DashboardCharts";
 import DashboardDateFilter from "./DashboardDateFilter";
+import SavedViewsSidebar from "./SavedViewsSidebar";
 import QuickAdd from "./events/QuickAdd";
 
 export const dynamic = "force-dynamic";
@@ -20,7 +22,15 @@ export default async function DashboardPage({
   searchParams: Promise<{ from?: string; to?: string }>;
 }) {
   const sp = await searchParams;
-  const { from, to, fromStr, toStr } = resolveDashboardDateRange(sp);
+  const hasExplicitRange = Boolean(sp.from && sp.to);
+  const defaultView = hasExplicitRange ? null : await getDefaultDashboardView();
+  const rangeInput = hasExplicitRange
+    ? sp
+    : defaultView
+      ? { from: defaultView.from, to: defaultView.to }
+      : sp;
+  const { from, to, fromStr, toStr } = resolveDashboardDateRange(rangeInput);
+  const savedViews = await listDashboardViews();
   const rangeLabel = dashboardDateRangeLabel(from, to);
   const eventDateRange = and(gte(events.startDate, from), lte(events.startDate, to));
 
@@ -228,68 +238,74 @@ export default async function DashboardPage({
     });
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-8 space-y-8">
-      <div>
-        <h1 className="text-2xl font-semibold">Dashboard</h1>
-      </div>
+    <div className="max-w-7xl mx-auto px-4 py-8">
+      <div className="flex gap-6 items-start">
+        <SavedViewsSidebar views={savedViews} activeFrom={fromStr} activeTo={toStr} />
 
-      <DashboardDateFilter key={`${fromStr}-${toStr}`} from={fromStr} to={toStr} />
-
-      <QuickAdd />
-
-      <section className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <Stat label="Events" value={snapshot.events} />
-        <Stat label="Total check-ins" value={snapshot.attendances} />
-        <Stat label="Unique people" value={snapshot.uniquePeople} />
-        <Stat label="New students" value={snapshot.newStudents} />
-      </section>
-
-      <DashboardCharts
-        overTime={overTimeData}
-        funnel={funnelData}
-        breakdowns={breakdowns}
-        completedC101={completedStudents}
-        pendingC101={pendingStudents}
-        rangeLabel={rangeLabel}
-      />
-
-      <section className="card overflow-x-auto">
-        <div className="flex items-center justify-between mb-3">
+        <div className="flex-1 min-w-0 space-y-8">
           <div>
-            <h2 className="font-semibold">Active prospects</h2>
-            <p className="text-xs text-black/60">
-              Non-core members ranked by attendance from {rangeLabel}. Highest priority for follow-up.
-            </p>
+            <h1 className="text-2xl font-semibold">Dashboard</h1>
           </div>
-          <Link href="/students" className="text-xs text-black/60 hover:underline">all students →</Link>
+
+          <DashboardDateFilter key={`${fromStr}-${toStr}`} from={fromStr} to={toStr} />
+
+          <QuickAdd />
+
+          <section className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <Stat label="Events" value={snapshot.events} />
+            <Stat label="Total check-ins" value={snapshot.attendances} />
+            <Stat label="Unique people" value={snapshot.uniquePeople} />
+            <Stat label="New students" value={snapshot.newStudents} />
+          </section>
+
+          <DashboardCharts
+            overTime={overTimeData}
+            funnel={funnelData}
+            breakdowns={breakdowns}
+            completedC101={completedStudents}
+            pendingC101={pendingStudents}
+            rangeLabel={rangeLabel}
+          />
+
+          <section className="card overflow-x-auto">
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <h2 className="font-semibold">Active prospects</h2>
+                <p className="text-xs text-black/60">
+                  Non-core members ranked by attendance from {rangeLabel}. Highest priority for follow-up.
+                </p>
+              </div>
+              <Link href="/students" className="text-xs text-black/60 hover:underline">all students →</Link>
+            </div>
+            {hotProspects.length === 0 ? (
+              <p className="text-sm text-black/50">No attendance in this date range yet.</p>
+            ) : (
+              <table>
+                <thead>
+                  <tr>
+                    <th>Name</th><th>Year</th><th>Status</th><th>Visits</th><th>Primary contact</th><th>Last seen</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {hotProspects.map((s) => (
+                    <tr key={s.id} className="hover:bg-black/5 dark:hover:bg-white/5">
+                      <td>
+                        <Link href={`/students/${s.id}`} className="font-medium hover:underline">{s.name}</Link>
+                        <span className="ml-1 text-xs text-black/40">{s.gender === "M" ? "♂" : s.gender === "F" ? "♀" : ""}</span>
+                      </td>
+                      <td>{s.year ?? "—"}</td>
+                      <td>{s.status ? <span className="chip">{s.status}</span> : <span className="text-black/30">—</span>}</td>
+                      <td className="font-medium">{s.visits}</td>
+                      <td className="text-sm">{s.primaryContact ?? <span className="text-black/30">—</span>}</td>
+                      <td className="text-sm text-black/60">{s.lastSeen}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </section>
         </div>
-        {hotProspects.length === 0 ? (
-          <p className="text-sm text-black/50">No attendance in this date range yet.</p>
-        ) : (
-          <table>
-            <thead>
-              <tr>
-                <th>Name</th><th>Year</th><th>Status</th><th>Visits</th><th>Primary contact</th><th>Last seen</th>
-              </tr>
-            </thead>
-            <tbody>
-              {hotProspects.map((s) => (
-                <tr key={s.id} className="hover:bg-black/5 dark:hover:bg-white/5">
-                  <td>
-                    <Link href={`/students/${s.id}`} className="font-medium hover:underline">{s.name}</Link>
-                    <span className="ml-1 text-xs text-black/40">{s.gender === "M" ? "♂" : s.gender === "F" ? "♀" : ""}</span>
-                  </td>
-                  <td>{s.year ?? "—"}</td>
-                  <td>{s.status ? <span className="chip">{s.status}</span> : <span className="text-black/30">—</span>}</td>
-                  <td className="font-medium">{s.visits}</td>
-                  <td className="text-sm">{s.primaryContact ?? <span className="text-black/30">—</span>}</td>
-                  <td className="text-sm text-black/60">{s.lastSeen}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </section>
+      </div>
     </div>
   );
 }
