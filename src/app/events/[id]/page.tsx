@@ -6,6 +6,7 @@ import { eq, desc, and, lt, inArray } from "drizzle-orm";
 import EventInsights from "./EventInsights";
 import EventAttendeeDumper from "./EventAttendeeDumper";
 import TotalStudentsCard from "./TotalStudentsCard";
+import EditEventCard from "./EditEventCard";
 
 export const dynamic = "force-dynamic";
 
@@ -98,6 +99,32 @@ export default async function EventPage({ params }: { params: Promise<{ id: stri
     redirect(`/events/${eventId}`);
   }
 
+  async function saveEventDetails(formData: FormData) {
+    "use server";
+    const date = String(formData.get("date") || "").trim();
+    const type = String(formData.get("type") || "").trim();
+    const location = String(formData.get("location") || "").trim();
+
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      redirect(`/events/${eventId}`);
+    }
+    const [y, m, day] = date.split("-").map(Number);
+    const startDate = new Date(y, m - 1, day);
+    if (isNaN(startDate.getTime())) {
+      redirect(`/events/${eventId}`);
+    }
+
+    await db
+      .update(events)
+      .set({
+        startDate,
+        type: type || null,
+        location: location || null,
+      })
+      .where(eq(events.id, eventId));
+    redirect(`/events/${eventId}`);
+  }
+
   async function deleteEvent() {
     "use server";
     await db.delete(events).where(eq(events.id, eventId));
@@ -128,6 +155,14 @@ export default async function EventPage({ params }: { params: Promise<{ id: stri
       />
 
       {present.length > 0 && <EventInsights eventId={eventId} stats={eventStats} />}
+
+      <EditEventCard
+        eventId={eventId}
+        startDate={e.startDate}
+        type={e.type}
+        location={e.location}
+        saveAction={saveEventDetails}
+      />
 
       <EventAttendeeDumper eventId={eventId} />
 
