@@ -117,22 +117,29 @@ export const PROPOSE_EVENT_BATCH_TOOL: Anthropic.Tool = {
 export const PROPOSE_EVENT_BATCH_LIST_TOOL: Anthropic.Tool = {
   name: "propose_event_batch_list",
   description:
-    "Use ONLY when the organizer wants to create MULTIPLE events in one shot WITHOUT specifying attendees per event. " +
-    "Examples: 'create the next 4 weekly meeting dates', 'add Hangout Saturday and Study Group Tuesday', 'schedule social 5/3 5/10 5/17'. " +
+    "Use when the organizer wants to create OR update MULTIPLE events in one shot WITHOUT specifying attendees. " +
+    "Examples: 'create the next 4 weekly meeting dates', 'add Hangout Saturday and Study Group Tuesday', " +
+    "'edit the Large Group events on 1/24, 2/5, 3/16 to have type Large Group', 'change location to Main Hall for Weekly on 5/1 and 5/8'. " +
     "If the organizer is creating ONE event and listing attendees for it, use propose_event_with_attendees instead.",
   input_schema: {
     type: "object",
     properties: {
+      intent: {
+        type: "string",
+        enum: ["create", "update"],
+        description:
+          "create = adding new events. update = editing existing events (change type, location, name, notes, etc.).",
+      },
       events: {
         type: "array",
-        minItems: 2,
-        description: "The list of events to create. Two or more.",
+        minItems: 1,
+        description: "One entry per event date. For updates, include only fields being changed plus name/date for matching.",
         items: {
           type: "object",
           properties: {
             name: {
               type: "string",
-              description: "Short, normalized event name. e.g. 'Weekly 5/1' for 'weekly may 1', 'Boba and Boardgames' for 'boba night'.",
+              description: "Short, normalized event name for matching or creation. e.g. 'Weekly 5/1', 'Large Group'.",
             },
             date: {
               type: "string",
@@ -140,18 +147,27 @@ export const PROPOSE_EVENT_BATCH_LIST_TOOL: Anthropic.Tool = {
             },
             type: {
               type: "string",
-              description: "Event type like Weekly, Social, General, Workshop, Hangout, Study Group. Infer from the event name when possible.",
+              description: "Event type like Weekly, Social, Large Group, Workshop, Hangout, Study Group.",
             },
             location: {
               type: "string",
               description: "Location if mentioned. Apply a location mentioned at the top of the input to ALL events that don't have their own location.",
             },
+            notes: { type: "string", description: "Event notes if mentioned or being updated." },
+            totalStudents: {
+              type: "number",
+              description: "Total student count if mentioned or being updated.",
+            },
           },
           required: ["name", "date"],
         },
       },
+      explanation: {
+        type: "string",
+        description: "One short sentence summarizing what was parsed, including create vs update intent and bulk field changes.",
+      },
     },
-    required: ["events"],
+    required: ["events", "intent", "explanation"],
   },
 };
 

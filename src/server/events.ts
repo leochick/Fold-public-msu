@@ -7,15 +7,93 @@ import { EVENT_INSIGHTS_SINGLE_SYSTEM } from "@/lib/prompts/event-insights-singl
 import { httpErr } from "@/lib/http";
 import { loadBasicRoster, formatRosterCompact, fuzzyMatchInviter } from "./roster";
 import { callClaudeOrThrow } from "./attendance";
-import type { CommitEventBatchBody, ParseEventBatchBody } from "@/lib/contracts/events";
-import { and, eq, sql } from "drizzle-orm";
+import type { BatchEventIncoming, CommitEventBatchBody, ParseEventBatchBody } from "@/lib/contracts/events";
+import { eq } from "drizzle-orm";
+import { eventDateStr, findPossibleEventMatches } from "@/lib/funnel/event-dedup";
+
+function formatEventsCompact(list: typeof events.$inferSelect[]) {
+  return list
+    .map((e) => {
+      const date = eventDateStr(e);
+      const type = e.type ?? "";
+      const loc = e.location ?? "";
+      return `${e.id}|${e.name}|${date}|${type}|${loc}`;
+    })
+    .join("\n");
+}
+
+function parseLocalDate(date: string) {
+  const [y, m, day] = date.split("-").map(Number);
+  const d = new Date(y, m - 1, day);
+  if (isNaN(d.getTime())) throw httpErr.badRequest(`invalid date: ${date}`);
+  return d;
+}
+
+function buildEventMergePatch(
+  old: typeof events.$inferSelect,
+  incoming: BatchEventIncoming
+) {
+  const patch: Record<string, unknown> = {};
+
+  if (incoming.name?.trim() && incoming.name.trim() !== old.name) {
+    patch.name = incoming.name.trim();
+  }
+  if (incoming.type?.trim()) patch.type = incoming.type.trim();
+  if (incoming.location?.trim()) patch.location = incoming.location.trim();
+  if (incoming.notes?.trim()) {
+    patch.notes = old.notes
+      ? `${old.notes}\n[AI Merge]: ${incoming.notes.trim()}`
+      : incoming.notes.trim();
+  }
+  if (incoming.totalStudents != null) patch.totalStudents = incoming.totalStudents;
+
+  return patch;
+}
+
+function buildEventCreateValues(incoming: BatchEventIncoming) {
+  return {
+    name: incoming.name.trim(),
+    type: incoming.type?.trim() || null,
+    startDate: parseLocalDate(incoming.date),
+    location: incoming.location?.trim() || null,
+    notes: incoming.notes?.trim() || null,
+    totalStudents: incoming.totalStudents ?? null,
+  };
+}
+
+function enrichBatchItem(
+  incoming: BatchEventIncoming,
+  currentEventsList: typeof events.$inferSelect[],
+  intent: "create" | "update"
+) {
+  const matches = findPossibleEventMatches(incoming, currentEventsList);
+  const isDuplicate = matches.length > 0;
+  const defaultAction =
+    intent === "update"
+      ? isDuplicate
+        ? "merge"
+        : "skip"
+      : isDuplicate
+        ? "merge"
+        : "create";
+
+  return {
+    incoming,
+    isDuplicate,
+    existingRecords: matches,
+    chosenAction: defaultAction as "create" | "merge" | "skip",
+    selectedExistingId: matches[0]?.id,
+  };
+}
 
 export async function parseEventBatch(body: ParseEventBatchBody) {
   const roster = await loadBasicRoster();
   const rosterCompact = formatRosterCompact(roster);
+  const currentEventsList = await db.select().from(events);
+  const eventsCompact = formatEventsCompact(currentEventsList);
   const today = new Date().toISOString().slice(0, 10);
   const system = buildParseEventBatchSystem(today);
-  const userMsg = buildParseEventBatchUserMsg(rosterCompact, body.text);
+  const userMsg = buildParseEventBatchUserMsg(rosterCompact, eventsCompact, body.text);
 
   const resp = await callClaudeOrThrow(() =>
     anthropic.messages.create({
@@ -31,43 +109,42 @@ export async function parseEventBatch(body: ParseEventBatchBody) {
   const tu = resp.content.find((b) => b.type === "tool_use");
   if (!tu || tu.type !== "tool_use") throw httpErr.upstream("Extraction error.");
 
-  // Fetch all existing events to compute string similarity and timestamp collisions
-  const currentEventsList = await db.select().from(events);
-
   if (tu.name === PROPOSE_EVENT_BATCH_LIST_TOOL.name) {
     const out = tu.input as {
-      events?: Array<{ name: string; date: string; type?: string; location?: string }>;
+      events?: BatchEventIncoming[];
+      intent?: "create" | "update";
+      explanation?: string;
     };
+    const intent = out.intent ?? "create";
     const list = (out.events ?? []).filter((e) => e.name?.trim() && e.date);
-    
-    // Map initial actions by looking for event name + date conflicts
-    const processedEvents = list.map((ev) => {
-      const match = currentEventsList.find(
-        (x) => 
-          x.name.toLowerCase().trim() === ev.name.toLowerCase().trim() &&
-          new Date(x.startDate).toISOString().slice(0, 10) === ev.date
-      );
-      return {
-        incoming: ev,
-        isDuplicate: !!match,
-        existingRecord: match || null,
-        chosenAction: match ? "merge" : "create"
-      };
-    });
+    const items = list.map((ev) => enrichBatchItem(ev, currentEventsList, intent));
 
-    return { mode: "batch" as const, events: processedEvents };
+    return {
+      mode: "batch" as const,
+      intent,
+      items,
+      explanation: out.explanation ?? "Processing completed.",
+    };
   }
 
   const out = tu.input as {
-    event: { name: string; date: string; type?: string; location?: string };
+    event: BatchEventIncoming & { isNew?: boolean };
     attendees?: Array<Record<string, unknown>>;
   };
 
-  const targetMatch = currentEventsList.find(
-    (x) => 
-      x.name.toLowerCase().trim() === out.event.name.toLowerCase().trim() &&
-      new Date(x.startDate).toISOString().slice(0, 10) === out.event.date
+  const eventItem = enrichBatchItem(
+    {
+      name: out.event.name,
+      date: out.event.date,
+      type: out.event.type,
+      location: out.event.location,
+    },
+    currentEventsList,
+    out.event.isNew ? "create" : "create"
   );
+  if (out.event.isNew) {
+    eventItem.chosenAction = "create";
+  }
 
   const attendees = (out.attendees ?? []).map((a) => {
     if (a.match === "existing" && typeof a.studentId === "number") {
@@ -86,60 +163,60 @@ export async function parseEventBatch(body: ParseEventBatchBody) {
     return a;
   });
 
-  return { 
-    mode: "single" as const, 
-    event: {
-      incoming: out.event,
-      isDuplicate: !!targetMatch,
-      existingRecord: targetMatch || null,
-      chosenAction: targetMatch ? "merge" : "create"
-    }, 
-    attendees 
+  return {
+    mode: "single" as const,
+    event: eventItem,
+    attendees,
   };
 }
 
 export async function commitEventBatch(userId: string, body: CommitEventBatchBody) {
-  // Replace inside commitEventBatch inside src/server/events.ts:
   if (body.mode === "batch") {
-    const created: any[] = [];
-    for (const item of (body as any).events) {
+    const created: typeof events.$inferSelect[] = [];
+    let merged = 0;
+
+    for (const item of body.items) {
       if (item.action === "skip") continue;
-      
-      const [y, m, day] = item.incoming.date.split("-").map(Number);
-      const d = new Date(y, m - 1, day);
-      
+
       if (item.action === "create") {
-        const [row] = await db.insert(events).values({
-          name: item.incoming.name.trim(),
-          type: item.incoming.type?.trim() || null,
-          startDate: d,
-          location: item.incoming.location?.trim() || null,
-        }).returning();
+        const [row] = await db.insert(events).values(buildEventCreateValues(item.incoming)).returning();
         created.push(row);
       } else if (item.action === "merge" && item.existingId) {
-        await db.update(events).set({
-          type: item.incoming.type?.trim() || undefined,
-          location: item.incoming.location?.trim() || undefined,
-        }).where(eq(events.id, item.existingId));
+        const [old] = await db.select().from(events).where(eq(events.id, item.existingId)).limit(1);
+        if (old) {
+          const patch = buildEventMergePatch(old, item.incoming);
+          if (Object.keys(patch).length > 0) {
+            await db.update(events).set(patch).where(eq(events.id, item.existingId));
+          }
+          merged++;
+        }
       }
     }
-    return { ok: true, mode: "batch" as const, created };
+
+    return { ok: true, mode: "batch" as const, created, merged };
   }
 
-  const ev = body.event;
-  const [y, m, day] = ev.date.split("-").map(Number);
-  const startDate = new Date(y, m - 1, day);
-  if (isNaN(startDate.getTime())) throw httpErr.badRequest("invalid date");
+  const eventAction = body.eventAction ?? "create";
+  if (eventAction === "skip") {
+    return { ok: true, mode: "single" as const, eventId: null, created: 0, marked: 0, skipped: true };
+  }
 
-  const [evt] = await db
-    .insert(events)
-    .values({
-      name: ev.name.trim(),
-      type: ev.type?.trim() || null,
-      startDate,
-      location: ev.location?.trim() || null,
-    })
-    .returning();
+  let evt: typeof events.$inferSelect;
+
+  if (eventAction === "merge" && body.existingEventId) {
+    const [old] = await db.select().from(events).where(eq(events.id, body.existingEventId)).limit(1);
+    if (!old) throw httpErr.badRequest("existing event not found");
+    const patch = buildEventMergePatch(old, body.event);
+    if (Object.keys(patch).length > 0) {
+      await db.update(events).set(patch).where(eq(events.id, body.existingEventId));
+    }
+    [evt] = await db.select().from(events).where(eq(events.id, body.existingEventId)).limit(1);
+  } else {
+    [evt] = await db
+      .insert(events)
+      .values(buildEventCreateValues(body.event))
+      .returning();
+  }
 
   let created = 0;
   let marked = 0;
@@ -174,6 +251,7 @@ export async function commitEventBatch(userId: string, body: CommitEventBatchBod
       /* unique */
     }
   }
+
   return { ok: true, mode: "single" as const, eventId: evt.id, created, marked };
 }
 

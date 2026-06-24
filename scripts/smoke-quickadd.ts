@@ -64,18 +64,25 @@ async function main() {
     process.exit(1);
   }
   console.log("events:");
-  for (const e of p1Json.events) {
-    console.log(`  - ${e.name}  ${e.date}  type=${e.type ?? "?"}  loc=${e.location ?? "—"}`);
+  for (const e of p1Json.items) {
+    console.log(`  - ${e.incoming.name}  ${e.incoming.date}  type=${e.incoming.type ?? "?"}  loc=${e.incoming.location ?? "—"}`);
   }
-  if (p1Json.events.length !== 3) {
-    console.log(`❌ expected 3 events, got ${p1Json.events.length}`);
+  if (p1Json.items.length !== 3) {
+    console.log(`❌ expected 3 events, got ${p1Json.items.length}`);
     process.exit(1);
   }
 
   const c1 = await fetch(BASE + "/api/commit-event-batch", {
     method: "POST",
     headers: { "content-type": "application/json", cookie },
-    body: JSON.stringify({ mode: "batch", events: p1Json.events }),
+    body: JSON.stringify({
+      mode: "batch",
+      items: p1Json.items.map((x: any) => ({
+        action: x.chosenAction ?? "create",
+        incoming: x.incoming,
+        existingId: x.chosenAction === "merge" ? x.selectedExistingId : undefined,
+      })),
+    }),
   });
   const c1Json = await c1.json();
   console.log("commit:", c1.status, c1Json);
@@ -104,7 +111,7 @@ async function main() {
     console.log("❌ expected single mode, got:", p2Json.mode);
     process.exit(1);
   }
-  console.log("event:", p2Json.event);
+  console.log("event:", p2Json.event.incoming);
   console.log(`attendees: ${p2Json.attendees?.length ?? 0}`);
   for (const a of p2Json.attendees ?? []) {
     const who = a.match === "existing" ? a._existingName ?? `#${a.studentId}` : `${a.firstName ?? ""} ${a.lastName ?? ""}`.trim();
@@ -114,7 +121,14 @@ async function main() {
   const c2 = await fetch(BASE + "/api/commit-event-batch", {
     method: "POST",
     headers: { "content-type": "application/json", cookie },
-    body: JSON.stringify({ mode: "single", event: p2Json.event, attendees: p2Json.attendees }),
+    body: JSON.stringify({
+      mode: "single",
+      eventAction: p2Json.event.chosenAction ?? "create",
+      event: p2Json.event.incoming,
+      existingEventId:
+        p2Json.event.chosenAction === "merge" ? p2Json.event.selectedExistingId : undefined,
+      attendees: p2Json.attendees,
+    }),
   });
   const c2Json = await c2.json();
   console.log("commit:", c2.status, c2Json);

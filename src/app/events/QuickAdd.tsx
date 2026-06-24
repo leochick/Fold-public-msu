@@ -2,6 +2,8 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import BatchEventsReviewList, { type BatchEventItem } from "./BatchEventsReviewList";
+import type { BatchEventIncoming } from "@/lib/contracts/events";
 
 type Attendee = {
   match: "existing" | "new";
@@ -24,255 +26,338 @@ export interface RosterEntry {
   name: string;
 }
 
-type EventDraft = {
-  name: string;
-  date: string;
-  type?: string;
-  location?: string;
-  isNew?: boolean;
-};
-
 type ParseResponse =
-  | { mode: "single"; event: EventDraft; attendees: Attendee[] }
-  | { mode: "batch"; events: EventDraft[] };
+  | { mode: "single"; event: BatchEventItem; attendees: Attendee[] }
+  | { mode: "batch"; intent: "create" | "update"; items: BatchEventItem[]; explanation: string };
 
 export default function QuickAdd({ roster = [] }: { roster?: RosterEntry[] }) {
   const router = useRouter();
   const [text, setText] = useState("");
-  const [parsing, setParsing] = useState(false);
   const [error, setError] = useState("");
-  const [result, setResult] = useState<ParseResponse | null>(null);
-  const [pending, startTransition] = useTransition();
+  const [explanation, setExplanation] = useState("");
+  const [intent, setIntent] = useState<"create" | "update">("create");
+  const [batchItems, setBatchItems] = useState<BatchEventItem[]>([]);
+  const [singleEvent, setSingleEvent] = useState<BatchEventItem | null>(null);
+  const [attendees, setAttendees] = useState<Attendee[]>([]);
+  const [viewState, setViewState] = useState<"input" | "verify">("input");
+  const [resultMode, setResultMode] = useState<"single" | "batch" | null>(null);
 
-  async function parse() {
-    setError("");
-    setParsing(true);
-    try {
-      const r = await fetch("/api/parse-event-batch", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ text }),
-      });
-      const data = await r.json();
-      if (!r.ok) throw new Error(data.error ?? "Parse failed");
-      setResult(data as ParseResponse);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed");
-    } finally {
-      setParsing(false);
-    }
-  }
+  const [isProcessing, startProcessingTransition] = useTransition();
+  const [isSaving, startSavingTransition] = useTransition();
 
   function reset() {
-    setResult(null);
     setText("");
+    setError("");
+    setExplanation("");
+    setBatchItems([]);
+    setSingleEvent(null);
+    setAttendees([]);
+    setViewState("input");
+    setResultMode(null);
   }
 
-  function commitSingle() {
-    if (!result || result.mode !== "single") return;
+  function handleProcessText() {
+    if (!text.trim()) return;
     setError("");
-    startTransition(async () => {
-      const r = await fetch("/api/commit-event-batch", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          mode: "single",
-          event: result.event,
-          attendees: result.attendees,
-        }),
-      });
-      const data = await r.json();
-      if (!r.ok) {
-        setError(data.error ?? "Save failed");
-        return;
+    setExplanation("");
+
+    startProcessingTransition(async () => {
+      try {
+        const r = await fetch("/api/parse-event-batch", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ text }),
+        });
+        const data = await r.json();
+        if (!r.ok) throw new Error(data.error ?? "Parse failed");
+
+        const parsed = data as ParseResponse;
+        if (parsed.mode === "batch") {
+          setBatchItems(parsed.items);
+          setExplanation(parsed.explanation);
+          setIntent(parsed.intent ?? "create");
+          setResultMode("batch");
+        } else {
+          setSingleEvent(parsed.event);
+          setAttendees(parsed.attendees);
+          setResultMode("single");
+        }
+        setViewState("verify");
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Failed");
       }
-      reset();
-      router.push(`/events/${data.eventId}`);
-      router.refresh();
     });
   }
 
-  function commitBatch() {
-    if (!result || result.mode !== "batch") return;
+  function handleBatchActionToggle(index: number, action: "create" | "merge" | "skip") {
+    setBatchItems((prev) =>
+      prev.map((item, idx) => (idx === index ? { ...item, chosenAction: action } : item))
+    );
+  }
+
+  function handleBatchTargetChange(index: number, existingId: number) {
+    setBatchItems((prev) =>
+      prev.map((item, idx) => (idx === index ? { ...item, selectedExistingId: existingId } : item))
+    );
+  }
+
+  function handleBatchIncomingChange(index: number, incoming: BatchEventIncoming) {
+    setBatchItems((prev) =>
+      prev.map((item, idx) => (idx === index ? { ...item, incoming } : item))
+    );
+  }
+
+  function handleSingleEventAction(action: "create" | "merge" | "skip") {
+    setSingleEvent((prev) => (prev ? { ...prev, chosenAction: action } : prev));
+  }
+
+  function handleSingleTargetChange(existingId: number) {
+    setSingleEvent((prev) => (prev ? { ...prev, selectedExistingId: existingId } : prev));
+  }
+
+  function handleSingleIncomingChange(incoming: BatchEventIncoming) {
+    setSingleEvent((prev) => (prev ? { ...prev, incoming } : prev));
+  }
+
+  function handleSaveCommit() {
     setError("");
-    startTransition(async () => {
-      const r = await fetch("/api/commit-event-batch", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          mode: "batch",
-          events: result.events,
-        }),
-      });
-      const data = await r.json();
-      if (!r.ok) {
-        setError(data.error ?? "Save failed");
-        return;
+    startSavingTransition(async () => {
+      try {
+        if (resultMode === "batch") {
+          const r = await fetch("/api/commit-event-batch", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({
+              mode: "batch",
+              items: batchItems.map((x) => ({
+                action: x.chosenAction,
+                incoming: x.incoming,
+                existingId: x.chosenAction === "merge" ? x.selectedExistingId : undefined,
+              })),
+            }),
+          });
+          const data = await r.json();
+          if (!r.ok) throw new Error(data.error ?? "Save failed");
+          reset();
+          router.push("/events");
+          router.refresh();
+          return;
+        }
+
+        if (!singleEvent) return;
+
+        const r = await fetch("/api/commit-event-batch", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            mode: "single",
+            eventAction: singleEvent.chosenAction,
+            event: singleEvent.incoming,
+            existingEventId:
+              singleEvent.chosenAction === "merge" ? singleEvent.selectedExistingId : undefined,
+            attendees,
+          }),
+        });
+        const data = await r.json();
+        if (!r.ok) throw new Error(data.error ?? "Save failed");
+
+        reset();
+        if (data.eventId) {
+          router.push(`/events/${data.eventId}`);
+        } else {
+          router.push("/events");
+        }
+        router.refresh();
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Save failed");
       }
-      reset();
-      router.push("/events");
-      router.refresh();
     });
   }
+
+  const commitCount =
+    resultMode === "batch"
+      ? batchItems.filter((x) => x.chosenAction !== "skip").length
+      : singleEvent?.chosenAction === "skip"
+        ? 0
+        : 1;
 
   return (
     <div className="card space-y-3 border-accent/30">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="font-semibold">⚡ Quick add</h2>
-          <p className="text-xs text-black/60">
-            Describe one event with attendees, OR a list of events to create at once.
-          </p>
+      <div>
+        <h2 className="font-semibold">⚡ AI Quick Add Events</h2>
+        <p className="text-xs text-black/60">
+          Create events, add attendees, or apply bulk updates. Review merge targets and field changes before committing.
+        </p>
+      </div>
+
+      {viewState === "input" ? (
+        <div className="space-y-3">
+          <textarea
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            rows={3}
+            className="input font-sans text-sm"
+            placeholder={`e.g. "add Alex, Jordan to new Weekly 5/1 at Community Center"\n"create Weekly meetings 5/1, 5/8, 5/15 at Community Center"\n"Edit the Large Group events on 1/24, 2/5, and 3/16 to have type Large Group"`}
+          />
+          <button
+            onClick={handleProcessText}
+            disabled={isProcessing || !text.trim()}
+            className="btn-primary"
+          >
+            {isProcessing ? "Analyzing content..." : "Process Text"}
+          </button>
         </div>
-      </div>
-      <textarea
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        rows={3}
-        className="input"
-        placeholder={'Single: "add Alex Rivera, Jordan, Sam (new freshman bro) to new Weekly Meeting 5/1 at Community Center"\nBatch: "create the next 4 Weekly Meeting at Community Center: 5/1 5/8 5/15 5/22"'}
-      />
-      <div className="flex gap-2">
-        <button className="btn-primary" disabled={!text.trim() || parsing} onClick={parse}>
-          {parsing ? "Processing…" : "Process"}
-        </button>
-        {result && (
-          <button className="btn-ghost" onClick={reset}>Clear</button>
-        )}
-      </div>
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      ) : (
+        <div className="space-y-4 pt-2 border-t border-black/5 dark:border-white/10">
+          {resultMode === "batch" && (
+            <BatchEventsReviewList
+              items={batchItems}
+              explanation={explanation}
+              intent={intent}
+              onActionToggle={handleBatchActionToggle}
+              onTargetIdChange={handleBatchTargetChange}
+              onIncomingChange={handleBatchIncomingChange}
+              mergeButtonLabel="Update"
+            />
+          )}
 
-      {result?.mode === "single" && (
-        <SingleEventPreview
-          event={result.event}
-          attendees={result.attendees}
-          roster={roster}
-          onEventChange={(ev) => setResult({ ...result, event: ev })}
-          onAttendeesChange={(at) => setResult({ ...result, attendees: at })}
-          onCommit={commitSingle}
-          pending={pending}
-        />
+          {resultMode === "single" && singleEvent && (
+            <div className="space-y-4">
+              <BatchEventsReviewList
+                items={[singleEvent]}
+                onActionToggle={(_, action) => handleSingleEventAction(action)}
+                onTargetIdChange={(_, id) => handleSingleTargetChange(id)}
+                onIncomingChange={(_, incoming) => handleSingleIncomingChange(incoming)}
+                mergeButtonLabel="Merge"
+              />
+
+              <SingleAttendeesPreview
+                attendees={attendees}
+                roster={roster}
+                onAttendeesChange={setAttendees}
+              />
+            </div>
+          )}
+
+          <div className="flex gap-2 justify-end">
+            <button onClick={() => setViewState("input")} disabled={isSaving} className="btn-ghost text-xs">
+              Back
+            </button>
+            <button
+              onClick={handleSaveCommit}
+              disabled={isSaving || commitCount === 0}
+              className="btn-primary text-xs"
+            >
+              {isSaving
+                ? "Saving changes..."
+                : resultMode === "single" && singleEvent?.chosenAction !== "skip"
+                  ? `Create event + mark ${attendees.length} present`
+                  : `Commit Event Changes (${commitCount})`}
+            </button>
+          </div>
+        </div>
       )}
 
-      {result?.mode === "batch" && (
-        <BatchEventsPreview
-          events={result.events}
-          onChange={(events) => setResult({ ...result, events })}
-          onCommit={commitBatch}
-          pending={pending}
-        />
-      )}
+      {error && <p className="text-sm text-red-600 font-medium">{error}</p>}
     </div>
   );
 }
 
-function SingleEventPreview({
-  event,
+function SingleAttendeesPreview({
   attendees,
   roster,
-  onEventChange,
   onAttendeesChange,
-  onCommit,
-  pending,
 }: {
-  event: EventDraft;
   attendees: Attendee[];
   roster: RosterEntry[];
-  onEventChange: (ev: EventDraft) => void;
   onAttendeesChange: (at: Attendee[]) => void;
-  onCommit: () => void;
-  pending: boolean;
 }) {
   const update = (i: number, patch: Partial<Attendee>) =>
     onAttendeesChange(attendees.map((x, idx) => (idx === i ? { ...x, ...patch } : x)));
-  const remove = (i: number) =>
-    onAttendeesChange(attendees.filter((_, idx) => idx !== i));
+  const remove = (i: number) => onAttendeesChange(attendees.filter((_, idx) => idx !== i));
 
   return (
-    <div className="space-y-3 pt-3 border-t border-black/5 dark:border-white/10">
-      <div className="rounded-lg border border-black/10 dark:border-white/10 p-3 space-y-2">
-        <div className="text-xs label">Proposed event</div>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
-          <input
-            className="input md:col-span-2"
-            placeholder="Name"
-            value={event.name}
-            onChange={(e) => onEventChange({ ...event, name: e.target.value })}
-          />
-          <input
-            className="input"
-            type="date"
-            value={event.date}
-            onChange={(e) => onEventChange({ ...event, date: e.target.value })}
-          />
-          <input
-            className="input"
-            placeholder="Type"
-            value={event.type ?? ""}
-            onChange={(e) => onEventChange({ ...event, type: e.target.value })}
-          />
-          <input
-            className="input md:col-span-4"
-            placeholder="Location"
-            value={event.location ?? ""}
-            onChange={(e) => onEventChange({ ...event, location: e.target.value })}
-          />
-        </div>
-      </div>
-
-      <div className="space-y-2">
-        <div className="label">Attendees ({attendees.length})</div>
-        {attendees.length === 0 && (
-          <p className="text-sm text-black/50">No attendees found. The event will be created empty.</p>
-        )}
-        {attendees.map((p, i) => (
-          <div key={i} className="rounded-lg border border-black/10 dark:border-white/10 p-3 space-y-2">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className={`chip ${p.match === "existing" ? "bg-emerald-500/15 text-emerald-700" : "bg-amber-500/15 text-amber-700"}`}>
-                  {p.match === "existing" ? "existing" : "new"}
-                </span>
-                <span className="font-medium">
-                  {p.match === "existing"
-                    ? p._existingName ?? `Student #${p.studentId}`
-                    : `${p.firstName ?? ""} ${p.lastName ?? ""}`.trim() || <em className="text-black/40">unnamed</em>}
-                </span>
-              </div>
-              <button onClick={() => remove(i)} className="text-xs text-black/40 hover:text-red-600">drop</button>
+    <div className="space-y-2">
+      <div className="label">Attendees ({attendees.length})</div>
+      {attendees.length === 0 && (
+        <p className="text-sm text-black/50">No attendees found. The event will be created empty.</p>
+      )}
+      {attendees.map((p, i) => (
+        <div key={i} className="rounded-lg border border-black/10 dark:border-white/10 p-3 space-y-2">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span
+                className={`chip ${
+                  p.match === "existing"
+                    ? "bg-emerald-500/15 text-emerald-700"
+                    : "bg-amber-500/15 text-amber-700"
+                }`}
+              >
+                {p.match === "existing" ? "existing" : "new"}
+              </span>
+              <span className="font-medium">
+                {p.match === "existing"
+                  ? p._existingName ?? `Student #${p.studentId}`
+                  : `${p.firstName ?? ""} ${p.lastName ?? ""}`.trim() || (
+                      <em className="text-black/40">unnamed</em>
+                    )}
+              </span>
             </div>
-            {p.match === "new" && (
-              <div className="space-y-2">
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2">
-                  <input className="input" placeholder="First" value={p.firstName ?? ""} onChange={(e) => update(i, { firstName: e.target.value })} />
-                  <input className="input" placeholder="Last" value={p.lastName ?? ""} onChange={(e) => update(i, { lastName: e.target.value })} />
-                  <select className="input" value={p.year ?? ""} onChange={(e) => update(i, { year: e.target.value || undefined })}>
-                    <option value="">year —</option>
-                    {["freshman","sophomore","junior","senior","grad","other"].map(y => <option key={y} value={y}>{y}</option>)}
-                  </select>
-                  <select className="input" value={p.gender ?? ""} onChange={(e) => update(i, { gender: (e.target.value || undefined) as "M" | "F" | undefined })}>
-                    <option value="">gender —</option>
-                    <option value="M">Male</option>
-                    <option value="F">Female</option>
-                  </select>
-                  <input className="input" placeholder="@ig" value={p.igHandle ?? ""} onChange={(e) => update(i, { igHandle: e.target.value.replace(/^@/, "") })} />
-                </div>
-                <InvitedByPicker
-                  attendee={p}
-                  roster={roster}
-                  onChange={(patch) => update(i, patch)}
+            <button onClick={() => remove(i)} className="text-xs text-black/40 hover:text-red-600">
+              drop
+            </button>
+          </div>
+          {p.match === "new" && (
+            <div className="space-y-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2">
+                <input
+                  className="input"
+                  placeholder="First"
+                  value={p.firstName ?? ""}
+                  onChange={(e) => update(i, { firstName: e.target.value })}
+                />
+                <input
+                  className="input"
+                  placeholder="Last"
+                  value={p.lastName ?? ""}
+                  onChange={(e) => update(i, { lastName: e.target.value })}
+                />
+                <select
+                  className="input"
+                  value={p.year ?? ""}
+                  onChange={(e) => update(i, { year: e.target.value || undefined })}
+                >
+                  <option value="">year —</option>
+                  {["freshman", "sophomore", "junior", "senior", "grad", "other"].map((y) => (
+                    <option key={y} value={y}>
+                      {y}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  className="input"
+                  value={p.gender ?? ""}
+                  onChange={(e) =>
+                    update(i, { gender: (e.target.value || undefined) as "M" | "F" | undefined })
+                  }
+                >
+                  <option value="">gender —</option>
+                  <option value="M">Male</option>
+                  <option value="F">Female</option>
+                </select>
+                <input
+                  className="input"
+                  placeholder="@ig"
+                  value={p.igHandle ?? ""}
+                  onChange={(e) => update(i, { igHandle: e.target.value.replace(/^@/, "") })}
                 />
               </div>
-            )}
-            <p className="text-[11px] text-black/30">from: &quot;{p.rawText}&quot;</p>
-          </div>
-        ))}
-      </div>
-
-      <div className="flex justify-end">
-        <button className="btn-primary" disabled={pending || !event.name || !event.date} onClick={onCommit}>
-          {pending ? "Saving…" : `Create event + mark ${attendees.length} present`}
-        </button>
-      </div>
+              <InvitedByPicker attendee={p} roster={roster} onChange={(patch) => update(i, patch)} />
+            </div>
+          )}
+          <p className="text-[11px] text-black/30">from: &quot;{p.rawText}&quot;</p>
+        </div>
+      ))}
     </div>
   );
 }
@@ -339,99 +424,3 @@ function InvitedByPicker({
     </div>
   );
 }
-
-function BatchEventsPreview({
-  events,
-  onChange,
-  onCommit,
-  pending,
-}: {
-  events: any[];
-  onChange: (events: any[]) => void;
-  onCommit: () => void;
-  pending: boolean;
-}) {
-  const handleActionToggle = (index: number, action: "create" | "merge" | "skip") => {
-    const clone = [...events];
-    clone[index].chosenAction = action;
-    onChange(clone);
-  };
-
-  const allValid = events.length > 0 && events.every((e) => e.chosenAction === "skip" || (e.incoming.name?.trim() && e.incoming.date));
-
-  return (
-    <div className="space-y-3 pt-3 border-t border-black/5 dark:border-white/10">
-      <div className="label">Proposed events ({events.length})</div>
-      
-      <div className="space-y-3 max-h-[400px] overflow-y-auto">
-        {events.map((ev, i) => (
-          <div key={i} className="p-3 border rounded-xl bg-black/5 dark:bg-white/5 space-y-3 text-sm">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <div>
-                <span className="font-semibold text-base">{ev.incoming.name}</span>
-                <span className="ml-2 text-xs text-black/40">({ev.incoming.date})</span>
-              </div>
-              
-              {/* Event Action Selectors */}
-              <div className="flex gap-1">
-                {ev.isDuplicate && (
-                  <button
-                    type="button"
-                    onClick={() => handleActionToggle(i, "merge")}
-                    className={`px-3 py-1 text-xs font-medium rounded-lg transition ${ev.chosenAction === "merge" ? "bg-amber-600 text-white" : "bg-black/5 hover:bg-black/10"}`}
-                  >
-                    Merge fields
-                  </button>
-                )}
-                <button
-                  type="button"
-                  onClick={() => handleActionToggle(i, "create")}
-                  className={`px-3 py-1 text-xs font-medium rounded-lg transition ${ev.chosenAction === "create" ? "bg-accent text-white" : "bg-black/5 hover:bg-black/10"}`}
-                >
-                  Create New
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleActionToggle(i, "skip")}
-                  className={`px-3 py-1 text-xs font-medium rounded-lg transition ${ev.chosenAction === "skip" ? "bg-red-600 text-white" : "bg-black/5 hover:bg-black/10"}`}
-                >
-                  Skip
-                </button>
-              </div>
-            </div>
-
-            {ev.isDuplicate && ev.existingRecord ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-3 bg-white dark:bg-zinc-800 border rounded-lg text-xs">
-                <div>
-                  <div className="font-semibold text-black/40 uppercase tracking-wider text-[10px]">AI Parsed Event</div>
-                  <div>Location: <span className="font-medium">{ev.incoming.location || "—"}</span></div>
-                  <div>Type: <span className="font-medium">{ev.incoming.type || "—"}</span></div>
-                </div>
-                <div className="border-l pl-4 border-black/10">
-                  <div className="font-semibold text-amber-600 uppercase tracking-wider text-[10px]">⚠️ Conflicting Past Event</div>
-                  <div>Location: <span className="font-medium">{ev.existingRecord.location || "—"}</span></div>
-                  <div>Type: <span className="font-medium">{ev.existingRecord.type || "—"}</span></div>
-                </div>
-              </div>
-            ) : (
-              <div className="p-2 bg-emerald-500/10 text-emerald-700 text-xs rounded-lg font-medium">
-                ✓ Unique Schedule Date: Safe to append as a new event log.
-              </div>
-            )}
-          </div>
-        ))}
-      </div>
-
-      <div className="flex justify-end">
-        <button 
-          className="btn-primary" 
-          disabled={pending || !allValid || events.filter(x => x.chosenAction !== "skip").length === 0} 
-          onClick={onCommit}
-        >
-          {pending ? "Saving..." : `Execute Changes (${events.filter(x => x.chosenAction !== "skip").length})`}
-        </button>
-      </div>
-    </div>
-  );
-}
-

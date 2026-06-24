@@ -10,17 +10,30 @@ export const eventInputSchema = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "date must be YYYY-MM-DD"),
   type: z.string().optional(),
   location: z.string().optional(),
+  notes: z.string().optional(),
+  totalStudents: z.number().int().optional(),
+});
+
+export const batchEventIncomingSchema = eventInputSchema;
+export type BatchEventIncoming = z.infer<typeof batchEventIncomingSchema>;
+
+export const batchEventConfirmEntrySchema = z.object({
+  action: z.enum(["create", "merge", "skip"]),
+  incoming: batchEventIncomingSchema,
+  existingId: z.number().int().optional(),
 });
 
 export const commitEventBatchBody = z.discriminatedUnion("mode", [
   z.object({
     mode: z.literal("single"),
+    eventAction: z.enum(["create", "merge", "skip"]).default("create"),
     event: eventInputSchema.extend({ isNew: z.boolean().optional() }),
+    existingEventId: z.number().int().optional(),
     attendees: z.array(attendeeSchema).default([]),
   }),
   z.object({
     mode: z.literal("batch"),
-    events: z.array(eventInputSchema).min(1),
+    items: z.array(batchEventConfirmEntrySchema).min(1),
   }),
 ]);
 export type CommitEventBatchBody = z.infer<typeof commitEventBatchBody>;

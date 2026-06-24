@@ -54,12 +54,12 @@ describe("commitEventBatchBody discriminated union", () => {
     expect(out.success).toBe(false);
   });
 
-  test("batch mode needs at least one event", () => {
-    expect(commitEventBatchBody.safeParse({ mode: "batch", events: [] }).success).toBe(false);
+  test("batch mode needs at least one item", () => {
+    expect(commitEventBatchBody.safeParse({ mode: "batch", items: [] }).success).toBe(false);
     expect(
       commitEventBatchBody.safeParse({
         mode: "batch",
-        events: [{ name: "X", date: "2026-05-22" }],
+        items: [{ action: "create", incoming: { name: "X", date: "2026-05-22" } }],
       }).success
     ).toBe(true);
   });
