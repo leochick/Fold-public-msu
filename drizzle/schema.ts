@@ -130,6 +130,7 @@ export const events = sqliteTable("events", {
   endDate: integer("end_date", { mode: "timestamp" }),
   location: text("location"),
   notes: text("notes"),
+  totalStudents: integer("total_students"),
   createdAt: integer("created_at", { mode: "timestamp" })
     .notNull()
     .default(sql`(unixepoch())`),

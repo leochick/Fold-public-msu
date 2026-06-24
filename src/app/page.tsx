@@ -52,12 +52,10 @@ export default async function DashboardPage({
         eventId: events.id,
         name: events.name,
         date: events.startDate,
-        count: sql<number>`count(${attendances.id})`.as("c"),
+        count: events.totalStudents,
       })
       .from(events)
-      .leftJoin(attendances, eq(attendances.eventId, events.id))
       .where(eventDateRange)
-      .groupBy(events.id)
       .orderBy(events.startDate),
     db
       .select({ sid: attendances.studentId, c: sql<number>`count(*)`.as("c") })
@@ -120,7 +118,7 @@ export default async function DashboardPage({
   const overTimeData = overTime.map((r) => ({
     name: r.name,
     date: new Date(r.date).toLocaleDateString("en-US", { timeZone: "UTC" }),
-    count: Number(r.count),
+    count: r.count ?? 0,
     eventId: r.eventId,
   }));
 

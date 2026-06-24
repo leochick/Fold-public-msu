@@ -5,6 +5,7 @@ import { events, attendances, students } from "../../../../drizzle/schema";
 import { eq, desc, and, lt, inArray } from "drizzle-orm";
 import EventInsights from "./EventInsights";
 import EventAttendeeDumper from "./EventAttendeeDumper";
+import TotalStudentsCard from "./TotalStudentsCard";
 
 export const dynamic = "force-dynamic";
 
@@ -83,6 +84,20 @@ export default async function EventPage({ params }: { params: Promise<{ id: stri
     redirect(`/events/${eventId}`);
   }
 
+  async function saveTotalStudents(formData: FormData) {
+    "use server";
+    const raw = String(formData.get("totalStudents") || "").trim();
+    const totalStudents = raw === "" ? null : Number(raw);
+    if (raw !== "" && (!Number.isFinite(totalStudents) || totalStudents! < 0)) {
+      redirect(`/events/${eventId}`);
+    }
+    await db
+      .update(events)
+      .set({ totalStudents: raw === "" ? null : totalStudents })
+      .where(eq(events.id, eventId));
+    redirect(`/events/${eventId}`);
+  }
+
   async function deleteEvent() {
     "use server";
     await db.delete(events).where(eq(events.id, eventId));
@@ -105,6 +120,12 @@ export default async function EventPage({ params }: { params: Promise<{ id: stri
           {e.location ? ` · ${e.location}` : ""}
         </p>
       </div>
+
+      <TotalStudentsCard
+        eventId={eventId}
+        totalStudents={e.totalStudents}
+        saveAction={saveTotalStudents}
+      />
 
       {present.length > 0 && <EventInsights eventId={eventId} stats={eventStats} />}
 

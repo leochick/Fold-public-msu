@@ -94,10 +94,18 @@ export default async function EventsPage() {
     const [y, m, day] = raw.split("-").map(Number);
     const startDate = new Date(y, m - 1, day);
     const location = String(formData.get("location") || "").trim() || null;
+    const totalStudentsRaw = String(formData.get("totalStudents") || "").trim();
+    const totalStudents = totalStudentsRaw ? Number(totalStudentsRaw) : null;
     if (!name || isNaN(startDate.getTime())) redirect("/events");
     const [row] = await db
       .insert(events)
-      .values({ name, type, startDate, location })
+      .values({
+        name,
+        type,
+        startDate,
+        location,
+        totalStudents: Number.isFinite(totalStudents) ? totalStudents : null,
+      })
       .returning();
     redirect(`/events/${row.id}`);
   }
@@ -108,7 +116,7 @@ export default async function EventsPage() {
 
       <QuickAdd roster={roster} />
 
-      <form action={create} className="card grid grid-cols-1 md:grid-cols-5 gap-3 items-end">
+      <form action={create} className="card grid grid-cols-1 md:grid-cols-6 gap-3 items-end">
         <div className="md:col-span-2">
           <label className="label" htmlFor="name">Event name</label>
           <input id="name" name="name" required className="input" placeholder="Winter Retreat 2026" />
@@ -125,7 +133,11 @@ export default async function EventsPage() {
           <label className="label" htmlFor="location">Location</label>
           <input id="location" name="location" className="input" />
         </div>
-        <div className="md:col-span-5 flex justify-end">
+        <div>
+          <label className="label" htmlFor="totalStudents">Total # of Students</label>
+          <input id="totalStudents" name="totalStudents" type="number" min={0} step={1} className="input" placeholder="optional" />
+        </div>
+        <div className="md:col-span-6 flex justify-end">
           <button type="submit" className="btn-primary">+ Create event</button>
         </div>
       </form>
@@ -145,7 +157,11 @@ export default async function EventsPage() {
             </tr>
           </thead>
           <tbody>
-            {rows.map(({ e, count }) => (
+            {rows.map(({ e, count }) => {
+              const attendanceCount = Number(count);
+              const displayCount = e.totalStudents ?? attendanceCount;
+              const missingTotal = e.totalStudents == null;
+              return (
               <tr key={e.id} className="hover:bg-black/5 dark:hover:bg-white/5">
                 <td>
                   <Link href={`/events/${e.id}`} className="font-medium hover:underline">{e.name}</Link>
@@ -153,16 +169,18 @@ export default async function EventsPage() {
                 <td>{e.type ?? <span className="text-black/30">—</span>}</td>
                 <td>{new Date(e.startDate).toLocaleDateString()}</td>
                 <td>{e.location ?? <span className="text-black/30">—</span>}</td>
-                <td>{Number(count)}</td>
+                <td className={missingTotal ? "text-orange-600 font-medium tabular-nums" : "tabular-nums"}>
+                  {displayCount}
+                </td>
                 <td className="text-right">
                   <RowActions
                     id={e.id}
                     deleteAction={deleteEventAction}
-                    confirmMessage={`Delete "${e.name}" and its ${Number(count)} attendance record(s)? This can't be undone.`}
+                    confirmMessage={`Delete "${e.name}" and its ${attendanceCount} attendance record(s)? This can't be undone.`}
                   />
                 </td>
               </tr>
-            ))}
+            );})}
             {rows.length === 0 && (
               <tr><td colSpan={6} className="text-center text-black/50 py-8">No events yet. Create one above.</td></tr>
             )}
