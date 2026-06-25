@@ -16,6 +16,8 @@ export function parseStudent(f: FormData) {
     email: v("email"),
     igHandle: v("igHandle")?.replace(/^@/, "") ?? null,
     isActive: b("isActive"),
+    newsletter: b("newsletter"),
+    groupme: b("groupme"),
     contactedViaIg: b("contactedViaIg"),
     primaryContact: v("primaryContact"),
     goals: v("goals"),

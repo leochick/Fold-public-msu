@@ -94,6 +94,8 @@ export const students = sqliteTable("students", {
   igHandle: text("ig_handle"),
   memberStatus: text("member_status", { enum: ["prospect", "member", "core"] }),
   isActive: integer("is_active", { mode: "boolean" }).notNull().default(true),
+  newsletter: integer("newsletter", { mode: "boolean" }).notNull().default(false),
+  groupme: integer("groupme", { mode: "boolean" }).notNull().default(false),
   contactedViaIg: integer("contacted_via_ig", { mode: "boolean" }).notNull().default(false),
   primaryContact: text("primary_contact"),
   goals: text("goals"),
