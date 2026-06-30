@@ -37,8 +37,8 @@ export default function StudentForm({
       </div>
       <div className="grid grid-cols-2 gap-3 items-end sm:grid-cols-4">
         <Checkbox label="Is active" name="isActive" defaultChecked={s.isActive ?? true} />
-        <Checkbox label="Subscribed to Newsletter" name="newsletter" defaultChecked={s.newsletter ?? false} />
-        <Checkbox label="In Groupme" name="groupme" defaultChecked={s.groupme ?? false} />
+        <Checkbox label="Newsletter" name="newsletter" defaultChecked={s.newsletter ?? false} />
+        <Checkbox label="Groupme" name="groupme" defaultChecked={s.groupme ?? false} />
         <Checkbox label="Contacted via IG" name="contactedViaIg" defaultChecked={s.contactedViaIg ?? false} />
       </div>
       <Field label="Primary contact (leader/friend)" name="primaryContact" defaultValue={s.primaryContact ?? ""} />
