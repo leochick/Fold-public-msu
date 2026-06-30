@@ -90,7 +90,7 @@ export default function QuickAddStudents() {
       <div>
         <h2 className="font-semibold">⚡ AI Quick Add Students Roster</h2>
         <p className="text-xs text-black/60">
-          Add students, sync course completions, or apply bulk updates. Review merge targets and field changes before committing.
+          Add students, sync course completions, newsletter/Groupme flags, or apply bulk updates. Review merge targets and field changes before committing.
         </p>
       </div>
 
@@ -101,7 +101,7 @@ export default function QuickAddStudents() {
             onChange={(e) => setText(e.target.value)}
             rows={3}
             className="input font-sans text-sm"
-            placeholder={`e.g. "Add Grace" or "Mark Course 101 completed for: Caleb, Rip, Katie"`}
+            placeholder={`e.g. "Add Grace" or "Mark Course 101 completed for: Caleb, Rip, Katie" or "Add to Groupme: Maya, Jordan"`}
           />
           <button onClick={handleProcessText} disabled={isProcessing || !text.trim()} className="btn-primary">
             {isProcessing ? "Analyzing content..." : "Process Text"}

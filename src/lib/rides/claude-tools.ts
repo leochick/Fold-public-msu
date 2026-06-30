@@ -177,6 +177,8 @@ export const PARSE_STUDENTS_BATCH_TOOL: Anthropic.Tool = {
             igHandle: { type: "string", description: "Instagram account handle explicitly without the leading @ symbol." },
             memberStatus: { type: "string", enum: ["prospect", "member", "core"], description: "Membership tier if mentioned or implied by bulk instruction." },
             isActive: { type: "boolean", description: "Whether the student is active in the group." },
+            newsletter: { type: "boolean", description: "Whether the student is subscribed to the newsletter." },
+            groupme: { type: "boolean", description: "Whether the student is in the Groupme chat." },
             contactedViaIg: { type: "boolean", description: "Whether the student has been contacted via Instagram." },
             funnelStage: {
               type: "string",

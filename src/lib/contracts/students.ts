@@ -21,6 +21,8 @@ export const batchRosterIncomingSchema = z.object({
   igHandle: z.string().nullable().optional(),
   memberStatus: memberStatusSchema.nullable().optional(),
   isActive: z.boolean().nullable().optional(),
+  newsletter: z.boolean().nullable().optional(),
+  groupme: z.boolean().nullable().optional(),
   contactedViaIg: z.boolean().nullable().optional(),
   funnelStage: funnelStageSchema.nullable().optional(),
   primaryContact: z.string().nullable().optional(),

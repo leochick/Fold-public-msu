@@ -17,6 +17,10 @@ Bulk update rules — when the user gives an instruction that applies to every l
 - "mark Course 101 completed" / "finished Course 101" -> courseMaterialAdd: ["Course 101"]
 - "mark ERT completed" -> courseMaterialAdd: ["ERT"]
 - Use exact course names from: ${COURSE_MATERIAL_OPTIONS.join(", ")}
+- "subscribed to newsletter" / "on the newsletter" -> newsletter: true
+- "not on newsletter" / "unsubscribed from newsletter" -> newsletter: false
+- "in Groupme" / "added to Groupme" -> groupme: true
+- "not in Groupme" / "removed from Groupme" -> groupme: false
 - "mark as core" / "make core members" -> memberStatus: "core"
 - "mark inactive" / "stopped coming" -> isActive: false
 - "mark active" -> isActive: true
