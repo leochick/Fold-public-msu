@@ -163,6 +163,7 @@ export default function BatchRosterReviewList({
                         <div>Year: <span className="font-medium">{item.incoming.year || "—"}</span></div>
                         <div>Gender: <span className="font-medium">{item.incoming.gender || "—"}</span></div>
                         <div>Phone: <span className="font-medium">{item.incoming.phone || "—"}</span></div>
+                        <div>Email: <span className="font-medium">{item.incoming.email || "—"}</span></div>
                         <div>Instagram: <span className="font-medium">{item.incoming.igHandle ? `@${item.incoming.igHandle}` : "—"}</span></div>
                       </div>
                       <div className="space-y-1 border-l pl-4 border-black/10">
@@ -170,6 +171,7 @@ export default function BatchRosterReviewList({
                         <div>Name: <span className="font-medium">{selectedRecord.firstName} {selectedRecord.lastName ?? ""}</span></div>
                         <div>Year: <span className="font-medium">{selectedRecord.year || "—"}</span></div>
                         <div>Phone: <span className="font-medium">{selectedRecord.phone || "—"}</span></div>
+                        <div>Email: <span className="font-medium">{selectedRecord.email || "—"}</span></div>
                         <div>Instagram: <span className="font-medium">{selectedRecord.igHandle ? `@${selectedRecord.igHandle}` : "—"}</span></div>
                         {Array.isArray(selectedRecord.courseMaterial) && selectedRecord.courseMaterial.length > 0 && (
                           <div>Courses: <span className="font-medium">{selectedRecord.courseMaterial.join(", ")}</span></div>

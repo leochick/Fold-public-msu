@@ -160,7 +160,9 @@ export const PARSE_STUDENTS_BATCH_TOOL: Anthropic.Tool = {
     properties: {
       students: {
         type: "array",
-        description: "Array of all discovered students extracted from the user text chunk.",
+        description:
+          "One entry per person in the input. For bulk updates (newsletter, Groupme, course completions, active/inactive, etc.) " +
+          "or contact-info updates (phone, email), emit one entry per named student with the parsed field changes — never return an empty array when names are listed.",
         items: {
           type: "object",
           properties: {
@@ -172,8 +174,14 @@ export const PARSE_STUDENTS_BATCH_TOOL: Anthropic.Tool = {
               enum: ["freshman", "sophomore", "junior", "senior", "grad", "other"],
               description: "Class or school year tracking bucket alignment."
             },
-            phone: { type: "string", description: "Phone number string if present." },
-            email: { type: "string", description: "Email string address if present." },
+            phone: {
+              type: "string",
+              description: "Phone number if provided or updated for this student (any common format).",
+            },
+            email: {
+              type: "string",
+              description: "Email address if provided or updated for this student.",
+            },
             igHandle: { type: "string", description: "Instagram account handle explicitly without the leading @ symbol." },
             memberStatus: { type: "string", enum: ["prospect", "member", "core"], description: "Membership tier if mentioned or implied by bulk instruction." },
             isActive: { type: "boolean", description: "Whether the student is active in the group." },

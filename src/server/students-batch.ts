@@ -4,7 +4,9 @@ import { eq } from "drizzle-orm";
 import { anthropic, MODEL } from "@/lib/claude";
 import { PARSE_STUDENTS_BATCH_TOOL } from "@/lib/rides/claude-tools";
 import { findPossibleDuplicates } from "@/lib/funnel/dedup";
+import { normalizeBatchStudentsInput } from "@/lib/parse-students-batch-normalize";
 import { PARSE_STUDENTS_BATCH_SYSTEM, buildParseStudentsUserMsg } from "@/lib/prompts/parse-students-batch";
+import { formatRosterCompact } from "./roster";
 import { callClaudeOrThrow } from "./attendance";
 import { httpErr } from "@/lib/http";
 import type { CommitStudentRosterBatchBody } from "@/lib/contracts/students";
@@ -82,7 +84,7 @@ export async function parseStudentsBatch(text: string) {
     })
     .from(students);
 
-  const userMsg = buildParseStudentsUserMsg(text);
+  const userMsg = buildParseStudentsUserMsg(text, formatRosterCompact(roster));
 
   const resp = await callClaudeOrThrow(() =>
     anthropic.messages.create({
@@ -98,11 +100,12 @@ export async function parseStudentsBatch(text: string) {
   const toolUse = resp.content.find((b) => b.type === "tool_use");
   if (!toolUse || toolUse.type !== "tool_use") throw httpErr.upstream("AI mapping failure.");
 
-  const input = toolUse.input as { students?: any[]; explanation?: string };
+  const input = toolUse.input as { students?: unknown[]; explanation?: string };
+  const normalizedStudents = normalizeBatchStudentsInput(text, input.students, roster);
   const processedItems = [];
   const now = new Date();
 
-  for (const item of input.students ?? []) {
+  for (const item of normalizedStudents) {
         const candidates = findPossibleDuplicates(
         {
         firstName: item.firstName,
@@ -142,7 +145,11 @@ export async function parseStudentsBatch(text: string) {
 
   return {
     items: processedItems,
-    explanation: input.explanation ?? "Processing completed."
+    explanation:
+      input.explanation ??
+      (normalizedStudents.length > 0
+        ? `Parsed ${normalizedStudents.length} student${normalizedStudents.length === 1 ? "" : "s"}.`
+        : "No students found — try listing names with contact info or after “for:”, e.g. “Caleb - 555-123-4567, caleb@example.com”."),
   };
 }
 

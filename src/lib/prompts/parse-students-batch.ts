@@ -13,7 +13,19 @@ For each person identified in the user prompt payload:
 4. Extract communications text paths ("phone", "email") and strip out leading "@" characters from "igHandle" strings.
 5. Capture any residual text descriptions or identifiers cleanly inside the "notes" parameter.
 
+Contact info rules — when the user adds or updates phone and/or email for a student:
+- ALWAYS emit one students[] entry per person with phone and/or email on that entry when contact info appears in the text.
+- "Caleb - 555-123-4567, caleb@example.com" -> firstName Caleb, phone, email
+- "Rip: rip@msu.edu" or "Update Rip's email to rip@msu.edu" -> firstName Rip, email
+- "Jordan phone 517-555-0142" -> firstName Jordan, phone
+- Multi-line rosters: one students[] entry per line when each line has a name plus contact info.
+- Match updates to existing roster students by name when possible; include phone/email even if that is the only field changing.
+
 Bulk update rules — when the user gives an instruction that applies to every listed student:
+- ALWAYS return one students[] entry per named person, even if the only change is a single boolean or course flag.
+- NEVER return an empty students[] array when the user lists names to update.
+- Example input: "Mark subscribed to newsletter for: Caleb, Rip, Katie"
+  Required output: three students[] entries with firstName + newsletter: true for each.
 - "mark Course 101 completed" / "finished Course 101" -> courseMaterialAdd: ["Course 101"]
 - "mark ERT completed" -> courseMaterialAdd: ["ERT"]
 - Use exact course names from: ${COURSE_MATERIAL_OPTIONS.join(", ")}
@@ -29,6 +41,9 @@ Bulk update rules — when the user gives an instruction that applies to every l
 
 Be highly accurate and conservative: do not hallucinate traits not implicitly backed by the user message block.`;
 
-export function buildParseStudentsUserMsg(text: string): string {
-  return `Raw Input Roster Text:\n"${text}"\n\nPlease parse out all discovered students and any bulk field updates using the tool provided.`;
+export function buildParseStudentsUserMsg(text: string, rosterCompact?: string): string {
+  const rosterBlock = rosterCompact
+    ? `\nKnown roster (match bulk updates to these existing students when possible):\n${rosterCompact}\n`
+    : "";
+  return `${rosterBlock}Raw Input Roster Text:\n"${text}"\n\nPlease parse out all discovered students and any bulk field updates using the tool provided. For bulk updates, emit one students[] entry per named person with the shared field changes applied.`;
 }
