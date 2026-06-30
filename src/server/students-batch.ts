@@ -4,7 +4,7 @@ import { eq } from "drizzle-orm";
 import { anthropic, MODEL } from "@/lib/claude";
 import { PARSE_STUDENTS_BATCH_TOOL } from "@/lib/rides/claude-tools";
 import { findPossibleDuplicates } from "@/lib/funnel/dedup";
-import { normalizeBatchStudentsInput } from "@/lib/parse-students-batch-normalize";
+import { normalizeBatchStudentsInput, shouldParseEmailRosterLocally } from "@/lib/parse-students-batch-normalize";
 import { PARSE_STUDENTS_BATCH_SYSTEM, buildParseStudentsUserMsg } from "@/lib/prompts/parse-students-batch";
 import { formatRosterCompact } from "./roster";
 import { callClaudeOrThrow } from "./attendance";
@@ -86,22 +86,32 @@ export async function parseStudentsBatch(text: string) {
 
   const userMsg = buildParseStudentsUserMsg(text, formatRosterCompact(roster));
 
-  const resp = await callClaudeOrThrow(() =>
-    anthropic.messages.create({
-      model: MODEL,
-      max_tokens: 2048,
-      system: PARSE_STUDENTS_BATCH_SYSTEM,
-      tools: [PARSE_STUDENTS_BATCH_TOOL],
-      tool_choice: { type: "tool", name: PARSE_STUDENTS_BATCH_TOOL.name },
-      messages: [{ role: "user", content: userMsg }],
-    })
-  );
+  let normalizedStudents;
+  let explanation: string | undefined;
 
-  const toolUse = resp.content.find((b) => b.type === "tool_use");
-  if (!toolUse || toolUse.type !== "tool_use") throw httpErr.upstream("AI mapping failure.");
+  if (shouldParseEmailRosterLocally(text)) {
+    normalizedStudents = normalizeBatchStudentsInput(text, [], roster);
+    explanation = `Parsed ${normalizedStudents.length} students from the pasted email roster.`;
+  } else {
+    const resp = await callClaudeOrThrow(() =>
+      anthropic.messages.create({
+        model: MODEL,
+        max_tokens: 2048,
+        system: PARSE_STUDENTS_BATCH_SYSTEM,
+        tools: [PARSE_STUDENTS_BATCH_TOOL],
+        tool_choice: { type: "tool", name: PARSE_STUDENTS_BATCH_TOOL.name },
+        messages: [{ role: "user", content: userMsg }],
+      })
+    );
 
-  const input = toolUse.input as { students?: unknown[]; explanation?: string };
-  const normalizedStudents = normalizeBatchStudentsInput(text, input.students, roster);
+    const toolUse = resp.content.find((b) => b.type === "tool_use");
+    if (!toolUse || toolUse.type !== "tool_use") throw httpErr.upstream("AI mapping failure.");
+
+    const input = toolUse.input as { students?: unknown[]; explanation?: string };
+    normalizedStudents = normalizeBatchStudentsInput(text, input.students, roster);
+    explanation = input.explanation;
+  }
+
   const processedItems = [];
   const now = new Date();
 
@@ -146,7 +156,7 @@ export async function parseStudentsBatch(text: string) {
   return {
     items: processedItems,
     explanation:
-      input.explanation ??
+      explanation ??
       (normalizedStudents.length > 0
         ? `Parsed ${normalizedStudents.length} student${normalizedStudents.length === 1 ? "" : "s"}.`
         : "No students found — try listing names with contact info or after “for:”, e.g. “Caleb - 555-123-4567, caleb@example.com”."),

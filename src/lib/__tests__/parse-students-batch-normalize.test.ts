@@ -1,8 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
+  countEmailLines,
   detectBulkFlags,
+  extractEmailRosterEntriesFromText,
   extractNamesFromBulkText,
   normalizeBatchStudentsInput,
+  shouldParseEmailRosterLocally,
 } from "../parse-students-batch-normalize";
 
 const roster = [
@@ -91,5 +94,65 @@ describe("normalizeBatchStudentsInput", () => {
       roster
     );
     expect(result[0]?.email).toBe("rip@msu.edu");
+  });
+
+  it("parses tab-separated email rosters with newsletter bulk flag", () => {
+    const text = `Add subscribed to newsletter (and update email) for the following students:
+
+morefie3@msu.edu\tNyah Morefield
+shawtaky@msu.edu\tTakyra Shaw
+crossja9@msu.edu\tJack Cross`;
+
+    expect(shouldParseEmailRosterLocally(text)).toBe(true);
+    expect(countEmailLines(text)).toBe(3);
+
+    const result = normalizeBatchStudentsInput(text, [], roster);
+    expect(result).toHaveLength(3);
+    expect(result.every((s) => s.newsletter === true)).toBe(true);
+    expect(result[0]).toMatchObject({
+      firstName: "Nyah",
+      lastName: "Morefield",
+      email: "morefie3@msu.edu",
+      newsletter: true,
+    });
+    expect(result[2]).toMatchObject({
+      firstName: "Jack",
+      lastName: "Cross",
+      email: "crossja9@msu.edu",
+      newsletter: true,
+    });
+  });
+
+  it("uses roster names when the pasted email roster line has no name", () => {
+    const rosterWithEmail = [
+      {
+        id: 10,
+        firstName: "Michael",
+        lastName: "James",
+        igHandle: null,
+        phone: null,
+        email: "mj003@msu.edu",
+      },
+    ];
+    const text = `Add subscribed to newsletter for the following students:
+mj003@msu.edu\t
+morefie3@msu.edu\tNyah Morefield`;
+
+    const result = normalizeBatchStudentsInput(text, [], rosterWithEmail);
+    expect(result).toHaveLength(2);
+    expect(result[0]).toMatchObject({
+      firstName: "Michael",
+      lastName: "James",
+      email: "mj003@msu.edu",
+      newsletter: true,
+    });
+  });
+
+  it("deduplicates repeated emails in an email roster paste", () => {
+    const entries = extractEmailRosterEntriesFromText(
+      "segresta@msu.edu\tArianna Segresta\nariannasegrest1@gmail.com\tArianna Segrest",
+      roster
+    );
+    expect(entries).toHaveLength(2);
   });
 });

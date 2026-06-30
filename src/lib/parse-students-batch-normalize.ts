@@ -1,5 +1,5 @@
 import type { BatchRosterIncoming } from "@/lib/contracts/students";
-import type { RosterRow } from "@/lib/funnel/dedup";
+import { normalizeEmail, type RosterRow } from "@/lib/funnel/dedup";
 
 type ParsedName = {
   firstName: string;
@@ -24,6 +24,93 @@ export function extractPhone(text: string): string | undefined {
 
 function hasContactInfo(text: string): boolean {
   return !!(extractEmail(text) || extractPhone(text));
+}
+
+export function countEmailLines(text: string): number {
+  return text.split(/\n+/).filter((line) => extractEmail(line.trim())).length;
+}
+
+export function shouldParseEmailRosterLocally(text: string): boolean {
+  return countEmailLines(text) >= 2;
+}
+
+function findRosterByEmail(email: string, roster: RosterRow[]): RosterRow | undefined {
+  const normalized = normalizeEmail(email);
+  return roster.find((student) => student.email && normalizeEmail(student.email) === normalized);
+}
+
+function deriveFirstNameFromEmail(email: string): string {
+  const local = email.split("@")[0] ?? "";
+  const token = local.replace(/[^a-zA-Z]+/g, " ").trim().split(/\s+/)[0];
+  if (!token) return local || "Student";
+  return token.charAt(0).toUpperCase() + token.slice(1).toLowerCase();
+}
+
+function parseEmailRosterLine(
+  line: string,
+  email: string,
+  roster: RosterRow[]
+): BatchRosterIncoming | null {
+  const emailIndex = line.toLowerCase().indexOf(email.toLowerCase());
+  let namePart = "";
+  if (emailIndex === 0) {
+    namePart = line.slice(email.length).trim();
+  } else if (emailIndex > 0) {
+    namePart = line.slice(0, emailIndex).trim();
+  }
+  namePart = namePart.replace(/^[\t:,\-–—]+|[\t:,\-–—]+$/g, "").trim();
+
+  const rosterMatch = findRosterByEmail(email, roster);
+  const parsedName = namePart ? parseNameToken(namePart) : null;
+  const nameLooksUsable = !!parsedName && parsedName.firstName.length > 1;
+
+  let firstName = "";
+  let lastName: string | null = null;
+
+  if (nameLooksUsable && parsedName) {
+    firstName = parsedName.firstName;
+    lastName = parsedName.lastName ?? null;
+  } else if (rosterMatch) {
+    firstName = rosterMatch.firstName;
+    lastName = rosterMatch.lastName ?? null;
+  } else if (parsedName) {
+    firstName = parsedName.firstName;
+    lastName = parsedName.lastName ?? null;
+  } else {
+    firstName = deriveFirstNameFromEmail(email);
+  }
+
+  return {
+    firstName,
+    lastName,
+    email,
+    rawText: line.trim(),
+  };
+}
+
+export function extractEmailRosterEntriesFromText(
+  text: string,
+  roster: RosterRow[] = []
+): BatchRosterIncoming[] {
+  const entries: BatchRosterIncoming[] = [];
+  const seenEmails = new Set<string>();
+
+  for (const line of text.split(/\n+/)) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+
+    const email = extractEmail(trimmed);
+    if (!email) continue;
+
+    const normalized = normalizeEmail(email);
+    if (seenEmails.has(normalized)) continue;
+    seenEmails.add(normalized);
+
+    const entry = parseEmailRosterLine(trimmed, email, roster);
+    if (entry) entries.push(entry);
+  }
+
+  return entries;
 }
 
 function findLineContainingName(text: string, student: BatchRosterIncoming): string | undefined {
@@ -238,6 +325,12 @@ export function normalizeBatchStudentsInput(
   roster: RosterRow[] = []
 ): BatchRosterIncoming[] {
   const bulkFlags = detectBulkFlags(text);
+  const emailRoster = extractEmailRosterEntriesFromText(text, roster);
+
+  if (shouldParseEmailRosterLocally(text)) {
+    return emailRoster.map((entry) => applyMissingBulkFlags(entry, bulkFlags));
+  }
+
   let students = (aiStudents ?? [])
     .map(asStudentRecord)
     .filter((s): s is BatchRosterIncoming => s != null)
@@ -263,5 +356,9 @@ export function normalizeBatchStudentsInput(
     students = extractContactEntriesFromText(text, roster);
   }
 
-  return students;
+  if (students.length === 0 && emailRoster.length > 0) {
+    students = emailRoster;
+  }
+
+  return students.map((entry) => applyMissingBulkFlags(entry, bulkFlags));
 }
