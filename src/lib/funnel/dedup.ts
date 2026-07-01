@@ -111,8 +111,7 @@ export function findPossibleDuplicates(
 
     // Smart first name fallback rules
     if (normInFirst && normInFirst === normRowFirst) {
-      if (!normInLast) {
-        // Match solely on first name if incoming entry lacks a last name
+      if (!normInLast || !normRowLast) {
         score += 50;
         reasons.push("name_fuzzy");
       } else if (normInLast === normRowLast) {
@@ -121,13 +120,53 @@ export function findPossibleDuplicates(
       }
     }
 
+    // Misspelled first or last name (Levenshtein distance <= 2)
+    if (normInFirst && normRowFirst) {
+      const firstDist = levenshtein(normInFirst, normRowFirst);
+      if (firstDist > 0 && firstDist <= 2) {
+        if (normInLast && normRowLast && normInLast === normRowLast) {
+          score += 70;
+          reasons.push("name_fuzzy");
+        } else if (!normInLast || !normRowLast) {
+          score += 45;
+          reasons.push("name_fuzzy");
+        }
+      }
+    }
+
+    if (normInLast && normRowLast) {
+      const lastDist = levenshtein(normInLast, normRowLast);
+      if (lastDist > 0 && lastDist <= 2 && normInFirst === normRowFirst && normInFirst) {
+        score += 65;
+        reasons.push("name_fuzzy");
+      }
+    }
+
+    // Last name used as first name (swapped or partial)
+    if (normInFirst && normRowLast && normInFirst === normRowLast) {
+      score += 55;
+      reasons.push("name_fuzzy");
+    }
+    if (normInLast && normRowFirst && normInLast === normRowFirst) {
+      score += 55;
+      reasons.push("name_fuzzy");
+    }
+    if (normInFirst && normRowFirst && normInFirst === normRowFirst && !normInLast && normRowLast) {
+      score += 40;
+      reasons.push("name_fuzzy");
+    }
+    if (normInFirst && normRowFirst && normInFirst === normRowFirst && normInLast && !normRowLast) {
+      score += 40;
+      reasons.push("name_fuzzy");
+    }
+
     // Recent profile lookback weight modifier
     if (student.createdAt && reasons.length > 0) {
       const createdTime = new Date(student.createdAt).getTime();
       const diffMs = now.getTime() - createdTime;
       const hoursLimit = 24 * 60 * 60 * 1000;
       if (diffMs >= 0 && diffMs <= hoursLimit) {
-        score += 15;
+        score += 20;
         reasons.push("recent_add");
       }
     }
@@ -141,10 +180,25 @@ export function findPossibleDuplicates(
         studentId: student.id,
         confidence,
         score,
-        reasons
+        reasons: [...new Set(reasons)],
       });
     }
   }
 
   return matches.sort((a, b) => b.score - a.score);
+}
+
+export function findMergeSuggestions(
+  source: {
+    id: number;
+    firstName: string;
+    lastName?: string | null;
+    igHandle?: string | null;
+    phone?: string | null;
+    email?: string | null;
+  },
+  roster: RosterRow[],
+  now = new Date()
+): DedupCandidate[] {
+  return findPossibleDuplicates(source, roster.filter((row) => row.id !== source.id), now);
 }

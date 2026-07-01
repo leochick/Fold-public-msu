@@ -14,6 +14,7 @@ import {
   type AttendanceLite,
 } from "@/lib/health-metrics";
 import AddEventCardClient from "./AddEventCardClient";
+import StudentMergeModal from "./StudentMergeModal";
 
 export const dynamic = "force-dynamic";
 
@@ -128,9 +129,35 @@ export default async function StudentPage({ params }: { params: Promise<{ id: st
             {s.firstName} {s.lastName ?? ""}
           </h1>
         </div>
-        <form action={del}>
-          <button className="btn-ghost text-red-600" type="submit">Delete</button>
-        </form>
+        <div className="flex items-center gap-2">
+          <StudentMergeModal
+            studentId={id}
+            keepStudent={{
+              id: s.id,
+              firstName: s.firstName,
+              lastName: s.lastName,
+              studentId: s.studentId,
+              gender: s.gender,
+              year: s.year,
+              phone: s.phone,
+              email: s.email,
+              igHandle: s.igHandle,
+              memberStatus: s.memberStatus,
+              isActive: s.isActive,
+              newsletter: s.newsletter,
+              groupme: s.groupme,
+              contactedViaIg: s.contactedViaIg,
+              primaryContact: s.primaryContact,
+              goals: s.goals,
+              notes: s.notes,
+              courseMaterial: s.courseMaterial,
+              funnelStage: s.funnelStage,
+            }}
+          />
+          <form action={del}>
+            <button className="btn-ghost text-red-600" type="submit">Delete</button>
+          </form>
+        </div>
       </div>
 
       <StudentForm action={update} student={s} roster={roster} />

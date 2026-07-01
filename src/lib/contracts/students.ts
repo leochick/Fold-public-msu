@@ -138,6 +138,19 @@ export const linkStudentEventBody = z.object({
 });
 export type LinkStudentEventBody = z.infer<typeof linkStudentEventBody>;
 
+export const mergeStudentBody = z.object({
+  mergeWithId: z.number().int().positive(),
+  overrides: z
+    .object({
+      firstName: z.string().optional(),
+      lastName: z.string().optional(),
+      phone: z.string().optional(),
+      email: z.string().optional(),
+    })
+    .optional(),
+});
+export type MergeStudentBody = z.infer<typeof mergeStudentBody>;
+
 export const batchConfirmEntrySchema = z.object({
   action: z.enum(["merge", "create", "skip"]),
   incoming: batchRosterIncomingSchema,
