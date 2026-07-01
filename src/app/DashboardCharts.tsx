@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import {
   LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer,
   BarChart, Bar, CartesianGrid, PieChart, Pie, Cell, Legend,
@@ -18,12 +19,21 @@ interface PendingC101Student extends CompletedC101Student {
   engagementStage: "active" | "engaged";
 }
 
+interface AttendeeListStudent {
+  id: number;
+  firstName: string;
+  lastName: string | null;
+  email: string | null;
+}
+
 interface DashboardChartsProps {
   overTime: any; // update with your exact type definitions
   funnel: any;
   breakdowns: any;
   completedC101: CompletedC101Student[];
   pendingC101: PendingC101Student[];
+  notOnNewsletter: AttendeeListStudent[];
+  notOnGroupme: AttendeeListStudent[];
   rangeLabel: string;
 }
 
@@ -33,6 +43,8 @@ export default function DashboardCharts({
   breakdowns,
   completedC101,
   pendingC101,
+  notOnNewsletter,
+  notOnGroupme,
   rangeLabel,
 }: DashboardChartsProps) {
   return (
@@ -144,6 +156,24 @@ export default function DashboardCharts({
         </div>
       </div>
 
+      <AttendeeFlagList
+        title="Not on Newsletter"
+        description={`Students with attendance in ${rangeLabel} who are not subscribed to the newsletter.`}
+        countLabel={`${notOnNewsletter.length} Missing`}
+        chipClass="bg-violet-500/10 text-violet-600 dark:text-violet-400"
+        students={notOnNewsletter}
+        emptyMessage="Everyone who attended in this view is on the newsletter."
+      />
+
+      <AttendeeFlagList
+        title="Not in Groupme"
+        description={`Students with attendance in ${rangeLabel} who are not in Groupme.`}
+        countLabel={`${notOnGroupme.length} Missing`}
+        chipClass="bg-sky-500/10 text-sky-600 dark:text-sky-400"
+        students={notOnGroupme}
+        emptyMessage="Everyone who attended in this view is in Groupme."
+      />
+
       <div className="card lg:col-span-2">
         <h3 className="font-semibold mb-2">Breakdowns</h3>
         <p className="text-xs text-black/50 mb-2">{rangeLabel}</p>
@@ -152,6 +182,55 @@ export default function DashboardCharts({
           <PieMini title="By gender" data={breakdowns.gender} />
           <PieMini title="By event type" data={breakdowns.eventType} />
         </div>
+      </div>
+    </div>
+  );
+}
+
+function AttendeeFlagList({
+  title,
+  description,
+  countLabel,
+  chipClass,
+  students,
+  emptyMessage,
+}: {
+  title: string;
+  description: string;
+  countLabel: string;
+  chipClass: string;
+  students: AttendeeListStudent[];
+  emptyMessage: string;
+}) {
+  return (
+    <div className="card lg:col-span-2 space-y-4">
+      <div>
+        <div className="flex items-center justify-between">
+          <h3 className="font-semibold text-lg">{title}</h3>
+          <span className={`chip ${chipClass} text-xs px-2 py-0.5 rounded`}>{countLabel}</span>
+        </div>
+        <p className="text-xs text-black/50 dark:text-white/50 mt-1">{description}</p>
+      </div>
+
+      <div className="max-h-64 overflow-y-auto divide-y divide-black/5 dark:divide-white/5 pr-2">
+        {students.length === 0 ? (
+          <p className="text-sm text-black/40 dark:text-white/40 py-4 italic text-center">{emptyMessage}</p>
+        ) : (
+          students.map((student) => (
+            <Link
+              key={student.id}
+              href={`/students/${student.id}`}
+              className="py-2.5 flex flex-col justify-center hover:bg-black/[0.03] dark:hover:bg-white/[0.03] -mx-2 px-2 rounded-lg transition"
+            >
+              <span className="text-sm font-medium">
+                {`${student.firstName} ${student.lastName ?? ""}`.trim()}
+              </span>
+              {student.email && (
+                <span className="text-xs text-black/40 dark:text-white/40">{student.email}</span>
+              )}
+            </Link>
+          ))
+        )}
       </div>
     </div>
   );

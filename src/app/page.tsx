@@ -152,7 +152,7 @@ export default async function DashboardPage({
   );
   const activeOrEngagedIds = studentsActiveOrEngaged.map((r) => r.sid);
 
-  const [completedRaw, pendingRaw] = await Promise.all([
+  const [completedRaw, pendingRaw, notOnNewsletter, notOnGroupme] = await Promise.all([
     attendanceInRangeIds.length > 0
       ? db
           .select({
@@ -176,6 +176,30 @@ export default async function DashboardPage({
           })
           .from(students)
           .where(inArray(students.id, activeOrEngagedIds))
+      : [],
+    attendanceInRangeIds.length > 0
+      ? db
+          .select({
+            id: students.id,
+            firstName: students.firstName,
+            lastName: students.lastName,
+            email: students.email,
+          })
+          .from(students)
+          .where(and(inArray(students.id, attendanceInRangeIds), eq(students.newsletter, false)))
+          .orderBy(students.firstName)
+      : [],
+    attendanceInRangeIds.length > 0
+      ? db
+          .select({
+            id: students.id,
+            firstName: students.firstName,
+            lastName: students.lastName,
+            email: students.email,
+          })
+          .from(students)
+          .where(and(inArray(students.id, attendanceInRangeIds), eq(students.groupme, false)))
+          .orderBy(students.firstName)
       : [],
   ]);
 
@@ -265,6 +289,8 @@ export default async function DashboardPage({
             breakdowns={breakdowns}
             completedC101={completedStudents}
             pendingC101={pendingStudents}
+            notOnNewsletter={notOnNewsletter}
+            notOnGroupme={notOnGroupme}
             rangeLabel={rangeLabel}
           />
 
