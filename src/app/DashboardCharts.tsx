@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useMemo, useState, type ReactNode } from "react";
 import {
   LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer,
   BarChart, Bar, CartesianGrid, PieChart, Pie, Cell, Legend,
@@ -81,97 +82,50 @@ export default function DashboardCharts({
         )}
       </div>
 
-      <div className="card lg:col-span-2 space-y-4">
-        <div>
-          <div className="flex items-center justify-between">
-            <h3 className="font-semibold text-lg">Completed Course 101</h3>
-            <span className="chip bg-green-500/10 text-green-600 dark:text-green-400 text-xs px-2 py-0.5 rounded">
-              {completedC101.length} Students
+      <SearchableStudentList
+        title="Completed Course 101"
+        description={`Students with attendance in ${rangeLabel} who have completed C101.`}
+        countLabel={`${completedC101.length} Students`}
+        chipClass="bg-green-500/10 text-green-600 dark:text-green-400"
+        students={completedC101}
+        emptyMessage="No students have taken C101 yet."
+      />
+
+      <SearchableStudentList
+        title="Should Take Course 101"
+        description={`Active (1+ visit) and Engaged (3+ visits) in ${rangeLabel} missing this prerequisite.`}
+        countLabel={`${pendingC101.length} Missing`}
+        chipClass="bg-amber-500/10 text-amber-600 dark:text-amber-400"
+        students={pendingC101}
+        emptyMessage="All active and engaged students are up to date!"
+        renderTrailing={(student) =>
+          "engagementStage" in student ? (
+            <span className="chip text-xs px-2 py-0.5 bg-black/5 dark:bg-white/5 uppercase tracking-wider font-mono text-[10px]">
+              {(student as PendingC101Student).engagementStage}
             </span>
-          </div>
-          <p className="text-xs text-black/50 dark:text-white/50 mt-1">
-            Students with attendance in {rangeLabel} who have completed C101.
-          </p>
-        </div>
+          ) : null
+        }
+        rowClassName="flex items-center justify-between"
+      />
 
-        <div className="max-h-64 overflow-y-auto divide-y divide-black/5 dark:divide-white/5 pr-2">
-          {completedC101.length === 0 ? (
-            <p className="text-sm text-black/40 dark:text-white/40 py-4 italic text-center">
-              No students have taken C101 yet.
-            </p>
-          ) : (
-            completedC101.map((student) => (
-              <div key={student.id} className="py-2.5 flex flex-col justify-center">
-                <span className="text-sm font-medium">
-                  {`${student.firstName} ${student.lastName ?? ""}`.trim()}
-                </span>
-                {student.email && (
-                  <span className="text-xs text-black/40 dark:text-white/40">
-                    {student.email}
-                  </span>
-                )}
-              </div>
-            ))
-          )}
-        </div>
-      </div>
-
-      <div className="card lg:col-span-2 space-y-4">
-        <div>
-          <div className="flex items-center justify-between">
-            <h3 className="font-semibold text-lg">Should Take Course 101</h3>
-            <span className="chip bg-amber-500/10 text-amber-600 dark:text-amber-400 text-xs px-2 py-0.5 rounded">
-              {pendingC101.length} Missing
-            </span>
-          </div>
-          <p className="text-xs text-black/50 dark:text-white/50 mt-1">
-            Active (1+ visit) and Engaged (3+ visits) in {rangeLabel} missing this prerequisite.
-          </p>
-        </div>
-
-        <div className="max-h-64 overflow-y-auto divide-y divide-black/5 dark:divide-white/5 pr-2">
-          {pendingC101.length === 0 ? (
-            <p className="text-sm text-black/40 dark:text-white/40 py-4 italic text-center">
-              All active and engaged students are up to date!
-            </p>
-          ) : (
-            pendingC101.map((student) => (
-              <div key={student.id} className="py-2.5 flex items-center justify-between">
-                <div className="flex flex-col">
-                  <span className="text-sm font-medium">
-                    {`${student.firstName} ${student.lastName ?? ""}`.trim()}
-                  </span>
-                  {student.email && (
-                    <span className="text-xs text-black/40 dark:text-white/40">
-                      {student.email}
-                    </span>
-                  )}
-                </div>
-                <span className="chip text-xs px-2 py-0.5 bg-black/5 dark:bg-white/5 uppercase tracking-wider font-mono text-[10px]">
-                  {student.engagementStage}
-                </span>
-              </div>
-            ))
-          )}
-        </div>
-      </div>
-
-      <AttendeeFlagList
+      <SearchableStudentList
         title="Not on Newsletter"
         description={`Students with attendance in ${rangeLabel} who are not subscribed to the newsletter.`}
         countLabel={`${notOnNewsletter.length} Missing`}
         chipClass="bg-violet-500/10 text-violet-600 dark:text-violet-400"
         students={notOnNewsletter}
         emptyMessage="Everyone who attended in this view is on the newsletter."
+        linkToStudent
       />
 
-      <AttendeeFlagList
+      <SearchableStudentList
         title="Not in Groupme"
         description={`Students with attendance in ${rangeLabel} who are not in Groupme.`}
         countLabel={`${notOnGroupme.length} Missing`}
         chipClass="bg-sky-500/10 text-sky-600 dark:text-sky-400"
         students={notOnGroupme}
         emptyMessage="Everyone who attended in this view is in Groupme."
+        linkToStudent
       />
 
       <div className="card lg:col-span-2">
@@ -187,13 +141,32 @@ export default function DashboardCharts({
   );
 }
 
-function AttendeeFlagList({
+function formatStudentName(student: AttendeeListStudent) {
+  return `${student.firstName} ${student.lastName ?? ""}`.trim();
+}
+
+function studentMatchesQuery(student: AttendeeListStudent, query: string) {
+  const haystack = [
+    student.firstName,
+    student.lastName ?? "",
+    formatStudentName(student),
+    student.email ?? "",
+  ]
+    .join(" ")
+    .toLowerCase();
+  return haystack.includes(query);
+}
+
+function SearchableStudentList({
   title,
   description,
   countLabel,
   chipClass,
   students,
   emptyMessage,
+  linkToStudent = false,
+  rowClassName = "flex flex-col justify-center",
+  renderTrailing,
 }: {
   title: string;
   description: string;
@@ -201,35 +174,82 @@ function AttendeeFlagList({
   chipClass: string;
   students: AttendeeListStudent[];
   emptyMessage: string;
+  linkToStudent?: boolean;
+  rowClassName?: string;
+  renderTrailing?: (student: AttendeeListStudent) => ReactNode;
 }) {
+  const [query, setQuery] = useState("");
+  const normalizedQuery = query.trim().toLowerCase();
+
+  const filtered = useMemo(
+    () =>
+      normalizedQuery
+        ? students.filter((student) => studentMatchesQuery(student, normalizedQuery))
+        : students,
+    [students, normalizedQuery]
+  );
+
+  const countDisplay =
+    normalizedQuery && students.length > 0
+      ? `${filtered.length} of ${students.length}`
+      : countLabel;
+
+  const rowContent = (student: AttendeeListStudent) => (
+    <>
+      <div className="flex flex-col min-w-0">
+        <span className="text-sm font-medium">{formatStudentName(student)}</span>
+        {student.email && (
+          <span className="text-xs text-black/40 dark:text-white/40 truncate">{student.email}</span>
+        )}
+      </div>
+      {renderTrailing?.(student)}
+    </>
+  );
+
   return (
     <div className="card lg:col-span-2 space-y-4">
       <div>
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-2">
           <h3 className="font-semibold text-lg">{title}</h3>
-          <span className={`chip ${chipClass} text-xs px-2 py-0.5 rounded`}>{countLabel}</span>
+          <span className={`chip ${chipClass} text-xs px-2 py-0.5 rounded shrink-0`}>{countDisplay}</span>
         </div>
         <p className="text-xs text-black/50 dark:text-white/50 mt-1">{description}</p>
       </div>
 
+      {students.length > 0 && (
+        <input
+          type="search"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search names or email…"
+          className="input text-sm py-1.5"
+          aria-label={`Search ${title}`}
+        />
+      )}
+
       <div className="max-h-64 overflow-y-auto divide-y divide-black/5 dark:divide-white/5 pr-2">
         {students.length === 0 ? (
           <p className="text-sm text-black/40 dark:text-white/40 py-4 italic text-center">{emptyMessage}</p>
+        ) : filtered.length === 0 ? (
+          <p className="text-sm text-black/40 dark:text-white/40 py-4 italic text-center">
+            No matches for &ldquo;{query.trim()}&rdquo;.
+          </p>
         ) : (
-          students.map((student) => (
-            <Link
-              key={student.id}
-              href={`/students/${student.id}`}
-              className="py-2.5 flex flex-col justify-center hover:bg-black/[0.03] dark:hover:bg-white/[0.03] -mx-2 px-2 rounded-lg transition"
-            >
-              <span className="text-sm font-medium">
-                {`${student.firstName} ${student.lastName ?? ""}`.trim()}
-              </span>
-              {student.email && (
-                <span className="text-xs text-black/40 dark:text-white/40">{student.email}</span>
-              )}
-            </Link>
-          ))
+          filtered.map((student) =>
+            linkToStudent ? (
+              <Link
+                key={student.id}
+                href={`/students/${student.id}`}
+                className={`py-2.5 ${rowClassName} hover:bg-black/[0.03] dark:hover:bg-white/[0.03] -mx-2 px-2 rounded-lg transition`}
+              >
+                {rowContent(student)}
+              </Link>
+            ) : (
+              <div key={student.id} className={`py-2.5 ${rowClassName}`}>
+                {rowContent(student)}
+              </div>
+            )
+          )
         )}
       </div>
     </div>
