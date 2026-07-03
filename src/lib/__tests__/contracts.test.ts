@@ -1,7 +1,6 @@
 import { describe, test, expect } from "vitest";
 import { parseAttendanceBody, commitAttendanceBody } from "../contracts/attendance";
 import { parseEventBatchBody, commitEventBatchBody } from "../contracts/events";
-import { askBody, nlQueryBody } from "../contracts/query";
 import { draftOutreachBody, funnelStageBody } from "../contracts/students";
 
 describe("parseAttendanceBody", () => {
@@ -62,17 +61,6 @@ describe("commitEventBatchBody discriminated union", () => {
         items: [{ action: "create", incoming: { name: "X", date: "2026-05-22" } }],
       }).success
     ).toBe(true);
-  });
-});
-
-describe("query bodies", () => {
-  test("askBody requires text", () => {
-    expect(askBody.safeParse({}).success).toBe(false);
-    expect(askBody.safeParse({ text: "all juniors" }).success).toBe(true);
-  });
-  test("nlQueryBody requires query", () => {
-    expect(nlQueryBody.safeParse({ query: "core members" }).success).toBe(true);
-    expect(nlQueryBody.safeParse({}).success).toBe(false);
   });
 });
 

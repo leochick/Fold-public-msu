@@ -3,18 +3,14 @@ import type { z } from "zod";
 import type * as attendance from "./contracts/attendance";
 import type * as events from "./contracts/events";
 import type * as students from "./contracts/students";
-import type * as query from "./contracts/query";
 import type * as intake from "./contracts/intake";
 import type * as rides from "./contracts/rides";
-import type * as importCsv from "./contracts/import";
 
 import type * as svAttendance from "@/server/attendance";
 import type * as svEvents from "@/server/events";
 import type * as svStudents from "@/server/students";
-import type * as svQuery from "@/server/query";
 import type * as svIntake from "@/server/intake";
 import type * as svRides from "@/server/rides";
-import type * as svImport from "@/server/import";
 
 export class ApiError extends Error {
   status: number;
@@ -88,12 +84,6 @@ export const api = {
     commitBatch: (b: { items: any[] }) =>
       post<any>("/api/students/commit-batch", b),
   },
-  query: {
-    nl: (b: In<typeof query.nlQueryBody>) =>
-      post<Awaited<ReturnType<typeof svQuery.nlQuery>>>("/api/nl-query", b),
-    ask: (b: In<typeof query.askBody>) =>
-      post<Awaited<ReturnType<typeof svQuery.ask>>>("/api/ask", b),
-  },
   intake: {
     parse: (b: In<typeof intake.intakeParseBody>) =>
       post<Awaited<ReturnType<typeof svIntake.parseIntake>>>("/api/intake/parse", b),
@@ -109,9 +99,5 @@ export const api = {
       post<ReturnType<typeof svRides.validateRides>>("/api/rides/validate", b),
     commit: (b: In<typeof rides.ridesCommitBody>) =>
       post<Awaited<ReturnType<typeof svRides.commitRides>>>("/api/rides/commit", b),
-  },
-  import: {
-    process: (b: In<typeof importCsv.importBody>) =>
-      post<Awaited<ReturnType<typeof svImport.processImport>>>("/api/import", b),
   },
 };

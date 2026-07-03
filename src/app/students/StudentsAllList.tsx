@@ -86,7 +86,7 @@ export default function StudentsAllList({ students }: { students: StudentListRow
             {students.length === 0 ? (
               <tr>
                 <td colSpan={7} className="text-center text-black/50 py-8">
-                  No students yet. Try <Link className="underline" href="/import">/import</Link>.
+                  No students yet. Use Quick Add above or <Link className="underline" href="/students/new">add one manually</Link>.
                 </td>
               </tr>
             ) : filtered.length === 0 ? (

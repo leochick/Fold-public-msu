@@ -23,7 +23,6 @@ export default function HelpPage() {
           <li><a href="#intake" className="hover:underline">Smart Intake</a></li>
           <li><a href="#funnel" className="hover:underline">Engagement Funnel</a></li>
           <li><a href="#rides" className="hover:underline">Rides & carpools</a></li>
-          <li><a href="#ask" className="hover:underline">Ask (NL queries)</a></li>
           <li><a href="#insights" className="hover:underline">AI Insights</a></li>
           <li><a href="#modify" className="hover:underline">Modify (bulk edits)</a></li>
           <li><a href="#account" className="hover:underline">Your account</a></li>
@@ -188,23 +187,6 @@ export default function HelpPage() {
         </p>
       </Section>
 
-      <Section id="ask" title="Ask — natural-language queries">
-        <p>
-          <Link href="/query" className="underline">Ask</Link> lets you type questions in plain
-          English and get a table of students back. Examples:
-        </p>
-        <ul className="list-disc pl-5 space-y-1">
-          <li>&quot;who came to the last 3 events but not this week&quot;</li>
-          <li>&quot;all freshmen who were invited by someone&quot;</li>
-          <li>&quot;female members who haven&apos;t been contacted via IG&quot;</li>
-        </ul>
-        <p className="text-xs text-black/60">
-          Under the hood, Claude turns your question into a structured filter and the server
-          runs it as safe parameterized SQL. If a result looks wrong, try rephrasing — the
-          filter Claude built is shown above the table so you can see how it interpreted you.
-        </p>
-      </Section>
-
       <Section id="insights" title="AI Insights">
         <p>
           On the Dashboard and on individual event pages, the <em>Insights</em> panel asks
@@ -265,7 +247,7 @@ export default function HelpPage() {
         </Faq>
 
         <Faq q="Are the AI features on the public demo real?">
-          Yes — the demo calls the real Anthropic API so Smart Intake, Ask, Modify, ride
+          Yes — the demo calls the real Anthropic API so Smart Intake, Modify, ride
           parsing, and Insights all work end-to-end. To keep the maintainer&apos;s key from
           being abused, each visitor gets about $1 of free Anthropic spend (tracked by a
           cookie). Past that, the AI features show a polite &quot;limit reached&quot; message —
@@ -296,12 +278,6 @@ export default function HelpPage() {
           Capacity ran out, or every remaining vehicle would have violated the same-gender
           rule. Check the warnings under the preview — they explain which constraint blocked
           it. You can always override by hand.
-        </Faq>
-
-        <Faq q="My natural-language query returned empty results.">
-          Claude probably built a filter that&apos;s too narrow. The applied filter is shown
-          above the results — read it and rephrase your question. &quot;who came last week&quot;
-          works better than &quot;recent attenders.&quot;
         </Faq>
 
         <Faq q="Can two advisors be logged in at the same time on the same account?">

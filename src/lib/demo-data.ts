@@ -196,31 +196,6 @@ export function mockParseUpdate() {
   };
 }
 
-// ----- NL query / Ask query mode -----
-
-const SAMPLE_QUERY_ROWS = [
-  { id: 1, firstName: "Maya", lastName: "Chen", gender: "F", year: "sophomore", memberStatus: "prospect", isActive: true, igHandle: "mayachen", phone: null, email: null, primaryContact: "Sarah", goals: null, notes: "Asked about small groups.", contactedViaIg: true, createdAt: null, addedById: null, updatedAt: null },
-  { id: 2, firstName: "Jordan", lastName: "Park", gender: "M", year: "freshman", memberStatus: "prospect", isActive: true, igHandle: null, phone: "555-0142", email: null, primaryContact: null, goals: null, notes: null, contactedViaIg: false, createdAt: null, addedById: null, updatedAt: null },
-  { id: 3, firstName: "Lila", lastName: "Adeyemi", gender: "F", year: "junior", memberStatus: "member", isActive: true, igHandle: "liladey", phone: null, email: null, primaryContact: null, goals: null, notes: null, contactedViaIg: false, createdAt: null, addedById: null, updatedAt: null },
-  { id: 4, firstName: "Sam", lastName: "Rivera", gender: "M", year: "junior", memberStatus: "core", isActive: true, igHandle: null, phone: null, email: "sam.rivera@example.com", primaryContact: null, goals: "Lead a small group next year.", notes: "Invited 4 others this semester.", contactedViaIg: false, createdAt: null, addedById: null, updatedAt: null },
-  { id: 5, firstName: "Eli", lastName: "Thompson", gender: "M", year: "sophomore", memberStatus: "prospect", isActive: true, igHandle: null, phone: null, email: null, primaryContact: null, goals: null, notes: "New contact from worship night.", contactedViaIg: false, createdAt: null, addedById: null, updatedAt: null },
-];
-
-export function mockNlQuery() {
-  return {
-    rows: SAMPLE_QUERY_ROWS,
-    explanation: "Showing sample active students. (Real AI-generated queries require your own Anthropic key — self-host to enable.)",
-    filters: { isActive: true },
-  };
-}
-
-export function mockAskQuery() {
-  return {
-    mode: "query" as const,
-    ...mockNlQuery(),
-  };
-}
-
 // ----- Draft outreach -----
 
 export function mockDraftOutreach(channel: string) {
