@@ -7,6 +7,7 @@ import FunnelSweepButton from "../funnel/FunnelSweepButton";
 import RowActions from "../RowActions";
 import { deleteStudentAction } from "./actions";
 import QuickAddStudents from "./QuickAddStudents";
+import StudentsAllList from "./StudentsAllList";
 
 export const dynamic = "force-dynamic";
 
@@ -25,44 +26,21 @@ const FUNNEL_FILTERS = [
 ] as const;
 type FilterKey = (typeof FUNNEL_FILTERS)[number]["key"];
 
-const PAGE_SIZE = 50;
-
 export default async function StudentsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; tab?: string; stage?: string; filter?: string; page?: string }>;
+  searchParams: Promise<{ tab?: string; stage?: string; filter?: string }>;
 }) {
   const sp = await searchParams;
-  const q = sp.q?.trim().toLowerCase() ?? "";
   const tab = sp.tab === "cold" ? "cold" : sp.tab === "funnel" ? "funnel" : "all";
-  const page = Math.max(1, Number.parseInt(sp.page ?? "1", 10) || 1);
-  const offset = (page - 1) * PAGE_SIZE;
 
-  const allWhere = q
-    ? sql`lower(first_name || ' ' || coalesce(last_name, '') || ' ' || coalesce(ig_handle, '')) LIKE ${`%${q}%`}`
-    : undefined;
-
-  const [rows, totalCountRows] = await Promise.all([
-    allWhere
-      ? db
-          .select()
-          .from(students)
-          .where(allWhere)
-          .orderBy(students.firstName)
-          .limit(PAGE_SIZE)
-          .offset(offset)
-      : db
-          .select()
-          .from(students)
-          .orderBy(students.firstName)
-          .limit(PAGE_SIZE)
-          .offset(offset),
-    allWhere
-      ? db.select({ c: sql<number>`count(*)` }).from(students).where(allWhere)
-      : db.select({ c: sql<number>`count(*)` }).from(students),
-  ]);
+  const totalCountRows = await db.select({ c: sql<number>`count(*)` }).from(students);
   const totalAll = Number(totalCountRows[0]?.c ?? 0);
-  const totalPages = Math.max(1, Math.ceil(totalAll / PAGE_SIZE));
+
+  const allRows =
+    tab === "all"
+      ? await db.select().from(students).orderBy(students.firstName)
+      : [];
 
   // Cold list: active students with no attendance in last 30 days
   const cutoff30 = Math.floor((Date.now() - 30 * 86400_000) / 1000);
@@ -192,83 +170,7 @@ export default async function StudentsPage({
         </Link>
       </div>
 
-      {tab === "all" && (
-        <>
-          <form className="flex gap-2" method="GET">
-            <input name="q" defaultValue={q} placeholder="Search name or IG…" className="input" />
-            <button className="btn-ghost border border-black/10 dark:border-white/10" type="submit">Search</button>
-          </form>
-
-          <div className="card overflow-x-auto">
-            <table>
-              <thead>
-                <tr>
-                  <th>Name</th>
-                  <th>Year</th>
-                  <th>Status</th>
-                  <th>IG</th>
-                  <th>Active</th>
-                  <th>Contact</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((s) => (
-                  <tr key={s.id} className="hover:bg-black/5 dark:hover:bg-white/5">
-                    <td>
-                      <Link href={`/students/${s.id}`} className="font-medium hover:underline">
-                        {s.firstName} {s.lastName ?? ""}
-                      </Link>
-                      <div className="text-xs text-black/50">{s.gender ? (s.gender === "M" ? "♂" : "♀") : ""}</div>
-                    </td>
-                    <td>{s.year ?? <span className="text-black/30">—</span>}</td>
-                    <td>{s.memberStatus ? <span className="chip">{s.memberStatus}</span> : <span className="text-black/30">—</span>}</td>
-                    <td>{s.igHandle ? <span className="text-black/70">@{s.igHandle}</span> : <span className="text-black/30">—</span>}</td>
-                    <td>{s.isActive ? "✓" : <span className="text-black/30">—</span>}</td>
-                    <td className="text-sm">{s.primaryContact ?? <span className="text-black/30">—</span>}</td>
-                    <td className="text-right">
-                      <RowActions
-                        id={s.id}
-                        deleteAction={deleteStudentAction}
-                        confirmMessage={`Delete ${s.firstName} ${s.lastName ?? ""}? This also removes their attendance and contact history. This can't be undone.`}
-                      />
-                    </td>
-                  </tr>
-                ))}
-                {rows.length === 0 && (
-                  <tr><td colSpan={7} className="text-center text-black/50 py-8">No students yet. Try <Link className="underline" href="/import">/import</Link>.</td></tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-
-          {totalPages > 1 && (
-            <nav className="flex items-center justify-between text-sm">
-              <span className="text-black/60">
-                Page {page} of {totalPages} ({totalAll} total)
-              </span>
-              <div className="flex gap-2">
-                {page > 1 && (
-                  <Link
-                    href={`/students?page=${page - 1}${q ? `&q=${encodeURIComponent(q)}` : ""}`}
-                    className="btn-ghost border border-black/10 dark:border-white/10"
-                  >
-                    ← Prev
-                  </Link>
-                )}
-                {page < totalPages && (
-                  <Link
-                    href={`/students?page=${page + 1}${q ? `&q=${encodeURIComponent(q)}` : ""}`}
-                    className="btn-ghost border border-black/10 dark:border-white/10"
-                  >
-                    Next →
-                  </Link>
-                )}
-              </div>
-            </nav>
-          )}
-        </>
-      )}
+      {tab === "all" && <StudentsAllList students={allRows} />}
 
       {tab === "cold" && (
         <div className="card">
