@@ -83,8 +83,8 @@ export default function DashboardCharts({
       </div>
 
       <SearchableStudentList
-        title="Completed Course 101"
-        description={`Students with attendance in ${rangeLabel} who have completed C101.`}
+        title="Completed or Taking Course 101"
+        description={`Students with attendance in ${rangeLabel} who have completed or are taking C101.`}
         countLabel={`${completedC101.length} Students`}
         chipClass="bg-green-500/10 text-green-600 dark:text-green-400"
         students={completedC101}
