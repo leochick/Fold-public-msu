@@ -4,7 +4,7 @@ import { eq } from "drizzle-orm";
 import { anthropic, MODEL } from "@/lib/claude";
 import { PARSE_STUDENTS_BATCH_TOOL } from "@/lib/rides/claude-tools";
 import { findPossibleDuplicates } from "@/lib/funnel/dedup";
-import { normalizeBatchStudentsInput, shouldParseEmailRosterLocally } from "@/lib/parse-students-batch-normalize";
+import { normalizeBatchStudentsInput, shouldParseBulkListLocally } from "@/lib/parse-students-batch-normalize";
 import { PARSE_STUDENTS_BATCH_SYSTEM, buildParseStudentsUserMsg } from "@/lib/prompts/parse-students-batch";
 import { formatRosterCompact } from "./roster";
 import { callClaudeOrThrow } from "./attendance";
@@ -89,9 +89,9 @@ export async function parseStudentsBatch(text: string) {
   let normalizedStudents;
   let explanation: string | undefined;
 
-  if (shouldParseEmailRosterLocally(text)) {
+  if (shouldParseBulkListLocally(text)) {
     normalizedStudents = normalizeBatchStudentsInput(text, [], roster);
-    explanation = `Parsed ${normalizedStudents.length} students from the pasted email roster.`;
+    explanation = `Parsed ${normalizedStudents.length} students from the pasted list.`;
   } else {
     const resp = await callClaudeOrThrow(() =>
       anthropic.messages.create({

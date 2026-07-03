@@ -1,5 +1,5 @@
 import type { BatchRosterIncoming } from "@/lib/contracts/students";
-import { normalizeEmail, type RosterRow } from "@/lib/funnel/dedup";
+import { levenshtein, normalizeEmail, type RosterRow } from "@/lib/funnel/dedup";
 
 type ParsedName = {
   firstName: string;
@@ -32,6 +32,149 @@ export function countEmailLines(text: string): number {
 
 export function shouldParseEmailRosterLocally(text: string): boolean {
   return countEmailLines(text) >= 2;
+}
+
+function isBulkInstructionLine(line: string): boolean {
+  const lower = line.toLowerCase();
+  if (
+    /^(mark|add|set|subscribe|update)\b/i.test(line) &&
+    /\b(groupme|newsletter|course|active|inactive|subscribed)\b/i.test(lower)
+  ) {
+    return true;
+  }
+  return /following students/i.test(lower);
+}
+
+export function extractNameListBodyLines(text: string): string[] {
+  return text
+    .split(/\n+/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .filter((line) => !isBulkInstructionLine(line))
+    .filter((line) => !extractEmail(line) && !extractPhone(line));
+}
+
+function matchesInitials(line: string, student: RosterRow): boolean {
+  const token = line.trim().toLowerCase();
+  if (token.length < 2 || token.length > 4 || /\s/.test(token)) return false;
+  const firstInitial = student.firstName?.[0]?.toLowerCase() ?? "";
+  const lastInitial = student.lastName?.[0]?.toLowerCase() ?? "";
+  const initials = `${firstInitial}${lastInitial}`;
+  return token === initials;
+}
+
+function resolveNameFromLine(line: string, roster: RosterRow[]): ParsedName | null {
+  const trimmed = line.trim();
+  if (!trimmed) return null;
+
+  const normLine = trimmed.toLowerCase();
+
+  for (const student of roster) {
+    const full = `${student.firstName}${student.lastName ? ` ${student.lastName}` : ""}`.trim();
+    if (full.toLowerCase() === normLine) {
+      return { firstName: student.firstName, lastName: student.lastName ?? undefined, rawText: trimmed };
+    }
+  }
+
+  const parsed = parseNameToken(trimmed);
+  if (!parsed) return null;
+
+  if (parsed.lastName) {
+    const exact = roster.filter(
+      (student) =>
+        student.firstName.toLowerCase() === parsed.firstName.toLowerCase() &&
+        (student.lastName ?? "").toLowerCase() === parsed.lastName!.toLowerCase()
+    );
+    if (exact.length === 1) {
+      return {
+        firstName: exact[0].firstName,
+        lastName: exact[0].lastName ?? undefined,
+        rawText: trimmed,
+      };
+    }
+  }
+
+  const byFirst = roster.filter(
+    (student) => student.firstName.toLowerCase() === parsed.firstName.toLowerCase()
+  );
+  if (byFirst.length === 1) {
+    return {
+      firstName: byFirst[0].firstName,
+      lastName: byFirst[0].lastName ?? undefined,
+      rawText: trimmed,
+    };
+  }
+
+  const byInitials = roster.filter((student) => matchesInitials(trimmed, student));
+  if (byInitials.length === 1) {
+    return {
+      firstName: byInitials[0].firstName,
+      lastName: byInitials[0].lastName ?? undefined,
+      rawText: trimmed,
+    };
+  }
+
+  let best: { student: RosterRow; score: number } | null = null;
+  for (const student of roster) {
+    const full = `${student.firstName}${student.lastName ? ` ${student.lastName}` : ""}`.trim().toLowerCase();
+    const fullDist = levenshtein(normLine, full);
+    const firstDist = levenshtein(parsed.firstName.toLowerCase(), student.firstName.toLowerCase());
+    const lastDist =
+      parsed.lastName && student.lastName
+        ? levenshtein(parsed.lastName.toLowerCase(), student.lastName.toLowerCase())
+        : null;
+
+    let score = Number.POSITIVE_INFINITY;
+    if (parsed.lastName && student.lastName && fullDist <= 4) score = fullDist;
+    else if (parsed.lastName && student.lastName && firstDist <= 2 && lastDist !== null && lastDist <= 2) {
+      score = firstDist + lastDist;
+    } else if (!parsed.lastName && firstDist <= 2) score = firstDist;
+
+    if (score < Number.POSITIVE_INFINITY && (!best || score < best.score)) {
+      best = { student, score };
+    }
+  }
+
+  if (best && best.score <= 4) {
+    return {
+      firstName: best.student.firstName,
+      lastName: best.student.lastName ?? undefined,
+      rawText: trimmed,
+    };
+  }
+
+  return parsed;
+}
+
+export function extractNameListEntriesFromText(
+  text: string,
+  roster: RosterRow[] = []
+): BatchRosterIncoming[] {
+  const entries: BatchRosterIncoming[] = [];
+  const seen = new Set<string>();
+
+  for (const line of extractNameListBodyLines(text)) {
+    const resolved = resolveNameFromLine(line, roster);
+    if (!resolved) continue;
+
+    const key = `${resolved.firstName.toLowerCase()}|${(resolved.lastName ?? "").toLowerCase()}|${line.toLowerCase()}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+
+    entries.push({
+      firstName: resolved.firstName,
+      lastName: resolved.lastName ?? null,
+      rawText: resolved.rawText,
+    });
+  }
+
+  return entries;
+}
+
+export function shouldParseBulkListLocally(text: string): boolean {
+  if (shouldParseEmailRosterLocally(text)) return true;
+  if (Object.keys(detectBulkFlags(text)).length === 0) return false;
+  return extractNameListBodyLines(text).length >= 2;
 }
 
 function findRosterByEmail(email: string, roster: RosterRow[]): RosterRow | undefined {
@@ -260,12 +403,25 @@ function parseNameToken(token: string): ParsedName | null {
 }
 
 export function extractNamesFromBulkText(text: string, roster: RosterRow[] = []): ParsedName[] {
+  const bodyLines = extractNameListBodyLines(text);
+  if (bodyLines.length >= 2) {
+    const fromLines = extractNameListEntriesFromText(text, roster);
+    if (fromLines.length > 0) {
+      return fromLines.map((entry) => ({
+        firstName: entry.firstName,
+        lastName: entry.lastName ?? undefined,
+        rawText: entry.rawText ?? entry.firstName,
+      }));
+    }
+  }
+
   const forMatch = text.match(/\bfor[:\s]+(.+)$/is);
   if (forMatch) {
-    const names = forMatch[1]
-      .split(/\s*,\s*|\s+and\s+|\s*&\s*/i)
-      .map(parseNameToken)
-      .filter((n): n is ParsedName => n != null);
+    const payload = forMatch[1].trim();
+    const parts = payload.includes("\n")
+      ? payload.split(/\n+/).map((part) => part.trim()).filter(Boolean)
+      : payload.split(/\s*,\s*|\s+and\s+|\s*&\s*/i);
+    const names = parts.map(parseNameToken).filter((n): n is ParsedName => n != null);
     if (names.length > 0) return names;
   }
 
@@ -331,6 +487,11 @@ export function normalizeBatchStudentsInput(
     return emailRoster.map((entry) => applyMissingBulkFlags(entry, bulkFlags));
   }
 
+  const nameListEntries = extractNameListEntriesFromText(text, roster);
+  if (Object.keys(bulkFlags).length > 0 && nameListEntries.length >= 2) {
+    return nameListEntries.map((entry) => applyMissingBulkFlags(entry, bulkFlags));
+  }
+
   let students = (aiStudents ?? [])
     .map(asStudentRecord)
     .filter((s): s is BatchRosterIncoming => s != null)
@@ -358,6 +519,10 @@ export function normalizeBatchStudentsInput(
 
   if (students.length === 0 && emailRoster.length > 0) {
     students = emailRoster;
+  }
+
+  if (students.length === 0 && nameListEntries.length > 0) {
+    students = nameListEntries;
   }
 
   return students.map((entry) => applyMissingBulkFlags(entry, bulkFlags));

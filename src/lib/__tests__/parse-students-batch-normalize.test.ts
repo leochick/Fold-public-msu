@@ -3,8 +3,10 @@ import {
   countEmailLines,
   detectBulkFlags,
   extractEmailRosterEntriesFromText,
+  extractNameListBodyLines,
   extractNamesFromBulkText,
   normalizeBatchStudentsInput,
+  shouldParseBulkListLocally,
   shouldParseEmailRosterLocally,
 } from "../parse-students-batch-normalize";
 
@@ -154,5 +156,34 @@ morefie3@msu.edu\tNyah Morefield`;
       roster
     );
     expect(entries).toHaveLength(2);
+  });
+
+  it("parses newline-separated name lists with groupme bulk flag", () => {
+    const groupmeRoster = [
+      { id: 1, firstName: "Amar", lastName: "Jain", igHandle: null, phone: null, email: null },
+      { id: 2, firstName: "Takyra", lastName: "Shaw", igHandle: null, phone: null, email: null },
+      { id: 3, firstName: "William", lastName: "Yang", igHandle: null, phone: null, email: null },
+      { id: 4, firstName: "Michael", lastName: "James", igHandle: null, phone: null, email: null },
+    ];
+    const text = `Mark Groupme for the following students:
+
+Amar Jain
+Takyra Shaw
+William Yang
+MJ`;
+
+    expect(shouldParseBulkListLocally(text)).toBe(true);
+    expect(extractNameListBodyLines(text)).toEqual([
+      "Amar Jain",
+      "Takyra Shaw",
+      "William Yang",
+      "MJ",
+    ]);
+
+    const result = normalizeBatchStudentsInput(text, [], groupmeRoster);
+    expect(result).toHaveLength(4);
+    expect(result.every((s) => s.groupme === true)).toBe(true);
+    expect(result[0]).toMatchObject({ firstName: "Amar", lastName: "Jain", groupme: true });
+    expect(result[3]).toMatchObject({ firstName: "Michael", lastName: "James", groupme: true });
   });
 });

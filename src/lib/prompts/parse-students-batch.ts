@@ -21,6 +21,7 @@ Contact info rules — when the user adds or updates phone and/or email for a st
 - Multi-line rosters: one students[] entry per line when each line has a name plus contact info.
 - Tab-separated email rosters (email then name, or name then email): one students[] entry per line with email + parsed name.
 - Example header: "Add subscribed to newsletter (and update email) for the following students:" followed by lines like "morefie3@msu.edu	Nyah Morefield" -> newsletter: true, email, firstName Nyah, lastName Morefield for EACH line.
+- Example header: "Mark Groupme for the following students:" followed by one name per line -> groupme: true for EACH listed student.
 - Match updates to existing roster students by name when possible; include phone/email even if that is the only field changing.
 
 Bulk update rules — when the user gives an instruction that applies to every listed student:
