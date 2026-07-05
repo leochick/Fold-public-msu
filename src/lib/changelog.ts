@@ -91,6 +91,10 @@ export function pickStudentFields(student: Record<string, unknown>) {
   return Object.fromEntries(STUDENT_CHANGE_FIELDS.map((field) => [field, student[field] ?? null]));
 }
 
+export function pickEventFields(event: Record<string, unknown>) {
+  return Object.fromEntries(EVENT_CHANGE_FIELDS.map((field) => [field, event[field] ?? null]));
+}
+
 export function formatChangelogSummaryForDisplay(
   summary: string,
   action: "create" | "update" | "delete" | "merge"
