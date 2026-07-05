@@ -11,6 +11,7 @@ import { httpErr } from "@/lib/http";
 import type { Student } from "../../drizzle/schema";
 import { findMergeSuggestions } from "@/lib/funnel/dedup";
 import { buildMergePreview, type MergeEditableField } from "@/lib/student-merge";
+import { logStudentMerged } from "./changelog";
 
 export async function listMergeSuggestions(studentId: number) {
   const [source] = await db.select().from(students).where(eq(students.id, studentId)).limit(1);
@@ -49,6 +50,7 @@ export async function listMergeSuggestions(studentId: number) {
 }
 
 export async function mergeStudents(
+  userId: string,
   keepId: number,
   mergeId: number,
   overrides: Partial<Record<MergeEditableField, string>> = {}
@@ -150,5 +152,6 @@ export async function mergeStudents(
     await tx.delete(students).where(eq(students.id, mergeId));
   });
 
+  await logStudentMerged(userId, keep, merge);
   return { ok: true, keepId };
 }

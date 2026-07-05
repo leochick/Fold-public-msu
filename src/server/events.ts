@@ -10,6 +10,12 @@ import { callClaudeOrThrow } from "./attendance";
 import type { BatchEventIncoming, CommitEventBatchBody, ParseEventBatchBody } from "@/lib/contracts/events";
 import { eq } from "drizzle-orm";
 import { eventDateStr, findPossibleEventMatches } from "@/lib/funnel/event-dedup";
+import { pickEventFields } from "@/lib/changelog";
+import {
+  logEventCreated,
+  logEventUpdated,
+  logStudentCreated,
+} from "./changelog";
 
 function formatEventsCompact(list: typeof events.$inferSelect[]) {
   return list
@@ -180,13 +186,16 @@ export async function commitEventBatch(userId: string, body: CommitEventBatchBod
 
       if (item.action === "create") {
         const [row] = await db.insert(events).values(buildEventCreateValues(item.incoming)).returning();
+        await logEventCreated(userId, row);
         created.push(row);
       } else if (item.action === "merge" && item.existingId) {
         const [old] = await db.select().from(events).where(eq(events.id, item.existingId)).limit(1);
         if (old) {
+          const before = pickEventFields(old as Record<string, unknown>);
           const patch = buildEventMergePatch(old, item.incoming);
           if (Object.keys(patch).length > 0) {
             await db.update(events).set(patch).where(eq(events.id, item.existingId));
+            await logEventUpdated(userId, item.existingId, before, { ...before, ...patch });
           }
           merged++;
         }
@@ -206,9 +215,11 @@ export async function commitEventBatch(userId: string, body: CommitEventBatchBod
   if (eventAction === "merge" && body.existingEventId) {
     const [old] = await db.select().from(events).where(eq(events.id, body.existingEventId)).limit(1);
     if (!old) throw httpErr.badRequest("existing event not found");
+    const before = pickEventFields(old as Record<string, unknown>);
     const patch = buildEventMergePatch(old, body.event);
     if (Object.keys(patch).length > 0) {
       await db.update(events).set(patch).where(eq(events.id, body.existingEventId));
+      await logEventUpdated(userId, body.existingEventId, before, { ...before, ...patch });
     }
     [evt] = await db.select().from(events).where(eq(events.id, body.existingEventId)).limit(1);
   } else {
@@ -216,6 +227,7 @@ export async function commitEventBatch(userId: string, body: CommitEventBatchBod
       .insert(events)
       .values(buildEventCreateValues(body.event))
       .returning();
+    await logEventCreated(userId, evt);
   }
 
   let created = 0;
@@ -238,6 +250,7 @@ export async function commitEventBatch(userId: string, body: CommitEventBatchBod
         })
         .returning();
       sid = row.id;
+      await logStudentCreated(userId, row, `Added during event ${evt.name}`);
       created += 1;
     }
     if (!sid) continue;

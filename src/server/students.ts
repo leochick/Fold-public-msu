@@ -12,6 +12,12 @@ import { callClaudeOrThrow } from "./attendance";
 import { commitUpdatesBody, draftOutreachBody, contactLogBody } from "@/lib/contracts/students";
 import { funnelStageSchema } from "@/lib/contracts/shared";
 import type { Channel, FunnelStage } from "@/lib/funnel/types";
+import { pickStudentFields } from "@/lib/changelog";
+import {
+  logStudentCreated,
+  logStudentDeleted,
+  logStudentUpdated,
+} from "./changelog";
 
 const ALLOWED_PATCH_FIELDS = new Set([
   "firstName",
@@ -95,6 +101,14 @@ export async function commitUpdates(userId: string, body: z.infer<typeof commitU
   let deleted = 0;
 
   for (const u of body.updates) {
+    const [beforeRow] = await db
+      .select()
+      .from(students)
+      .where(eq(students.id, u.studentId))
+      .limit(1);
+    if (!beforeRow) continue;
+    const before = pickStudentFields(beforeRow as Record<string, unknown>);
+
     const patch: Record<string, unknown> = {};
     for (const [k, v] of Object.entries(u.patch)) {
       if (k === "notesAppend") continue;
@@ -125,6 +139,8 @@ export async function commitUpdates(userId: string, body: z.infer<typeof commitU
       .update(students)
       .set(patch as never)
       .where(eq(students.id, u.studentId));
+    const after = { ...before, ...patch };
+    await logStudentUpdated(userId, u.studentId, before, after);
     applied += 1;
   }
 
@@ -147,11 +163,14 @@ export async function commitUpdates(userId: string, body: z.infer<typeof commitU
       }
     }
     vals.addedByUserId = userId;
-    await db.insert(students).values(vals as never);
+    const [row] = await db.insert(students).values(vals as never).returning();
+    await logStudentCreated(userId, row, "Bulk edit");
     created += 1;
   }
 
   for (const d of body.deletes) {
+    const [student] = await db.select().from(students).where(eq(students.id, d.studentId)).limit(1);
+    if (student) await logStudentDeleted(userId, student);
     await db.delete(students).where(eq(students.id, d.studentId));
     deleted += 1;
   }
@@ -159,11 +178,25 @@ export async function commitUpdates(userId: string, body: z.infer<typeof commitU
   return { ok: true, applied, created, deleted };
 }
 
-export async function setFunnelStage(studentId: number, body: z.infer<typeof funnelStageSchema>) {
+export async function setFunnelStage(
+  userId: string,
+  studentId: number,
+  body: z.infer<typeof funnelStageSchema>
+) {
+  const [beforeRow] = await db.select().from(students).where(eq(students.id, studentId)).limit(1);
+  if (!beforeRow) throw httpErr.notFound("student not found");
+
   await db
     .update(students)
     .set({ funnelStage: body, updatedAt: new Date() })
     .where(eq(students.id, studentId));
+
+  await logStudentUpdated(
+    userId,
+    studentId,
+    pickStudentFields(beforeRow as Record<string, unknown>),
+    pickStudentFields({ ...beforeRow, funnelStage: body })
+  );
   return { ok: true };
 }
 
@@ -198,10 +231,17 @@ export async function logContact(userId: string, body: z.infer<typeof contactLog
     s.funnelStage === "inactive" ? 1 : order.indexOf(s.funnelStage as FunnelStage);
   const targetIdx = order.indexOf(target);
   if (targetIdx > currentIdx || s.funnelStage === "inactive") {
+    const before = pickStudentFields(s as Record<string, unknown>);
     await db
       .update(students)
       .set({ funnelStage: target, updatedAt: new Date() })
       .where(eq(students.id, body.studentId));
+    await logStudentUpdated(
+      userId,
+      body.studentId,
+      before,
+      pickStudentFields({ ...s, funnelStage: target })
+    );
   }
   return { ok: true };
 }

@@ -3,6 +3,8 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { students, attendances } from "../../../../../drizzle/schema";
 import { eq } from "drizzle-orm";
+import { pickStudentFields } from "@/lib/changelog";
+import { logStudentCreated, logStudentUpdated } from "@/server/changelog";
 
 const commitAttendeesSchema = z.object({
   eventId: z.number().int().positive(),
@@ -49,14 +51,14 @@ export const POST = withAuth(
         }).returning();
         
         finalStudentId = newStudent.id;
+        await logStudentCreated(user.id, newStudent, "Event batch check-in");
       } else if (item.action === "merge" && item.selectedExistingId) {
         finalStudentId = item.selectedExistingId;
         const [old] = await db.select().from(students).where(eq(students.id, finalStudentId)).limit(1);
         
         if (old) {
-          await db
-            .update(students)
-            .set({
+          const before = pickStudentFields(old as Record<string, unknown>);
+          const patch = {
               lastName: item.incoming.lastName || old.lastName,
               gender: (item.incoming.gender as any) || old.gender,
               year: (item.incoming.year as any) || old.year,
@@ -67,8 +69,17 @@ export const POST = withAuth(
                 ? `${old.notes ?? ""}\n[Event Ingest Merge]: ${item.incoming.notes}`.trim()
                 : old.notes,
               updatedAt: new Date(),
-            })
+            };
+          await db
+            .update(students)
+            .set(patch)
             .where(eq(students.id, finalStudentId));
+          await logStudentUpdated(
+            user.id,
+            finalStudentId,
+            before,
+            { ...before, ...patch }
+          );
         }
       }
 

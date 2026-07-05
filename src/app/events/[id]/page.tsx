@@ -7,6 +7,9 @@ import EventInsights from "./EventInsights";
 import EventAttendeeDumper from "./EventAttendeeDumper";
 import TotalStudentsCard from "./TotalStudentsCard";
 import EditEventCard from "./EditEventCard";
+import { requireUser } from "@/lib/auth";
+import { pickEventFields } from "@/lib/changelog";
+import { logEventDeleted, logEventUpdated } from "@/server/changelog";
 
 export const dynamic = "force-dynamic";
 
@@ -87,20 +90,30 @@ export default async function EventPage({ params }: { params: Promise<{ id: stri
 
   async function saveTotalStudents(formData: FormData) {
     "use server";
+    const user = await requireUser();
     const raw = String(formData.get("totalStudents") || "").trim();
     const totalStudents = raw === "" ? null : Number(raw);
     if (raw !== "" && (!Number.isFinite(totalStudents) || totalStudents! < 0)) {
       redirect(`/events/${eventId}`);
     }
+    const before = pickEventFields(e as Record<string, unknown>);
+    const nextTotal = raw === "" ? null : totalStudents;
     await db
       .update(events)
-      .set({ totalStudents: raw === "" ? null : totalStudents })
+      .set({ totalStudents: nextTotal })
       .where(eq(events.id, eventId));
+    await logEventUpdated(
+      user.id,
+      eventId,
+      before,
+      { ...before, totalStudents: nextTotal }
+    );
     redirect(`/events/${eventId}`);
   }
 
   async function saveEventDetails(formData: FormData) {
     "use server";
+    const user = await requireUser();
     const date = String(formData.get("date") || "").trim();
     const type = String(formData.get("type") || "").trim();
     const location = String(formData.get("location") || "").trim();
@@ -114,19 +127,24 @@ export default async function EventPage({ params }: { params: Promise<{ id: stri
       redirect(`/events/${eventId}`);
     }
 
-    await db
-      .update(events)
-      .set({
+    const before = pickEventFields(e as Record<string, unknown>);
+    const patch = {
         startDate,
         type: type || null,
         location: location || null,
-      })
+      };
+    await db
+      .update(events)
+      .set(patch)
       .where(eq(events.id, eventId));
+    await logEventUpdated(user.id, eventId, before, { ...before, ...patch });
     redirect(`/events/${eventId}`);
   }
 
   async function deleteEvent() {
     "use server";
+    const user = await requireUser();
+    await logEventDeleted(user.id, e);
     await db.delete(events).where(eq(events.id, eventId));
     redirect("/events");
   }

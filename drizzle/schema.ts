@@ -295,3 +295,19 @@ export const views = sqliteTable("views", {
 
 export type View = typeof views.$inferSelect;
 export type NewView = typeof views.$inferInsert;
+
+export const changelogEntries = sqliteTable("changelog_entries", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  userId: text("user_id").references(() => users.id, { onDelete: "set null" }),
+  entityType: text("entity_type", { enum: ["student", "event"] }).notNull(),
+  entityId: integer("entity_id"),
+  action: text("action", { enum: ["create", "update", "delete", "merge"] }).notNull(),
+  entityLabel: text("entity_label").notNull(),
+  summary: text("summary").notNull(),
+  createdAt: integer("created_at", { mode: "timestamp" })
+    .notNull()
+    .default(sql`(unixepoch())`),
+});
+
+export type ChangelogEntry = typeof changelogEntries.$inferSelect;
+export type NewChangelogEntry = typeof changelogEntries.$inferInsert;

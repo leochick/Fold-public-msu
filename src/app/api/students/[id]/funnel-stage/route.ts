@@ -3,10 +3,10 @@ import { funnelStageBody } from "@/lib/contracts/students";
 import { setFunnelStage } from "@/server/students";
 
 export const POST = withAuth<{ id: string }, typeof funnelStageBody>(
-  async ({ params, body }) => {
+  async ({ user, params, body }) => {
     const sid = Number(params.id);
     if (!Number.isFinite(sid)) throw httpErr.badRequest("bad id");
-    return setFunnelStage(sid, body.stage);
+    return setFunnelStage(user.id, sid, body.stage);
   },
   { bodySchema: funnelStageBody }
 );

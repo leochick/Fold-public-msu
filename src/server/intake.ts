@@ -8,6 +8,8 @@ import { INTAKE_PARSE_SYSTEM, buildIntakeParseUserMsg } from "@/lib/prompts/inta
 import { httpErr } from "@/lib/http";
 import { callClaudeOrThrow } from "./attendance";
 import type { ParsedContact, FunnelStage, IntakePreview, DedupCandidateWithName } from "@/lib/funnel/types";
+import { pickStudentFields } from "@/lib/changelog";
+import { logStudentCreated, logStudentUpdated } from "./changelog";
 
 interface IntakeToolInput {
   contacts?: Array<Omit<ParsedContact, "contactId" | "serverDedupCandidates" | "existingDisplayName"> & {
@@ -158,6 +160,7 @@ export async function commitIntake(userId: string, contacts: ParsedContact[]) {
         })
         .returning();
       sid = row.id;
+      await logStudentCreated(userId, row, "Smart Intake");
       created += 1;
     }
     if (!sid) continue;
@@ -180,10 +183,17 @@ export async function commitIntake(userId: string, contacts: ParsedContact[]) {
       if (s) {
         const next = bumpStage(s.funnelStage as FunnelStage, attempted, responded);
         if (next !== s.funnelStage) {
+          const before = pickStudentFields(s as Record<string, unknown>);
           await db
             .update(students)
             .set({ funnelStage: next, updatedAt: new Date() })
             .where(eq(students.id, sid));
+          await logStudentUpdated(
+            userId,
+            sid,
+            before,
+            pickStudentFields({ ...s, funnelStage: next })
+          );
           stageChanges += 1;
         }
       }

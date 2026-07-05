@@ -15,6 +15,9 @@ import {
 } from "@/lib/health-metrics";
 import AddEventCardClient from "./AddEventCardClient";
 import StudentMergeModal from "./StudentMergeModal";
+import { requireUser } from "@/lib/auth";
+import { pickStudentFields } from "@/lib/changelog";
+import { logStudentDeleted, logStudentUpdated } from "@/server/changelog";
 
 export const dynamic = "force-dynamic";
 
@@ -109,13 +112,19 @@ export default async function StudentPage({ params }: { params: Promise<{ id: st
 
   async function update(formData: FormData) {
     "use server";
+    const user = await requireUser();
     const data = parseStudent(formData);
+    const before = pickStudentFields(s as Record<string, unknown>);
+    const after = pickStudentFields({ ...s, ...data, updatedAt: new Date() });
     await db.update(students).set({ ...data, updatedAt: new Date() }).where(eq(students.id, id));
+    await logStudentUpdated(user.id, id, before, after);
     redirect(`/students/${id}`);
   }
 
   async function del() {
     "use server";
+    const user = await requireUser();
+    await logStudentDeleted(user.id, s);
     await db.delete(students).where(eq(students.id, id));
     redirect("/students");
   }

@@ -10,6 +10,8 @@ import { formatRosterCompact } from "./roster";
 import { callClaudeOrThrow } from "./attendance";
 import { httpErr } from "@/lib/http";
 import type { CommitStudentRosterBatchBody } from "@/lib/contracts/students";
+import { pickStudentFields } from "@/lib/changelog";
+import { logStudentCreated, logStudentUpdated } from "./changelog";
 
 function mergeCourseMaterial(existing: string[] | null | undefined, toAdd?: string[]) {
   if (!toAdd?.length) return existing ?? null;
@@ -171,17 +173,26 @@ export async function commitStudentsBatch(userId: string, body: CommitStudentRos
     if (item.action === "skip") continue;
 
     if (item.action === "create") {
-      await db.insert(students).values(buildCreateValues(userId, item.incoming));
+      const [row] = await db.insert(students).values(buildCreateValues(userId, item.incoming)).returning();
+      await logStudentCreated(userId, row, "Quick Add");
       created++;
     }
 
     if (item.action === "merge" && item.existingId) {
       const [old] = await db.select().from(students).where(eq(students.id, item.existingId)).limit(1);
       if (old) {
+        const before = pickStudentFields(old as Record<string, unknown>);
+        const patch = buildMergePatch(old, item.incoming);
         await db
           .update(students)
-          .set(buildMergePatch(old, item.incoming))
+          .set(patch)
           .where(eq(students.id, item.existingId));
+        await logStudentUpdated(
+          userId,
+          item.existingId,
+          before,
+          { ...before, ...patch }
+        );
         merged++;
       }
     }

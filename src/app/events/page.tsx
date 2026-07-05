@@ -9,6 +9,8 @@ import { deleteEventAction } from "./actions";
 import EventAnalytics from "./EventAnalytics";
 import { extractFeatures, aggregate, type FeaturedEvent } from "@/lib/event-features";
 import { perEventHealth, topInviters, type StudentLite, type AttendanceLite } from "@/lib/health-metrics";
+import { requireUser } from "@/lib/auth";
+import { logEventCreated } from "@/server/changelog";
 
 export const dynamic = "force-dynamic";
 
@@ -88,6 +90,7 @@ export default async function EventsPage() {
 
   async function create(formData: FormData) {
     "use server";
+    const user = await requireUser();
     const name = String(formData.get("name") || "").trim();
     const type = String(formData.get("type") || "").trim() || null;
     const raw = String(formData.get("startDate") || "");
@@ -107,6 +110,7 @@ export default async function EventsPage() {
         totalStudents: Number.isFinite(totalStudents) ? totalStudents : null,
       })
       .returning();
+    await logEventCreated(user.id, row);
     redirect(`/events/${row.id}`);
   }
 

@@ -6,6 +6,7 @@ import { PARSE_ATTENDANCE_SYSTEM, buildParseAttendanceUserMsg } from "@/lib/prom
 import { httpErr } from "@/lib/http";
 import { loadBasicRoster, formatRosterCompact } from "./roster";
 import type { Attendee, ParseAttendanceBody, CommitAttendanceBody } from "@/lib/contracts/attendance";
+import { logStudentCreated } from "./changelog";
 
 export type ParsedAttendee = Attendee & { _existingName?: string };
 
@@ -67,6 +68,7 @@ export async function commitAttendance(userId: string, body: CommitAttendanceBod
         })
         .returning();
       sid = row.id;
+      await logStudentCreated(userId, row, "Attendance");
       created += 1;
     }
     if (!sid) continue;
