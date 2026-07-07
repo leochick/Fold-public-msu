@@ -227,39 +227,3 @@ export function mockDraftOutreach(channel: string) {
     channel,
   };
 }
-
-// ----- Rides parse -----
-
-export function mockRidesParse() {
-  return {
-    riders: [
-      { match: "new", firstName: "Maya", lastName: "Chen", gender: "F", rawText: "Maya", riderId: "rider:0", displayName: "Maya Chen" },
-      { match: "new", firstName: "Jordan", lastName: "Park", gender: "M", rawText: "Jordan", riderId: "rider:1", displayName: "Jordan Park" },
-      { match: "new", firstName: "Lila", lastName: "Adeyemi", gender: "F", rawText: "Lila", riderId: "rider:2", displayName: "Lila Adeyemi" },
-      { match: "new", firstName: "Eli", lastName: "Thompson", gender: "M", rawText: "Eli", riderId: "rider:3", displayName: "Eli Thompson" },
-    ],
-    directives: {},
-    ambiguous: [],
-    explanation: "Parsed 4 riders from the input (demo).",
-    vehicles: [],
-    enforceGenderRule: false,
-    assignments: [],
-    unassigned: ["rider:0", "rider:1", "rider:2", "rider:3"],
-    violations: [],
-    warnings: [],
-    unsatisfiable: [],
-  };
-}
-
-// ----- Rides parse-fleet -----
-
-export function mockRidesParseFleet() {
-  return {
-    vehicles: [
-      { vehicleId: -1, name: "Andrew's Civic", capacity: 4, driverName: "Andrew", driverGender: "M" as const },
-      { vehicleId: -2, name: "Sarah's CR-V", capacity: 5, driverName: "Sarah", driverGender: "F" as const },
-    ],
-    ambiguousVehicleNames: [],
-    explanation: "Parsed 2 vehicles from the input (demo).",
-  };
-}

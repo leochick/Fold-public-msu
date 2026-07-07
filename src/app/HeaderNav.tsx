@@ -10,7 +10,6 @@ const links = [
   { href: "/students", label: "Students" },
   { href: "/groupings", label: "Groupings" },
   { href: "/changelog", label: "Changelog" },
-  { href: "/rides", label: "Rides" },
   { href: "/help", label: "Help" },
 ];
 

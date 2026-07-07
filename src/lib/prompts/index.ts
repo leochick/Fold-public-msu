@@ -2,8 +2,6 @@ export * from "./parse-attendance";
 export * from "./parse-event-batch";
 export * from "./parse-update";
 export * from "./intake-parse";
-export * from "./rides-parse";
-export * from "./rides-parse-fleet";
 export * from "./draft-outreach";
 export * from "./event-insights";
 export * from "./event-insights-single";

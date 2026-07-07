@@ -120,8 +120,8 @@ export default function StudentMergeModal({
               <div>
                 <h2 className="text-lg font-semibold">Merge student</h2>
                 <p className="text-xs text-black/60 mt-1">
-                  Combine another record into {formatName(keepStudent)}. Attendance, contacts, and ride
-                  history will be merged; the other record will be deleted.
+                  Combine another record into {formatName(keepStudent)}. Attendance and contacts
+                  will be merged; the other record will be deleted.
                 </p>
               </div>
               <button type="button" className="btn-ghost text-sm" onClick={() => setOpen(false)}>

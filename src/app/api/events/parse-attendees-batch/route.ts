@@ -4,7 +4,7 @@ import { db } from "@/lib/db";
 import { students } from "../../../../../drizzle/schema";
 import { eq } from "drizzle-orm";
 import { anthropic, MODEL } from "@/lib/claude";
-import { PARSE_STUDENTS_BATCH_TOOL } from "@/lib/rides/claude-tools";
+import { PARSE_STUDENTS_BATCH_TOOL } from "@/lib/prompts/parse-students-batch-tools";
 import { findPossibleDuplicates } from "@/lib/funnel/dedup";
 import { PARSE_STUDENTS_BATCH_SYSTEM, buildParseStudentsUserMsg } from "@/lib/prompts/parse-students-batch";
 import { callClaudeOrThrow } from "@/server/attendance";

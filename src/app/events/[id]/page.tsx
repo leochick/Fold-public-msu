@@ -184,17 +184,6 @@ export default async function EventPage({ params }: { params: Promise<{ id: stri
 
       <EventAttendeeDumper eventId={eventId} />
 
-      <Link
-        href={`/events/${eventId}/rides`}
-        className="card flex items-center justify-between hover:bg-black/5 dark:hover:bg-white/5 transition"
-      >
-        <div>
-          <div className="font-medium">Rides</div>
-          <div className="text-xs text-black/60">Carpool seating for this event.</div>
-        </div>
-        <span className="text-xs text-black/40">→</span>
-      </Link>
-
       <div className="card">
         <h2 className="font-semibold mb-3">Present ({present.length})</h2>
         {present.length === 0 ? (

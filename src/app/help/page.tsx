@@ -22,7 +22,6 @@ export default function HelpPage() {
           <li><a href="#students" className="hover:underline">Students</a></li>
           <li><a href="#intake" className="hover:underline">Smart Intake</a></li>
           <li><a href="#funnel" className="hover:underline">Engagement Funnel</a></li>
-          <li><a href="#rides" className="hover:underline">Rides & carpools</a></li>
           <li><a href="#insights" className="hover:underline">AI Insights</a></li>
           <li><a href="#modify" className="hover:underline">Modify (bulk edits)</a></li>
           <li><a href="#account" className="hover:underline">Your account</a></li>
@@ -87,7 +86,7 @@ export default function HelpPage() {
           <li><strong>Quick-add form</strong> — type a name, pick from the roster, add new students inline.</li>
           <li><strong>First-timers vs returners</strong> — how the night skewed.</li>
           <li><strong>Invite chains</strong> — who was brought by whom, when you captured that in intake.</li>
-          <li><strong>Gender split</strong> — useful for ride-coordination rules.</li>
+          <li><strong>Gender split</strong> — useful for demographic breakdowns.</li>
         </ul>
         <p>
           You can also paste a long attendance list and let AI parse it — see{" "}
@@ -138,52 +137,6 @@ export default function HelpPage() {
           Use the filter chips to find students who are stuck — stale responses, missing contact
           attempts, no recent activity. The funnel is the most useful page for &quot;who do I
           need to text this week.&quot;
-        </p>
-      </Section>
-
-      <Section id="rides" title="Rides & carpools">
-        <p className="text-black/80">
-          Rides is the page most people get confused on, so here&apos;s the model:
-        </p>
-        <div className="space-y-2">
-          <p>
-            <strong>An event has one or more ride sessions.</strong> A session is a single trip
-            in a single direction — e.g., &quot;There&quot; (to the event), &quot;Back&quot;
-            (after), &quot;Sunday morning&quot; (a different trip the next day). One Friday
-            event might have 3 ride sessions.
-          </p>
-          <p>
-            <strong>Each session has its own vehicles, riders, and assignments.</strong> You
-            pick which drivers/vehicles are available for that specific trip, who needs a ride,
-            and the solver suggests seat assignments respecting capacity and any rules you set.
-          </p>
-          <p>
-            <strong>Vehicles live at the org level.</strong> Add them once on{" "}
-            <Link href="/vehicles" className="underline">Vehicles</Link> (make, model, seat
-            count) and reuse them across every session. The driver is whoever is sitting in seat
-            1 — you assign that per session.
-          </p>
-        </div>
-
-        <h3 className="text-sm font-semibold mt-3">Workflow</h3>
-        <ol className="list-decimal pl-5 space-y-1">
-          <li>Go to <Link href="/rides" className="underline">Rides</Link> or open a specific event.</li>
-          <li>Create a session for the trip you&apos;re planning (&quot;There&quot;, &quot;Back&quot;, etc.).</li>
-          <li>Pick which vehicles are in play, and assign a driver to each.</li>
-          <li>Paste or pick the list of riders.</li>
-          <li>Hit <em>preview assignments</em> and let the solver lay it out — then adjust by hand and commit.</li>
-        </ol>
-
-        <h3 className="text-sm font-semibold mt-3">The same-gender ride rule</h3>
-        <p>
-          Each session has an <em>enforce rule</em> toggle. When on, the solver avoids
-          assignments where the driver is alone in the car with a single passenger of the
-          opposite gender. Turn it off if your group doesn&apos;t care about that. The toggle
-          only affects the solver&apos;s suggestions; you can always override by hand.
-        </p>
-        <p className="text-xs text-black/60">
-          The solver also flags warnings (over-capacity, unassigned riders) on the preview
-          screen — read them before you commit.
         </p>
       </Section>
 
@@ -247,8 +200,8 @@ export default function HelpPage() {
         </Faq>
 
         <Faq q="Are the AI features on the public demo real?">
-          Yes — the demo calls the real Anthropic API so Smart Intake, Modify, ride
-          parsing, and Insights all work end-to-end. To keep the maintainer&apos;s key from
+          Yes — the demo calls the real Anthropic API so Smart Intake, Modify, and Insights
+          all work end-to-end. To keep the maintainer&apos;s key from
           being abused, each visitor gets about $1 of free Anthropic spend (tracked by a
           cookie). Past that, the AI features show a polite &quot;limit reached&quot; message —
           everything else (events, attendance, the dashboard) still works normally. For
@@ -272,12 +225,6 @@ export default function HelpPage() {
           up but isn&apos;t committed, <em>member</em> for someone who attends regularly,{" "}
           <em>core</em> for the advisor team and the people you lean on to bring others. Use whatever
           rubric your group prefers — Fold doesn&apos;t enforce anything on these.
-        </Faq>
-
-        <Faq q="Why did the ride solver leave someone unassigned?">
-          Capacity ran out, or every remaining vehicle would have violated the same-gender
-          rule. Check the warnings under the preview — they explain which constraint blocked
-          it. You can always override by hand.
         </Faq>
 
         <Faq q="Can two advisors be logged in at the same time on the same account?">

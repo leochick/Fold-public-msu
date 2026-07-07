@@ -3,8 +3,6 @@ import {
   students,
   attendances,
   contactAttempts,
-  rideAssignments,
-  rides,
 } from "../../drizzle/schema";
 import { eq, inArray } from "drizzle-orm";
 import { httpErr } from "@/lib/http";
@@ -91,30 +89,6 @@ export async function mergeStudents(
       .update(contactAttempts)
       .set({ studentId: keepId })
       .where(eq(contactAttempts.studentId, mergeId));
-
-    const survivorRideSessions = await tx
-      .select({ rideSessionId: rideAssignments.rideSessionId })
-      .from(rideAssignments)
-      .where(eq(rideAssignments.studentId, keepId));
-    const survivorSessionIds = new Set(survivorRideSessions.map((row) => row.rideSessionId));
-
-    const mergedRideAssignments = await tx
-      .select({ id: rideAssignments.id, rideSessionId: rideAssignments.rideSessionId })
-      .from(rideAssignments)
-      .where(eq(rideAssignments.studentId, mergeId));
-
-    for (const row of mergedRideAssignments) {
-      if (survivorSessionIds.has(row.rideSessionId)) {
-        await tx.delete(rideAssignments).where(eq(rideAssignments.id, row.id));
-      } else {
-        await tx.update(rideAssignments).set({ studentId: keepId }).where(eq(rideAssignments.id, row.id));
-      }
-    }
-
-    await tx
-      .update(rides)
-      .set({ driverStudentId: keepId })
-      .where(eq(rides.driverStudentId, mergeId));
 
     await tx
       .update(students)

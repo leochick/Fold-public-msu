@@ -4,14 +4,10 @@ import type * as attendance from "./contracts/attendance";
 import type * as events from "./contracts/events";
 import type * as students from "./contracts/students";
 import type * as intake from "./contracts/intake";
-import type * as rides from "./contracts/rides";
-
 import type * as svAttendance from "@/server/attendance";
 import type * as svEvents from "@/server/events";
 import type * as svStudents from "@/server/students";
 import type * as svIntake from "@/server/intake";
-import type * as svRides from "@/server/rides";
-
 export class ApiError extends Error {
   status: number;
   constructor(status: number, message: string) {
@@ -89,15 +85,5 @@ export const api = {
       post<Awaited<ReturnType<typeof svIntake.parseIntake>>>("/api/intake/parse", b),
     commit: (b: In<typeof intake.intakeCommitBody>) =>
       post<Awaited<ReturnType<typeof svIntake.commitIntake>>>("/api/intake/commit", b),
-  },
-  rides: {
-    parse: (b: In<typeof rides.ridesParseBody>) =>
-      post<Awaited<ReturnType<typeof svRides.parseRides>>>("/api/rides/parse", b),
-    parseFleet: (b: In<typeof rides.ridesFleetBody>) =>
-      post<Awaited<ReturnType<typeof svRides.parseFleet>>>("/api/rides/parse-fleet", b),
-    validate: (b: In<typeof rides.ridesValidateBody>) =>
-      post<ReturnType<typeof svRides.validateRides>>("/api/rides/validate", b),
-    commit: (b: In<typeof rides.ridesCommitBody>) =>
-      post<Awaited<ReturnType<typeof svRides.commitRides>>>("/api/rides/commit", b),
   },
 };
