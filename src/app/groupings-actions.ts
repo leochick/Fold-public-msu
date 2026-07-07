@@ -82,3 +82,12 @@ export async function renameGroupingAction(id: number, name: string) {
 
   revalidatePath("/groupings");
 }
+
+export async function deleteGroupingAction(id: number) {
+  await requireUser();
+  if (!Number.isFinite(id)) throw new Error("Invalid grouping");
+
+  await db.delete(groupings).where(eq(groupings.id, id));
+
+  revalidatePath("/groupings");
+}

@@ -9,6 +9,7 @@ import {
 } from "../../drizzle/schema";
 import { and, asc, eq, gte, inArray, lte, sql } from "drizzle-orm";
 import { formatDashboardDate } from "@/lib/dashboard-date-range";
+import { formatGroupingEventSelection } from "@/lib/grouping-events";
 import { getStudentStatuses, type GroupingStudentStatus } from "@/lib/grouping-status";
 
 export type GroupingListItem = {
@@ -16,7 +17,21 @@ export type GroupingListItem = {
   name: string;
   viewId: number;
   viewName: string;
+  eventSelectionLabel: string;
 };
+
+function normalizeCheckedEventIdsFromDb(
+  raw: number[] | null | undefined,
+  createdAt: Date,
+  updatedAt: Date
+): number[] | null {
+  if (raw === null || raw === undefined) return null;
+  if (Array.isArray(raw) && raw.length === 0 && createdAt.getTime() === updatedAt.getTime()) {
+    // Legacy rows stored [] on create before null meant "all events"
+    return null;
+  }
+  return raw;
+}
 
 export type GroupingEventItem = {
   id: number;
@@ -65,12 +80,45 @@ export async function listGroupings(): Promise<GroupingListItem[]> {
       name: groupings.name,
       viewId: groupings.viewId,
       viewName: views.name,
+      checkedEventIds: groupings.checkedEventIds,
+      createdAt: groupings.createdAt,
+      updatedAt: groupings.updatedAt,
     })
     .from(groupings)
     .innerJoin(views, eq(groupings.viewId, views.id))
     .orderBy(asc(groupings.name));
 
-  return rows;
+  const singleEventIds = [
+    ...new Set(
+      rows
+        .map((row) =>
+          normalizeCheckedEventIdsFromDb(row.checkedEventIds, row.createdAt, row.updatedAt)
+        )
+        .filter((ids): ids is number[] => Array.isArray(ids) && ids.length === 1)
+        .map((ids) => ids[0])
+    ),
+  ];
+
+  const eventNameRows =
+    singleEventIds.length > 0
+      ? await db
+          .select({ id: events.id, name: events.name })
+          .from(events)
+          .where(inArray(events.id, singleEventIds))
+      : [];
+
+  const eventNameById = new Map(eventNameRows.map((event) => [event.id, event.name]));
+
+  return rows.map((row) => ({
+    id: row.id,
+    name: row.name,
+    viewId: row.viewId,
+    viewName: row.viewName,
+    eventSelectionLabel: formatGroupingEventSelection(
+      normalizeCheckedEventIdsFromDb(row.checkedEventIds, row.createdAt, row.updatedAt),
+      eventNameById
+    ),
+  }));
 }
 
 export async function getGroupingById(id: number): Promise<GroupingDetail | null> {
@@ -95,7 +143,11 @@ export async function getGroupingById(id: number): Promise<GroupingDetail | null
     viewName: row.viewName,
     viewFrom: formatDashboardDate(row.viewStart),
     viewTo: formatDashboardDate(row.viewEnd),
-    checkedEventIds: row.grouping.checkedEventIds ?? null,
+    checkedEventIds: normalizeCheckedEventIdsFromDb(
+      row.grouping.checkedEventIds,
+      row.grouping.createdAt,
+      row.grouping.updatedAt
+    ),
     containers: normalizeContainers(row.grouping.containers),
   };
 }

@@ -73,6 +73,11 @@ export default function GroupingEditor({
     [students, checkedEventIds]
   );
 
+  const visibleStudentIds = useMemo(
+    () => new Set(visibleStudents.map((student) => student.id)),
+    [visibleStudents]
+  );
+
   const unassignedStudents = useMemo(
     () =>
       visibleStudents
@@ -248,6 +253,7 @@ export default function GroupingEditor({
                 container={container}
                 containerIndex={index}
                 studentsById={studentsById}
+                visibleStudentIds={visibleStudentIds}
                 onTitleChange={updateContainerTitle}
                 onDropStudent={(containerIndex, studentId) => {
                   setDragOverZone(null);

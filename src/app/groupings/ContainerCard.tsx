@@ -12,6 +12,7 @@ export default function ContainerCard({
   container,
   containerIndex,
   studentsById,
+  visibleStudentIds,
   onTitleChange,
   onDropStudent,
   onDragStart,
@@ -22,6 +23,7 @@ export default function ContainerCard({
   container: GroupingContainerData;
   containerIndex: number;
   studentsById: Map<number, StudentCardData>;
+  visibleStudentIds: Set<number>;
   onTitleChange: (index: number, title: string) => void;
   onDropStudent: (containerIndex: number, studentId: number) => void;
   onDragStart: (studentId: number) => void;
@@ -31,7 +33,8 @@ export default function ContainerCard({
 }) {
   const containerStudents = container.studentIds
     .map((id) => studentsById.get(id))
-    .filter((student): student is StudentCardData => Boolean(student));
+    .filter((student): student is StudentCardData => Boolean(student))
+    .filter((student) => visibleStudentIds.has(student.id));
 
   return (
     <div className="card min-h-[10rem] flex flex-col">

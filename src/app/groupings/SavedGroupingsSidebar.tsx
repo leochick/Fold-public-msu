@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { renameGroupingAction } from "../groupings-actions";
+import { deleteGroupingAction, renameGroupingAction } from "../groupings-actions";
 import type { GroupingListItem } from "@/server/groupings";
 
 export default function SavedGroupingsSidebar({
@@ -15,6 +15,7 @@ export default function SavedGroupingsSidebar({
   const [collapsed, setCollapsed] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editName, setEditName] = useState("");
+  const [pendingId, setPendingId] = useState<number | null>(null);
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
 
@@ -39,6 +40,19 @@ export default function SavedGroupingsSidebar({
       await renameGroupingAction(id, trimmed);
       setEditingId(null);
       setEditName("");
+      router.refresh();
+    });
+  }
+
+  function deleteGrouping(grouping: GroupingListItem) {
+    if (!confirm(`Delete "${grouping.name}"? This cannot be undone.`)) return;
+    setPendingId(grouping.id);
+    startTransition(async () => {
+      await deleteGroupingAction(grouping.id);
+      setPendingId(null);
+      if (grouping.id === activeGroupingId) {
+        router.push("/groupings");
+      }
       router.refresh();
     });
   }
@@ -70,6 +84,7 @@ export default function SavedGroupingsSidebar({
             ) : (
               groupings.map((grouping) => {
                 const isActive = grouping.id === activeGroupingId;
+                const busy = isPending && pendingId === grouping.id;
 
                 return (
                   <div
@@ -122,14 +137,26 @@ export default function SavedGroupingsSidebar({
                           <p className="mt-1 text-xs text-black/50 dark:text-white/50">
                             {grouping.viewName}
                           </p>
+                          <p className="mt-0.5 text-xs text-black/40 dark:text-white/40">
+                            {grouping.eventSelectionLabel}
+                          </p>
                         </button>
                         <div className="mt-2 flex gap-1">
                           <button
                             type="button"
                             className="btn btn-ghost text-xs px-2 py-1"
                             onClick={() => startRename(grouping)}
+                            disabled={busy}
                           >
                             Rename
+                          </button>
+                          <button
+                            type="button"
+                            className="btn btn-ghost text-xs px-2 py-1 text-red-600 dark:text-red-400"
+                            onClick={() => deleteGrouping(grouping)}
+                            disabled={busy}
+                          >
+                            {busy ? "Deleting…" : "Delete"}
                           </button>
                         </div>
                       </>
