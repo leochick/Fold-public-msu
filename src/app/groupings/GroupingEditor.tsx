@@ -33,6 +33,16 @@ function isDragLeave(currentTarget: EventTarget & Element, relatedTarget: EventT
   return !currentTarget.contains(relatedTarget);
 }
 
+function studentMatchesNameSearch(
+  student: Pick<StudentCardData, "firstName" | "lastName">,
+  query: string
+): boolean {
+  const normalized = query.trim().toLowerCase();
+  if (!normalized) return true;
+  const fullName = `${student.firstName} ${student.lastName ?? ""}`.trim().toLowerCase();
+  return fullName.includes(normalized);
+}
+
 export default function GroupingEditor({
   grouping,
   events,
@@ -48,6 +58,7 @@ export default function GroupingEditor({
   const [studentFilters, setStudentFilters] = useState<GroupingStudentFilters>(
     EMPTY_GROUPING_STUDENT_FILTERS
   );
+  const [nameSearch, setNameSearch] = useState("");
   const [dragOverZone, setDragOverZone] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -100,6 +111,11 @@ export default function GroupingEditor({
         .map((student) => studentsById.get(student.id)!)
         .filter(Boolean),
     [filteredStudents, assignedStudentIds, studentsById]
+  );
+
+  const searchedUnassignedStudents = useMemo(
+    () => unassignedStudents.filter((student) => studentMatchesNameSearch(student, nameSearch)),
+    [unassignedStudents, nameSearch]
   );
 
   function toggleAll() {
@@ -235,6 +251,14 @@ export default function GroupingEditor({
         <div className="w-52 shrink-0 space-y-4">
           <div className="card">
             <h2 className="text-sm font-semibold mb-3">Students</h2>
+            <input
+              type="search"
+              className="input mb-3"
+              placeholder="Search by name"
+              value={nameSearch}
+              onChange={(event) => setNameSearch(event.target.value)}
+              aria-label="Search students by name"
+            />
             <div
               className={`space-y-2 max-h-[32rem] overflow-y-auto pr-1 min-h-[8rem] rounded-lg border border-dashed p-2 transition-colors ${
                 dragOverZone === "unassigned"
@@ -263,12 +287,14 @@ export default function GroupingEditor({
                 }
               }}
             >
-              {unassignedStudents.length === 0 ? (
+              {searchedUnassignedStudents.length === 0 ? (
                 <p className="text-xs text-black/40 dark:text-white/40 text-center py-4">
-                  No unassigned students
+                  {unassignedStudents.length === 0
+                    ? "No unassigned students"
+                    : "No students match your search"}
                 </p>
               ) : (
-                unassignedStudents.map((student) => (
+                searchedUnassignedStudents.map((student) => (
                   <StudentDragCard
                     key={student.id}
                     student={student}
