@@ -296,6 +296,31 @@ export const views = sqliteTable("views", {
 export type View = typeof views.$inferSelect;
 export type NewView = typeof views.$inferInsert;
 
+export type GroupingContainerData = {
+  title: string;
+  studentIds: number[];
+};
+
+export const groupings = sqliteTable("groupings", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  name: text("name").notNull(),
+  viewId: integer("view_id")
+    .notNull()
+    .references(() => views.id, { onDelete: "cascade" }),
+  checkedEventIds: text("checked_event_ids", { mode: "json" }).$type<number[]>(),
+  containers: text("containers", { mode: "json" }).$type<GroupingContainerData[]>().notNull(),
+  addedByUserId: text("added_by_user_id").references(() => users.id, { onDelete: "set null" }),
+  createdAt: integer("created_at", { mode: "timestamp" })
+    .notNull()
+    .default(sql`(unixepoch())`),
+  updatedAt: integer("updated_at", { mode: "timestamp" })
+    .notNull()
+    .default(sql`(unixepoch())`),
+});
+
+export type Grouping = typeof groupings.$inferSelect;
+export type NewGrouping = typeof groupings.$inferInsert;
+
 export const changelogEntries = sqliteTable("changelog_entries", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   userId: text("user_id").references(() => users.id, { onDelete: "set null" }),
