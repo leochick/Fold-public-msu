@@ -33,7 +33,7 @@ export async function createGroupingAction(viewId: number, name: string) {
     .values({
       name: trimmed,
       viewId,
-      checkedEventIds: [],
+      checkedEventIds: null,
       containers: emptyGroupingContainers(),
       addedByUserId: user.id,
     })
@@ -45,14 +45,17 @@ export async function createGroupingAction(viewId: number, name: string) {
 
 export async function updateGroupingAction(
   id: number,
-  checkedEventIds: number[],
+  checkedEventIds: number[] | null,
   containers: GroupingContainerData[]
 ) {
   await requireUser();
   if (!Number.isFinite(id)) throw new Error("Invalid grouping");
 
   const normalizedContainers = assertContainers(containers);
-  const normalizedEventIds = [...new Set(checkedEventIds.filter((eventId) => Number.isFinite(eventId)))];
+  const normalizedEventIds =
+    checkedEventIds === null
+      ? null
+      : [...new Set(checkedEventIds.filter((eventId) => Number.isFinite(eventId)))];
 
   await db
     .update(groupings)

@@ -3,6 +3,11 @@
 import type { GroupingContainerData } from "../../../drizzle/schema";
 import StudentDragCard, { type StudentCardData } from "./StudentDragCard";
 
+function isDragLeave(currentTarget: EventTarget & Element, relatedTarget: EventTarget | null) {
+  if (!relatedTarget || !(relatedTarget instanceof Node)) return true;
+  return !currentTarget.contains(relatedTarget);
+}
+
 export default function ContainerCard({
   container,
   containerIndex,
@@ -51,9 +56,14 @@ export default function ContainerCard({
           event.preventDefault();
           onDragEnter();
         }}
-        onDragLeave={onDragLeave}
+        onDragLeave={(event) => {
+          if (isDragLeave(event.currentTarget, event.relatedTarget)) {
+            onDragLeave();
+          }
+        }}
         onDrop={(event) => {
           event.preventDefault();
+          onDragLeave();
           const raw = event.dataTransfer.getData("text/plain");
           const studentId = Number(raw);
           if (Number.isFinite(studentId)) {

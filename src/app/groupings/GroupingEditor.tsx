@@ -12,9 +12,18 @@ import type {
 import ContainerCard from "./ContainerCard";
 import StudentDragCard, { type StudentCardData } from "./StudentDragCard";
 
-function studentMatchesEvents(student: GroupingStudentItem, checkedEventIds: number[]): boolean {
-  if (checkedEventIds.length === 0) return student.attendedEventIds.length > 0;
+function studentMatchesEvents(
+  student: GroupingStudentItem,
+  checkedEventIds: number[] | null
+): boolean {
+  if (checkedEventIds === null) return student.attendedEventIds.length > 0;
+  if (checkedEventIds.length === 0) return false;
   return checkedEventIds.some((eventId) => student.attendedEventIds.includes(eventId));
+}
+
+function isDragLeave(currentTarget: EventTarget & Element, relatedTarget: EventTarget | null) {
+  if (!relatedTarget || !(relatedTarget instanceof Node)) return true;
+  return !currentTarget.contains(relatedTarget);
 }
 
 export default function GroupingEditor({
@@ -27,13 +36,13 @@ export default function GroupingEditor({
   students: GroupingStudentItem[];
 }) {
   const router = useRouter();
-  const [checkedEventIds, setCheckedEventIds] = useState<number[]>(grouping.checkedEventIds);
+  const [checkedEventIds, setCheckedEventIds] = useState<number[] | null>(grouping.checkedEventIds);
   const [containers, setContainers] = useState<GroupingContainerData[]>(grouping.containers);
   const [dragOverZone, setDragOverZone] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
-  const allChecked = checkedEventIds.length === 0;
+  const allChecked = checkedEventIds === null;
 
   const studentsById = useMemo(() => {
     const map = new Map<number, StudentCardData>();
@@ -74,26 +83,25 @@ export default function GroupingEditor({
   );
 
   function toggleAll() {
-    setCheckedEventIds([]);
+    setCheckedEventIds((current) => (current === null ? [] : null));
   }
 
   function toggleEvent(eventId: number) {
     setCheckedEventIds((current) => {
-      if (current.length === 0) {
+      if (current === null) {
         return events.map((event) => event.id).filter((id) => id !== eventId);
       }
       if (current.includes(eventId)) {
-        const next = current.filter((id) => id !== eventId);
-        return next;
+        return current.filter((id) => id !== eventId);
       }
       const next = [...current, eventId];
-      if (next.length === events.length) return [];
+      if (next.length === events.length) return null;
       return next;
     });
   }
 
   function isEventChecked(eventId: number) {
-    return allChecked || checkedEventIds.includes(eventId);
+    return allChecked || (checkedEventIds?.includes(eventId) ?? false);
   }
 
   function moveStudentToContainer(containerIndex: number, studentId: number) {
@@ -201,7 +209,11 @@ export default function GroupingEditor({
                 event.preventDefault();
                 setDragOverZone("unassigned");
               }}
-              onDragLeave={() => setDragOverZone((zone) => (zone === "unassigned" ? null : zone))}
+              onDragLeave={(event) => {
+                if (isDragLeave(event.currentTarget, event.relatedTarget)) {
+                  setDragOverZone((zone) => (zone === "unassigned" ? null : zone));
+                }
+              }}
               onDrop={(event) => {
                 event.preventDefault();
                 setDragOverZone(null);
@@ -237,7 +249,10 @@ export default function GroupingEditor({
                 containerIndex={index}
                 studentsById={studentsById}
                 onTitleChange={updateContainerTitle}
-                onDropStudent={moveStudentToContainer}
+                onDropStudent={(containerIndex, studentId) => {
+                  setDragOverZone(null);
+                  moveStudentToContainer(containerIndex, studentId);
+                }}
                 onDragStart={handleDragStart}
                 isDragOver={dragOverZone === `container-${index}`}
                 onDragEnter={() => setDragOverZone(`container-${index}`)}

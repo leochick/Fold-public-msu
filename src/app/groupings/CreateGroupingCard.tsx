@@ -12,7 +12,7 @@ export default function CreateGroupingCard({ views }: { views: DashboardViewItem
   const [saveError, setSaveError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
-  function saveGrouping() {
+  function createGrouping() {
     const parsedViewId = Number(viewId);
     if (!Number.isFinite(parsedViewId) || !name.trim()) return;
     setSaveError(null);
@@ -23,7 +23,7 @@ export default function CreateGroupingCard({ views }: { views: DashboardViewItem
         router.push(`/groupings?grouping=${id}`);
         router.refresh();
       } catch (error) {
-        setSaveError(error instanceof Error ? error.message : "Could not save grouping");
+        setSaveError(error instanceof Error ? error.message : "Could not create grouping");
       }
     });
   }
@@ -69,10 +69,10 @@ export default function CreateGroupingCard({ views }: { views: DashboardViewItem
         <button
           type="button"
           className="btn btn-primary"
-          onClick={saveGrouping}
+          onClick={createGrouping}
           disabled={!viewId || !name.trim() || isPending}
         >
-          {isPending ? "Saving…" : "Save Grouping"}
+          {isPending ? "Creating…" : "Create New Grouping"}
         </button>
       </div>
       {saveError && <p className="text-xs text-red-600 dark:text-red-400 mt-2">{saveError}</p>}

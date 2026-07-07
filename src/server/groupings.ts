@@ -43,7 +43,8 @@ export type GroupingDetail = {
   viewName: string;
   viewFrom: string;
   viewTo: string;
-  checkedEventIds: number[];
+  /** null = all events in the view; [] = none; otherwise specific event ids */
+  checkedEventIds: number[] | null;
   containers: GroupingContainerData[];
 };
 
@@ -94,7 +95,7 @@ export async function getGroupingById(id: number): Promise<GroupingDetail | null
     viewName: row.viewName,
     viewFrom: formatDashboardDate(row.viewStart),
     viewTo: formatDashboardDate(row.viewEnd),
-    checkedEventIds: row.grouping.checkedEventIds ?? [],
+    checkedEventIds: row.grouping.checkedEventIds ?? null,
     containers: normalizeContainers(row.grouping.containers),
   };
 }
