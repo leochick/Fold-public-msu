@@ -2,8 +2,9 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { deleteGroupingAction, renameGroupingAction } from "../groupings-actions";
+import { renameGroupingAction } from "../groupings-actions";
 import type { GroupingListItem } from "@/server/groupings";
+import DeleteGroupingModal from "./DeleteGroupingModal";
 
 export default function SavedGroupingsSidebar({
   groupings,
@@ -15,7 +16,7 @@ export default function SavedGroupingsSidebar({
   const [collapsed, setCollapsed] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editName, setEditName] = useState("");
-  const [pendingId, setPendingId] = useState<number | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<GroupingListItem | null>(null);
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
 
@@ -44,130 +45,125 @@ export default function SavedGroupingsSidebar({
     });
   }
 
-  function deleteGrouping(grouping: GroupingListItem) {
-    if (!confirm(`Delete "${grouping.name}"? This cannot be undone.`)) return;
-    setPendingId(grouping.id);
-    startTransition(async () => {
-      await deleteGroupingAction(grouping.id);
-      setPendingId(null);
-      if (grouping.id === activeGroupingId) {
-        router.push("/groupings");
-      }
-      router.refresh();
-    });
-  }
-
   return (
-    <aside
-      className={`shrink-0 transition-all ${collapsed ? "w-10" : "w-56"}`}
-      aria-label="Saved groupings"
-    >
-      <div className="card sticky top-4">
-        <button
-          type="button"
-          className="flex w-full items-center justify-between gap-2 text-left"
-          onClick={() => setCollapsed((value) => !value)}
-          aria-expanded={!collapsed}
-        >
-          {!collapsed && <span className="text-sm font-semibold">Groupings</span>}
-          <span className="text-black/50 dark:text-white/50 text-xs" aria-hidden>
-            {collapsed ? "›" : "‹"}
-          </span>
-        </button>
+    <>
+      <aside
+        className={`shrink-0 transition-all ${collapsed ? "w-10" : "w-56"}`}
+        aria-label="Saved groupings"
+      >
+        <div className="card sticky top-4">
+          <button
+            type="button"
+            className="flex w-full items-center justify-between gap-2 text-left"
+            onClick={() => setCollapsed((value) => !value)}
+            aria-expanded={!collapsed}
+          >
+            {!collapsed && <span className="text-sm font-semibold">Groupings</span>}
+            <span className="text-black/50 dark:text-white/50 text-xs" aria-hidden>
+              {collapsed ? "›" : "‹"}
+            </span>
+          </button>
 
-        {!collapsed && (
-          <div className="mt-3 space-y-2">
-            {groupings.length === 0 ? (
-              <p className="text-xs text-black/50 dark:text-white/50">
-                No saved groupings yet. Select a view and create one above.
-              </p>
-            ) : (
-              groupings.map((grouping) => {
-                const isActive = grouping.id === activeGroupingId;
-                const busy = isPending && pendingId === grouping.id;
+          {!collapsed && (
+            <div className="mt-3 space-y-2">
+              {groupings.length === 0 ? (
+                <p className="text-xs text-black/50 dark:text-white/50">
+                  No saved groupings yet. Select a view and create one above.
+                </p>
+              ) : (
+                groupings.map((grouping) => {
+                  const isActive = grouping.id === activeGroupingId;
 
-                return (
-                  <div
-                    key={grouping.id}
-                    className={`rounded-lg border p-2 ${
-                      isActive
-                        ? "border-accent/40 bg-accent/5"
-                        : "border-black/5 dark:border-white/10"
-                    }`}
-                  >
-                    {editingId === grouping.id ? (
-                      <form
-                        className="space-y-2"
-                        onSubmit={(event) => {
-                          event.preventDefault();
-                          submitRename(grouping.id);
-                        }}
-                      >
-                        <input
-                          className="input"
-                          value={editName}
-                          onChange={(event) => setEditName(event.target.value)}
-                          autoFocus
-                        />
-                        <div className="flex gap-1">
-                          <button
-                            type="submit"
-                            className="btn btn-primary text-xs px-2 py-1"
-                            disabled={!editName.trim()}
-                          >
-                            Save
-                          </button>
-                          <button
-                            type="button"
-                            className="btn btn-ghost text-xs px-2 py-1"
-                            onClick={cancelRename}
-                          >
-                            Cancel
-                          </button>
-                        </div>
-                      </form>
-                    ) : (
-                      <>
-                        <button
-                          type="button"
-                          className="w-full text-left"
-                          onClick={() => loadGrouping(grouping.id)}
+                  return (
+                    <div
+                      key={grouping.id}
+                      className={`rounded-lg border p-2 ${
+                        isActive
+                          ? "border-accent/40 bg-accent/5"
+                          : "border-black/5 dark:border-white/10"
+                      }`}
+                    >
+                      {editingId === grouping.id ? (
+                        <form
+                          className="space-y-2"
+                          onSubmit={(event) => {
+                            event.preventDefault();
+                            submitRename(grouping.id);
+                          }}
                         >
-                          <span className="text-sm font-medium leading-tight">{grouping.name}</span>
-                          <p className="mt-1 text-xs text-black/50 dark:text-white/50">
-                            {grouping.viewName}
-                          </p>
-                          <p className="mt-0.5 text-xs text-black/40 dark:text-white/40">
-                            {grouping.eventSelectionLabel}
-                          </p>
-                        </button>
-                        <div className="mt-2 flex gap-1">
+                          <input
+                            className="input"
+                            value={editName}
+                            onChange={(event) => setEditName(event.target.value)}
+                            autoFocus
+                          />
+                          <div className="flex gap-1">
+                            <button
+                              type="submit"
+                              className="btn btn-primary text-xs px-2 py-1"
+                              disabled={!editName.trim() || isPending}
+                            >
+                              Save
+                            </button>
+                            <button
+                              type="button"
+                              className="btn btn-ghost text-xs px-2 py-1"
+                              onClick={cancelRename}
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </form>
+                      ) : (
+                        <>
                           <button
                             type="button"
-                            className="btn btn-ghost text-xs px-2 py-1"
-                            onClick={() => startRename(grouping)}
-                            disabled={busy}
+                            className="w-full text-left"
+                            onClick={() => loadGrouping(grouping.id)}
                           >
-                            Rename
+                            <span className="text-sm font-medium leading-tight">{grouping.name}</span>
+                            <p className="mt-1 text-xs text-black/50 dark:text-white/50">
+                              {grouping.viewName}
+                            </p>
+                            <p className="mt-0.5 text-xs text-black/40 dark:text-white/40">
+                              {grouping.eventSelectionLabel}
+                            </p>
                           </button>
-                          <button
-                            type="button"
-                            className="btn btn-ghost text-xs px-2 py-1 text-red-600 dark:text-red-400"
-                            onClick={() => deleteGrouping(grouping)}
-                            disabled={busy}
-                          >
-                            {busy ? "Deleting…" : "Delete"}
-                          </button>
-                        </div>
-                      </>
-                    )}
-                  </div>
-                );
-              })
-            )}
-          </div>
-        )}
-      </div>
-    </aside>
+                          <div className="mt-2 flex gap-1">
+                            <button
+                              type="button"
+                              className="btn btn-ghost text-xs px-2 py-1"
+                              onClick={() => startRename(grouping)}
+                            >
+                              Rename
+                            </button>
+                            <button
+                              type="button"
+                              className="btn btn-ghost text-xs px-2 py-1 text-red-600 dark:text-red-400"
+                              onClick={() => setDeleteTarget(grouping)}
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          )}
+        </div>
+      </aside>
+
+      {deleteTarget && (
+        <DeleteGroupingModal
+          groupingId={deleteTarget.id}
+          groupingName={deleteTarget.name}
+          isActive={deleteTarget.id === activeGroupingId}
+          onClose={() => setDeleteTarget(null)}
+        />
+      )}
+    </>
   );
 }

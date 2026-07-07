@@ -9,8 +9,15 @@ import type {
   GroupingEventItem,
   GroupingStudentItem,
 } from "@/server/groupings";
+import {
+  EMPTY_GROUPING_STUDENT_FILTERS,
+  studentMatchesFilters,
+  type GroupingStudentFilters,
+} from "@/lib/grouping-student-filters";
+import { readGroupingDragData } from "@/lib/grouping-drag";
 import ContainerCard from "./ContainerCard";
 import StudentDragCard, { type StudentCardData } from "./StudentDragCard";
+import StudentFiltersCard from "./StudentFiltersCard";
 
 function studentMatchesEvents(
   student: GroupingStudentItem,
@@ -38,6 +45,9 @@ export default function GroupingEditor({
   const router = useRouter();
   const [checkedEventIds, setCheckedEventIds] = useState<number[] | null>(grouping.checkedEventIds);
   const [containers, setContainers] = useState<GroupingContainerData[]>(grouping.containers);
+  const [studentFilters, setStudentFilters] = useState<GroupingStudentFilters>(
+    EMPTY_GROUPING_STUDENT_FILTERS
+  );
   const [dragOverZone, setDragOverZone] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -68,23 +78,28 @@ export default function GroupingEditor({
     return ids;
   }, [containers]);
 
-  const visibleStudents = useMemo(
+  const eventMatchedStudents = useMemo(
     () => students.filter((student) => studentMatchesEvents(student, checkedEventIds)),
     [students, checkedEventIds]
   );
 
+  const filteredStudents = useMemo(
+    () => eventMatchedStudents.filter((student) => studentMatchesFilters(student, studentFilters)),
+    [eventMatchedStudents, studentFilters]
+  );
+
   const visibleStudentIds = useMemo(
-    () => new Set(visibleStudents.map((student) => student.id)),
-    [visibleStudents]
+    () => new Set(filteredStudents.map((student) => student.id)),
+    [filteredStudents]
   );
 
   const unassignedStudents = useMemo(
     () =>
-      visibleStudents
+      filteredStudents
         .filter((student) => !assignedStudentIds.has(student.id))
         .map((student) => studentsById.get(student.id)!)
         .filter(Boolean),
-    [visibleStudents, assignedStudentIds, studentsById]
+    [filteredStudents, assignedStudentIds, studentsById]
   );
 
   function toggleAll() {
@@ -117,6 +132,26 @@ export default function GroupingEditor({
           return { ...container, studentIds: [...withoutStudent, studentId] };
         }
         return { ...container, studentIds: withoutStudent };
+      })
+    );
+  }
+
+  function insertStudentBeforeTarget(
+    containerIndex: number,
+    targetStudentId: number,
+    draggedStudentId: number
+  ) {
+    setContainers((current) =>
+      current.map((container, index) => {
+        let ids = container.studentIds.filter((id) => id !== draggedStudentId);
+        if (index !== containerIndex) {
+          return { ...container, studentIds: ids };
+        }
+
+        const targetIndex = ids.indexOf(targetStudentId);
+        const insertAt = targetIndex >= 0 ? targetIndex : ids.length;
+        ids.splice(insertAt, 0, draggedStudentId);
+        return { ...container, studentIds: ids };
       })
     );
   }
@@ -197,7 +232,7 @@ export default function GroupingEditor({
       </div>
 
       <div className="flex gap-4 items-start min-w-0">
-        <div className="w-52 shrink-0">
+        <div className="w-52 shrink-0 space-y-4">
           <div className="card">
             <h2 className="text-sm font-semibold mb-3">Students</h2>
             <div
@@ -222,9 +257,9 @@ export default function GroupingEditor({
               onDrop={(event) => {
                 event.preventDefault();
                 setDragOverZone(null);
-                const studentId = Number(event.dataTransfer.getData("text/plain"));
-                if (Number.isFinite(studentId)) {
-                  moveStudentToUnassigned(studentId);
+                const meta = readGroupingDragData(event);
+                if (meta) {
+                  moveStudentToUnassigned(meta.studentId);
                 }
               }}
             >
@@ -237,12 +272,15 @@ export default function GroupingEditor({
                   <StudentDragCard
                     key={student.id}
                     student={student}
+                    dragMeta={{ studentId: student.id, source: "unassigned" }}
                     onDragStart={handleDragStart}
                   />
                 ))
               )}
             </div>
           </div>
+
+          <StudentFiltersCard filters={studentFilters} onChange={setStudentFilters} />
         </div>
 
         <div className="flex-1 min-w-0">
@@ -258,6 +296,10 @@ export default function GroupingEditor({
                 onDropStudent={(containerIndex, studentId) => {
                   setDragOverZone(null);
                   moveStudentToContainer(containerIndex, studentId);
+                }}
+                onDropOnStudent={(containerIndex, targetStudentId, draggedStudentId) => {
+                  setDragOverZone(null);
+                  insertStudentBeforeTarget(containerIndex, targetStudentId, draggedStudentId);
                 }}
                 onDragStart={handleDragStart}
                 isDragOver={dragOverZone === `container-${index}`}

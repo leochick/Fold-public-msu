@@ -1,6 +1,8 @@
 "use client";
 
+import { useState } from "react";
 import type { GroupingContainerData } from "../../../drizzle/schema";
+import { readGroupingDragData } from "@/lib/grouping-drag";
 import StudentDragCard, { type StudentCardData } from "./StudentDragCard";
 
 function isDragLeave(currentTarget: EventTarget & Element, relatedTarget: EventTarget | null) {
@@ -15,6 +17,7 @@ export default function ContainerCard({
   visibleStudentIds,
   onTitleChange,
   onDropStudent,
+  onDropOnStudent,
   onDragStart,
   isDragOver,
   onDragEnter,
@@ -26,11 +29,14 @@ export default function ContainerCard({
   visibleStudentIds: Set<number>;
   onTitleChange: (index: number, title: string) => void;
   onDropStudent: (containerIndex: number, studentId: number) => void;
+  onDropOnStudent: (containerIndex: number, targetStudentId: number, draggedStudentId: number) => void;
   onDragStart: (studentId: number) => void;
   isDragOver: boolean;
   onDragEnter: () => void;
   onDragLeave: () => void;
 }) {
+  const [reorderTargetId, setReorderTargetId] = useState<number | null>(null);
+
   const containerStudents = container.studentIds
     .map((id) => studentsById.get(id))
     .filter((student): student is StudentCardData => Boolean(student))
@@ -62,16 +68,16 @@ export default function ContainerCard({
         onDragLeave={(event) => {
           if (isDragLeave(event.currentTarget, event.relatedTarget)) {
             onDragLeave();
+            setReorderTargetId(null);
           }
         }}
         onDrop={(event) => {
           event.preventDefault();
           onDragLeave();
-          const raw = event.dataTransfer.getData("text/plain");
-          const studentId = Number(raw);
-          if (Number.isFinite(studentId)) {
-            onDropStudent(containerIndex, studentId);
-          }
+          setReorderTargetId(null);
+          const meta = readGroupingDragData(event);
+          if (!meta) return;
+          onDropStudent(containerIndex, meta.studentId);
         }}
       >
         {containerStudents.length === 0 ? (
@@ -80,7 +86,21 @@ export default function ContainerCard({
           </p>
         ) : (
           containerStudents.map((student) => (
-            <StudentDragCard key={student.id} student={student} onDragStart={onDragStart} />
+            <StudentDragCard
+              key={student.id}
+              student={student}
+              dragMeta={{ studentId: student.id, source: "container", containerIndex }}
+              onDragStart={() => {
+                setReorderTargetId(null);
+                onDragStart(student.id);
+              }}
+              isReorderTarget={reorderTargetId === student.id}
+              onDragEnterCard={(targetStudentId) => setReorderTargetId(targetStudentId)}
+              onDropOnCard={(targetStudentId, draggedStudentId) => {
+                setReorderTargetId(null);
+                onDropOnStudent(containerIndex, targetStudentId, draggedStudentId);
+              }}
+            />
           ))
         )}
       </div>

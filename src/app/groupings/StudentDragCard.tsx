@@ -6,6 +6,7 @@ import {
   GROUPING_STATUS_LABELS,
   type GroupingStudentStatus,
 } from "@/lib/grouping-status";
+import { readGroupingDragData, setGroupingDragData, type GroupingDragMeta } from "@/lib/grouping-drag";
 
 export type StudentCardData = {
   id: number;
@@ -17,10 +18,18 @@ export type StudentCardData = {
 
 export default function StudentDragCard({
   student,
+  dragMeta,
   onDragStart,
+  onDropOnCard,
+  onDragEnterCard,
+  isReorderTarget,
 }: {
   student: StudentCardData;
+  dragMeta: GroupingDragMeta;
   onDragStart: (studentId: number) => void;
+  onDropOnCard?: (targetStudentId: number, draggedStudentId: number) => void;
+  onDragEnterCard?: (targetStudentId: number) => void;
+  isReorderTarget?: boolean;
 }) {
   const nameClass =
     student.gender === "M"
@@ -36,11 +45,32 @@ export default function StudentDragCard({
     <div
       draggable
       onDragStart={(event) => {
-        event.dataTransfer.setData("text/plain", String(student.id));
-        event.dataTransfer.effectAllowed = "move";
+        setGroupingDragData(event, dragMeta);
         onDragStart(student.id);
       }}
-      className={`rounded-lg border p-2 cursor-grab active:cursor-grabbing shadow-sm ${backgroundClass}`}
+      onDragEnter={(event) => {
+        if (!onDropOnCard) return;
+        event.preventDefault();
+        event.stopPropagation();
+        onDragEnterCard?.(student.id);
+      }}
+      onDragOver={(event) => {
+        if (!onDropOnCard) return;
+        event.preventDefault();
+        event.stopPropagation();
+        event.dataTransfer.dropEffect = "move";
+      }}
+      onDrop={(event) => {
+        if (!onDropOnCard) return;
+        event.preventDefault();
+        event.stopPropagation();
+        const meta = readGroupingDragData(event);
+        if (!meta || meta.studentId === student.id) return;
+        onDropOnCard(student.id, meta.studentId);
+      }}
+      className={`rounded-lg border p-2 cursor-grab active:cursor-grabbing shadow-sm ${backgroundClass} ${
+        isReorderTarget ? "ring-2 ring-accent/50 border-accent/40" : ""
+      }`}
     >
       <Link href={`/students/${student.id}`} className={`text-sm font-medium hover:underline ${nameClass}`}>
         {fullName}

@@ -45,6 +45,10 @@ export type GroupingStudentItem = {
   firstName: string;
   lastName: string | null;
   gender: "M" | "F" | null;
+  year: "freshman" | "sophomore" | "junior" | "senior" | "grad" | "other" | null;
+  courseMaterial: string[] | null;
+  newsletter: boolean;
+  groupme: boolean;
   attendedEventIds: number[];
   attendanceCountInRange: number;
   attendedEventTypesInRange: string[];
@@ -210,7 +214,10 @@ export async function getStudentsForView(viewId: number): Promise<GroupingStuden
       firstName: students.firstName,
       lastName: students.lastName,
       gender: students.gender,
+      year: students.year,
       courseMaterial: students.courseMaterial,
+      newsletter: students.newsletter,
+      groupme: students.groupme,
     })
     .from(students)
     .where(inArray(students.id, studentIds));
@@ -244,6 +251,10 @@ export async function getStudentsForView(viewId: number): Promise<GroupingStuden
         firstName: student.firstName,
         lastName: student.lastName,
         gender: student.gender,
+        year: student.year,
+        courseMaterial: student.courseMaterial,
+        newsletter: student.newsletter,
+        groupme: student.groupme,
         attendedEventIds: eventsByStudent.get(student.id) ?? [],
         attendanceCountInRange,
         attendedEventTypesInRange,
