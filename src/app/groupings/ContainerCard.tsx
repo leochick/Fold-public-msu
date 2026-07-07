@@ -42,6 +42,8 @@ export default function ContainerCard({
     .filter((student): student is StudentCardData => Boolean(student))
     .filter((student) => visibleStudentIds.has(student.id));
 
+  const studentCount = container.studentIds.length;
+
   return (
     <div className="card min-h-[10rem] flex flex-col">
       <input
@@ -104,6 +106,9 @@ export default function ContainerCard({
           ))
         )}
       </div>
+      <p className="mt-2 text-xs text-black/50 dark:text-white/50 text-center">
+        {studentCount} {studentCount === 1 ? "student" : "students"}
+      </p>
     </div>
   );
 }
