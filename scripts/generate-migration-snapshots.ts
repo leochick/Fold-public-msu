@@ -64,7 +64,7 @@ async function snapshotFromDb(dbPath: string) {
   const snapshotTables: Record<string, unknown> = {};
   for (const table of tables) {
     const cols = (await client.execute(`PRAGMA table_info(${table})`)).rows as unknown as ColumnInfo[];
-    const indexes = (await client.execute(`PRAGMA index_list(${table})`)).rows as Array<{
+    const indexes = (await client.execute(`PRAGMA index_list(${table})`)).rows as unknown as Array<{
       name: string;
       unique: number;
     }>;
@@ -73,7 +73,7 @@ async function snapshotFromDb(dbPath: string) {
     const indexSnapshot: Record<string, unknown> = {};
     for (const index of indexes) {
       if (index.name.startsWith("sqlite_")) continue;
-      const info = (await client.execute(`PRAGMA index_info(${index.name})`)).rows as Array<{ name: string }>;
+      const info = (await client.execute(`PRAGMA index_info(${index.name})`)).rows as unknown as Array<{ name: string }>;
       indexSnapshot[index.name] = {
         name: index.name,
         columns: info.map((entry) => entry.name),
