@@ -201,8 +201,23 @@ export const contactAttempts = sqliteTable("contact_attempts", {
 });
 // --- /WELCOME FUNNEL ---
 
+export const staff = sqliteTable("staff", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  firstName: text("first_name").notNull(),
+  lastName: text("last_name"),
+  gender: text("gender", { enum: ["M", "F"] }),
+  createdAt: integer("created_at", { mode: "timestamp" })
+    .notNull()
+    .default(sql`(unixepoch())`),
+  updatedAt: integer("updated_at", { mode: "timestamp" })
+    .notNull()
+    .default(sql`(unixepoch())`),
+});
+
 export type Student = typeof students.$inferSelect;
 export type NewStudent = typeof students.$inferInsert;
+export type Staff = typeof staff.$inferSelect;
+export type NewStaff = typeof staff.$inferInsert;
 export type Event = typeof events.$inferSelect;
 export type NewEvent = typeof events.$inferInsert;
 export type Attendance = typeof attendances.$inferSelect;
