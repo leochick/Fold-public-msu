@@ -2,11 +2,12 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import type { GroupingContainerData } from "../../../drizzle/schema";
+import type { GroupingContainerData, GroupingContainerItem } from "../../../drizzle/schema";
 import { updateGroupingAction } from "../groupings-actions";
 import type {
   GroupingDetail,
   GroupingEventItem,
+  GroupingStaffItem,
   GroupingStudentItem,
 } from "@/server/groupings";
 import {
@@ -14,9 +15,10 @@ import {
   studentMatchesFilters,
   type GroupingStudentFilters,
 } from "@/lib/grouping-student-filters";
-import { readGroupingDragData } from "@/lib/grouping-drag";
+import { readGroupingDragData, type GroupingDragEntity } from "@/lib/grouping-drag";
 import ContainerCard from "./ContainerCard";
 import StudentDragCard, { type StudentCardData } from "./StudentDragCard";
+import StaffDragCard, { type StaffCardData } from "./StaffDragCard";
 import StudentFiltersCard from "./StudentFiltersCard";
 
 function studentMatchesEvents(
@@ -33,13 +35,13 @@ function isDragLeave(currentTarget: EventTarget & Element, relatedTarget: EventT
   return !currentTarget.contains(relatedTarget);
 }
 
-function studentMatchesNameSearch(
-  student: Pick<StudentCardData, "firstName" | "lastName">,
+function matchesNameSearch(
+  person: Pick<StudentCardData | StaffCardData, "firstName" | "lastName">,
   query: string
 ): boolean {
   const normalized = query.trim().toLowerCase();
   if (!normalized) return true;
-  const fullName = `${student.firstName} ${student.lastName ?? ""}`.trim().toLowerCase();
+  const fullName = `${person.firstName} ${person.lastName ?? ""}`.trim().toLowerCase();
   return fullName.includes(normalized);
 }
 
@@ -47,10 +49,12 @@ export default function GroupingEditor({
   grouping,
   events,
   students,
+  staff,
 }: {
   grouping: GroupingDetail;
   events: GroupingEventItem[];
   students: GroupingStudentItem[];
+  staff: GroupingStaffItem[];
 }) {
   const router = useRouter();
   const [checkedEventIds, setCheckedEventIds] = useState<number[] | null>(grouping.checkedEventIds);
@@ -59,6 +63,8 @@ export default function GroupingEditor({
     EMPTY_GROUPING_STUDENT_FILTERS
   );
   const [nameSearch, setNameSearch] = useState("");
+  const [staffSearch, setStaffSearch] = useState("");
+  const [activeDragEntity, setActiveDragEntity] = useState<GroupingDragEntity | null>(null);
   const [dragOverZone, setDragOverZone] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -79,11 +85,34 @@ export default function GroupingEditor({
     return map;
   }, [students]);
 
+  const staffById = useMemo(() => {
+    const map = new Map<number, StaffCardData>();
+    for (const member of staff) {
+      map.set(member.id, {
+        id: member.id,
+        firstName: member.firstName,
+        lastName: member.lastName,
+        gender: member.gender,
+      });
+    }
+    return map;
+  }, [staff]);
+
   const assignedStudentIds = useMemo(() => {
     const ids = new Set<number>();
     for (const container of containers) {
-      for (const studentId of container.studentIds) {
-        ids.add(studentId);
+      for (const item of container.items) {
+        if (item.entity === "student") ids.add(item.id);
+      }
+    }
+    return ids;
+  }, [containers]);
+
+  const assignedStaffIds = useMemo(() => {
+    const ids = new Set<number>();
+    for (const container of containers) {
+      for (const item of container.items) {
+        if (item.entity === "staff") ids.add(item.id);
       }
     }
     return ids;
@@ -114,8 +143,22 @@ export default function GroupingEditor({
   );
 
   const searchedUnassignedStudents = useMemo(
-    () => unassignedStudents.filter((student) => studentMatchesNameSearch(student, nameSearch)),
+    () => unassignedStudents.filter((student) => matchesNameSearch(student, nameSearch)),
     [unassignedStudents, nameSearch]
+  );
+
+  const unassignedStaff = useMemo(
+    () =>
+      staff
+        .filter((member) => !assignedStaffIds.has(member.id))
+        .map((member) => staffById.get(member.id)!)
+        .filter(Boolean),
+    [staff, assignedStaffIds, staffById]
+  );
+
+  const searchedUnassignedStaff = useMemo(
+    () => unassignedStaff.filter((member) => matchesNameSearch(member, staffSearch)),
+    [unassignedStaff, staffSearch]
   );
 
   function toggleAll() {
@@ -140,34 +183,37 @@ export default function GroupingEditor({
     return allChecked || (checkedEventIds?.includes(eventId) ?? false);
   }
 
-  function moveStudentToContainer(containerIndex: number, studentId: number) {
-    setContainers((current) =>
-      current.map((container, index) => {
-        const withoutStudent = container.studentIds.filter((id) => id !== studentId);
-        if (index === containerIndex) {
-          return { ...container, studentIds: [...withoutStudent, studentId] };
-        }
-        return { ...container, studentIds: withoutStudent };
-      })
-    );
+  function beginDrag(entity: GroupingDragEntity) {
+    setActiveDragEntity(entity);
+    setDragOverZone(null);
   }
 
-  function insertStudentBeforeTarget(
-    containerIndex: number,
-    targetStudentId: number,
-    draggedStudentId: number
-  ) {
+  function endDrag() {
+    setActiveDragEntity(null);
+  }
+
+  function insertItemAt(containerIndex: number, item: GroupingContainerItem, insertAt: number) {
     setContainers((current) =>
       current.map((container, index) => {
-        let ids = container.studentIds.filter((id) => id !== draggedStudentId);
+        const fromIndex = container.items.findIndex(
+          (row) => row.entity === item.entity && row.id === item.id
+        );
+        const items = container.items.filter(
+          (row) => !(row.entity === item.entity && row.id === item.id)
+        );
+
         if (index !== containerIndex) {
-          return { ...container, studentIds: ids };
+          return { ...container, items };
         }
 
-        const targetIndex = ids.indexOf(targetStudentId);
-        const insertAt = targetIndex >= 0 ? targetIndex : ids.length;
-        ids.splice(insertAt, 0, draggedStudentId);
-        return { ...container, studentIds: ids };
+        let adjustedInsert = insertAt;
+        if (fromIndex >= 0 && fromIndex < insertAt) {
+          adjustedInsert -= 1;
+        }
+
+        const clamped = Math.min(Math.max(adjustedInsert, 0), items.length);
+        items.splice(clamped, 0, item);
+        return { ...container, items };
       })
     );
   }
@@ -176,7 +222,20 @@ export default function GroupingEditor({
     setContainers((current) =>
       current.map((container) => ({
         ...container,
-        studentIds: container.studentIds.filter((id) => id !== studentId),
+        items: container.items.filter(
+          (item) => !(item.entity === "student" && item.id === studentId)
+        ),
+      }))
+    );
+  }
+
+  function moveStaffToUnassigned(staffId: number) {
+    setContainers((current) =>
+      current.map((container) => ({
+        ...container,
+        items: container.items.filter(
+          (item) => !(item.entity === "staff" && item.id === staffId)
+        ),
       }))
     );
   }
@@ -186,7 +245,7 @@ export default function GroupingEditor({
   }
 
   function addContainer() {
-    setContainers((current) => [...current, { title: "", studentIds: [] }]);
+    setContainers((current) => [...current, { title: "", items: [] }]);
   }
 
   function updateContainerTitle(index: number, title: string) {
@@ -282,8 +341,8 @@ export default function GroupingEditor({
                 event.preventDefault();
                 setDragOverZone(null);
                 const meta = readGroupingDragData(event);
-                if (meta) {
-                  moveStudentToUnassigned(meta.studentId);
+                if (meta?.entity === "student") {
+                  moveStudentToUnassigned(meta.id);
                 }
               }}
             >
@@ -298,8 +357,69 @@ export default function GroupingEditor({
                   <StudentDragCard
                     key={student.id}
                     student={student}
-                    dragMeta={{ studentId: student.id, source: "unassigned" }}
-                    onDragStart={handleDragStart}
+                    dragMeta={{ entity: "student", id: student.id, source: "unassigned" }}
+                    onDragStart={() => beginDrag("student")}
+                    onDragEnd={endDrag}
+                  />
+                ))
+              )}
+            </div>
+          </div>
+
+          <div className="card">
+            <h2 className="text-sm font-semibold mb-3">Staff</h2>
+            <input
+              type="search"
+              className="input mb-3"
+              placeholder="Search by name"
+              value={staffSearch}
+              onChange={(event) => setStaffSearch(event.target.value)}
+              aria-label="Search staff by name"
+            />
+            <div
+              className={`space-y-2 max-h-[32rem] overflow-y-auto pr-1 min-h-[8rem] rounded-lg border border-dashed p-2 transition-colors ${
+                dragOverZone === "unassigned-staff"
+                  ? "border-accent/50 bg-accent/5"
+                  : "border-transparent"
+              }`}
+              onDragOver={(event) => {
+                event.preventDefault();
+                event.dataTransfer.dropEffect = "move";
+              }}
+              onDragEnter={(event) => {
+                event.preventDefault();
+                setDragOverZone("unassigned-staff");
+              }}
+              onDragLeave={(event) => {
+                if (isDragLeave(event.currentTarget, event.relatedTarget)) {
+                  setDragOverZone((zone) => (zone === "unassigned-staff" ? null : zone));
+                }
+              }}
+              onDrop={(event) => {
+                event.preventDefault();
+                setDragOverZone(null);
+                const meta = readGroupingDragData(event);
+                if (meta?.entity === "staff") {
+                  moveStaffToUnassigned(meta.id);
+                }
+              }}
+            >
+              {searchedUnassignedStaff.length === 0 ? (
+                <p className="text-xs text-black/40 dark:text-white/40 text-center py-4">
+                  {unassignedStaff.length === 0
+                    ? staff.length === 0
+                      ? "No staff yet"
+                      : "No unassigned staff"
+                    : "No staff match your search"}
+                </p>
+              ) : (
+                searchedUnassignedStaff.map((member) => (
+                  <StaffDragCard
+                    key={member.id}
+                    staff={member}
+                    dragMeta={{ entity: "staff", id: member.id, source: "unassigned" }}
+                    onDragStart={() => beginDrag("staff")}
+                    onDragEnd={endDrag}
                   />
                 ))
               )}
@@ -310,23 +430,22 @@ export default function GroupingEditor({
         </div>
 
         <div className="flex-1 min-w-0">
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 items-start">
             {containers.map((container, index) => (
               <ContainerCard
                 key={index}
                 container={container}
                 containerIndex={index}
                 studentsById={studentsById}
-                visibleStudentIds={visibleStudentIds}
+                staffById={staffById}
+                activeDragEntity={activeDragEntity}
                 onTitleChange={updateContainerTitle}
-                onDropStudent={(containerIndex, studentId) => {
+                onInsertItemAt={(containerIndex, item, insertAt) => {
                   setDragOverZone(null);
-                  moveStudentToContainer(containerIndex, studentId);
+                  insertItemAt(containerIndex, item, insertAt);
                 }}
-                onDropOnStudent={(containerIndex, targetStudentId, draggedStudentId) => {
-                  setDragOverZone(null);
-                  insertStudentBeforeTarget(containerIndex, targetStudentId, draggedStudentId);
-                }}
+                onDragEntityStart={beginDrag}
+                onDragEntityEnd={endDrag}
                 onDragStart={handleDragStart}
                 isDragOver={dragOverZone === `container-${index}`}
                 onDragEnter={() => setDragOverZone(`container-${index}`)}
@@ -337,7 +456,7 @@ export default function GroupingEditor({
             ))}
             <button
               type="button"
-              className="card min-h-[10rem] flex items-center justify-center text-2xl text-black/40 dark:text-white/40 hover:text-accent hover:border-accent/30 transition-colors"
+              className="card min-h-[10rem] flex items-center justify-center text-2xl text-black/40 dark:text-white/40 hover:text-accent hover:border-accent/30 transition-colors self-start w-full"
               onClick={addContainer}
               aria-label="Add container"
             >

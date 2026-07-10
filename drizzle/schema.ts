@@ -245,9 +245,14 @@ export const views = sqliteTable("views", {
 export type View = typeof views.$inferSelect;
 export type NewView = typeof views.$inferInsert;
 
+export type GroupingContainerItem = {
+  entity: "student" | "staff";
+  id: number;
+};
+
 export type GroupingContainerData = {
   title: string;
-  studentIds: number[];
+  items: GroupingContainerItem[];
 };
 
 export const groupings = sqliteTable("groupings", {

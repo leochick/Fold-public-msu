@@ -1,53 +1,45 @@
 "use client";
 
 import Link from "next/link";
-import {
-  getPrimaryStatusBackground,
-  GROUPING_STATUS_LABELS,
-  type GroupingStudentStatus,
-} from "@/lib/grouping-status";
 import { readGroupingDragData, setGroupingDragData, type GroupingDragMeta } from "@/lib/grouping-drag";
 
-export type StudentCardData = {
+export type StaffCardData = {
   id: number;
   firstName: string;
   lastName: string | null;
   gender: "M" | "F" | null;
-  statuses: GroupingStudentStatus[];
 };
 
-export default function StudentDragCard({
-  student,
+export default function StaffDragCard({
+  staff,
   dragMeta,
   onDragStart,
   onDragEnd,
   onDropOnCard,
   onDragEnterCard,
 }: {
-  student: StudentCardData;
+  staff: StaffCardData;
   dragMeta: GroupingDragMeta;
-  onDragStart: (studentId: number) => void;
+  onDragStart: (staffId: number) => void;
   onDragEnd?: () => void;
   onDropOnCard?: (event: React.DragEvent<HTMLDivElement>) => void;
   /** Called with true when pointer is in the top half (insert before), false for bottom half (insert after). */
   onDragEnterCard?: (insertBefore: boolean) => void;
 }) {
   const nameClass =
-    student.gender === "M"
+    staff.gender === "M"
       ? "text-blue-700 dark:text-blue-300"
-      : student.gender === "F"
+      : staff.gender === "F"
         ? "text-red-700 dark:text-red-300"
         : "text-black dark:text-white";
-
-  const backgroundClass = getPrimaryStatusBackground(student.statuses);
-  const fullName = `${student.firstName} ${student.lastName ?? ""}`.trim();
+  const fullName = `${staff.firstName} ${staff.lastName ?? ""}`.trim();
 
   return (
     <div
       draggable
       onDragStart={(event) => {
         setGroupingDragData(event, dragMeta);
-        onDragStart(student.id);
+        onDragStart(staff.id);
       }}
       onDragEnd={() => onDragEnd?.()}
       onDragEnter={(event) => {
@@ -66,28 +58,21 @@ export default function StudentDragCard({
       onDrop={(event) => {
         if (!onDropOnCard) return;
         const meta = readGroupingDragData(event);
-        if (!meta || meta.entity !== "student" || meta.id === student.id) return;
+        if (!meta || meta.entity !== "staff" || meta.id === staff.id) return;
         event.preventDefault();
         event.stopPropagation();
         onDropOnCard(event);
       }}
-      className={`rounded-lg border p-2 cursor-grab active:cursor-grabbing shadow-sm ${backgroundClass}`}
+      className="rounded-lg border p-2 cursor-grab active:cursor-grabbing shadow-sm bg-black/[0.03] dark:bg-white/[0.04]"
     >
       <Link
-        href={`/students/${student.id}`}
+        href={`/staff/${staff.id}`}
         draggable={false}
         onDragStart={(event) => event.preventDefault()}
         className={`text-sm font-medium hover:underline ${nameClass}`}
       >
         {fullName}
       </Link>
-      <div className="mt-1 space-y-0.5">
-        {student.statuses.map((status) => (
-          <p key={status} className="text-xs italic text-black/60 dark:text-white/60">
-            {GROUPING_STATUS_LABELS[status]}
-          </p>
-        ))}
-      </div>
     </div>
   );
 }

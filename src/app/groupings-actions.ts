@@ -5,17 +5,16 @@ import { eq, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { groupings, views, type GroupingContainerData } from "../../drizzle/schema";
 import { requireUser } from "@/lib/auth";
-import { emptyGroupingContainers } from "@/server/groupings";
+import { emptyGroupingContainers, normalizeGroupingContainers } from "@/lib/grouping-containers";
 
 function assertContainers(containers: GroupingContainerData[]): GroupingContainerData[] {
-  if (!containers.length) {
+  const normalized = normalizeGroupingContainers(containers);
+  if (!normalized.length) {
     return emptyGroupingContainers();
   }
-  return containers.map((container) => ({
-    title: (container.title ?? "").trim(),
-    studentIds: Array.isArray(container.studentIds)
-      ? [...new Set(container.studentIds.filter((id) => Number.isFinite(id)))]
-      : [],
+  return normalized.map((container) => ({
+    title: container.title.trim(),
+    items: container.items,
   }));
 }
 

@@ -1,6 +1,7 @@
 import { listDashboardViews } from "@/server/dashboard-views";
 import {
   getEventsForView,
+  getAllStaff,
   getFirstGrouping,
   getGroupingById,
   getStudentsForView,
@@ -26,12 +27,13 @@ export default async function GroupingsPage({
       ? await getGroupingById(groupingId)
       : await getFirstGrouping();
 
-  const [events, students] = activeGrouping
+  const [events, students, staffMembers] = activeGrouping
     ? await Promise.all([
         getEventsForView(activeGrouping.viewId),
         getStudentsForView(activeGrouping.viewId),
+        getAllStaff(),
       ])
-    : [[], []];
+    : [[], [], []];
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
@@ -54,6 +56,7 @@ export default async function GroupingsPage({
               grouping={activeGrouping}
               events={events}
               students={students}
+              staff={staffMembers}
             />
           ) : (
             <div className="card">

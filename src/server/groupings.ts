@@ -3,6 +3,7 @@ import {
   attendances,
   events,
   groupings,
+  staff,
   students,
   views,
   type GroupingContainerData,
@@ -11,6 +12,7 @@ import { and, asc, eq, gte, inArray, lte, sql } from "drizzle-orm";
 import { formatDashboardDate } from "@/lib/dashboard-date-range";
 import { formatGroupingEventSelection } from "@/lib/grouping-events";
 import { getStudentStatuses, type GroupingStudentStatus } from "@/lib/grouping-status";
+import { normalizeGroupingContainers, emptyGroupingContainers } from "@/lib/grouping-containers";
 
 export type GroupingListItem = {
   id: number;
@@ -40,6 +42,13 @@ export type GroupingEventItem = {
   startDate: Date;
 };
 
+export type GroupingStaffItem = {
+  id: number;
+  firstName: string;
+  lastName: string | null;
+  gender: "M" | "F" | null;
+};
+
 export type GroupingStudentItem = {
   id: number;
   firstName: string;
@@ -67,15 +76,7 @@ export type GroupingDetail = {
   containers: GroupingContainerData[];
 };
 
-function normalizeContainers(containers: GroupingContainerData[] | null | undefined): GroupingContainerData[] {
-  if (!containers?.length) {
-    return [{ title: "", studentIds: [] }];
-  }
-  return containers.map((container) => ({
-    title: container.title ?? "",
-    studentIds: Array.isArray(container.studentIds) ? container.studentIds : [],
-  }));
-}
+export { emptyGroupingContainers } from "@/lib/grouping-containers";
 
 export async function listGroupings(): Promise<GroupingListItem[]> {
   const rows = await db
@@ -152,7 +153,7 @@ export async function getGroupingById(id: number): Promise<GroupingDetail | null
       row.grouping.createdAt,
       row.grouping.updatedAt
     ),
-    containers: normalizeContainers(row.grouping.containers),
+    containers: normalizeGroupingContainers(row.grouping.containers),
   };
 }
 
@@ -268,6 +269,16 @@ export async function getStudentsForView(viewId: number): Promise<GroupingStuden
     });
 }
 
-export function emptyGroupingContainers(): GroupingContainerData[] {
-  return [{ title: "", studentIds: [] }];
+export async function getAllStaff(): Promise<GroupingStaffItem[]> {
+  const rows = await db
+    .select({
+      id: staff.id,
+      firstName: staff.firstName,
+      lastName: staff.lastName,
+      gender: staff.gender,
+    })
+    .from(staff)
+    .orderBy(staff.firstName);
+
+  return rows;
 }
