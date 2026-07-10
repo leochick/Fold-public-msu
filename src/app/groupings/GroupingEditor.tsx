@@ -438,6 +438,7 @@ export default function GroupingEditor({
                 containerIndex={index}
                 studentsById={studentsById}
                 staffById={staffById}
+                visibleStudentIds={visibleStudentIds}
                 activeDragEntity={activeDragEntity}
                 onTitleChange={updateContainerTitle}
                 onInsertItemAt={(containerIndex, item, insertAt) => {

@@ -18,6 +18,7 @@ export default function ContainerCard({
   containerIndex,
   studentsById,
   staffById,
+  visibleStudentIds,
   activeDragEntity,
   onTitleChange,
   onInsertItemAt,
@@ -32,6 +33,7 @@ export default function ContainerCard({
   containerIndex: number;
   studentsById: Map<number, StudentCardData>;
   staffById: Map<number, StaffCardData>;
+  visibleStudentIds: Set<number>;
   activeDragEntity: GroupingDragEntity | null;
   onTitleChange: (index: number, title: string) => void;
   onInsertItemAt: (containerIndex: number, item: GroupingContainerItem, insertAt: number) => void;
@@ -46,6 +48,12 @@ export default function ContainerCard({
   const insertAtIndexRef = useRef<number | null>(null);
 
   const { students: studentCount, staff: staffCount } = countContainerItems(container.items);
+
+  function isItemVisible(item: GroupingContainerItem) {
+    return item.entity === "staff" || visibleStudentIds.has(item.id);
+  }
+
+  const hasVisibleItems = container.items.some(isItemVisible);
   const isEmpty = container.items.length === 0;
 
   function setInsertion(index: number) {
@@ -166,19 +174,22 @@ export default function ContainerCard({
         }}
         onDropCapture={handleContainerDrop}
       >
-        {isEmpty && (
+        {!hasVisibleItems && (
           <p className="text-xs text-black/40 dark:text-white/40 text-center py-4 pointer-events-none">
             Drop students or staff here
           </p>
         )}
 
         {renderGap(0)}
-        {container.items.map((item, index) => (
-          <Fragment key={`${item.entity}-${item.id}`}>
-            {renderItem(item, index)}
-            {renderGap(index + 1)}
-          </Fragment>
-        ))}
+        {container.items.map((item, index) => {
+          if (!isItemVisible(item)) return null;
+          return (
+            <Fragment key={`${item.entity}-${item.id}`}>
+              {renderItem(item, index)}
+              {renderGap(index + 1)}
+            </Fragment>
+          );
+        })}
       </div>
       <p className="mt-2 text-xs text-black/50 dark:text-white/50 text-center">
         {studentCount} {studentCount === 1 ? "student" : "students"}
