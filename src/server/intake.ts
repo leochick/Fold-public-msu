@@ -114,22 +114,8 @@ export async function parseIntake(text: string): Promise<IntakePreview> {
   };
 }
 
-function bumpStage(current: FunnelStage, attempted: boolean, responded: boolean): FunnelStage {
-  const order: FunnelStage[] = [
-    "new",
-    "reaching_out",
-    "connected",
-    "met",
-    "active",
-    "engaged",
-  ];
-  let target: FunnelStage = current;
-  if (attempted) target = "reaching_out";
-  if (responded) target = "connected";
-  const currentIdx = current === "inactive" ? 1 : order.indexOf(current);
-  const targetIdx = order.indexOf(target);
-  if (targetIdx > currentIdx) return target;
-  return current === "inactive" && (attempted || responded) ? target : current;
+function reactivateIfInactive(current: FunnelStage): FunnelStage {
+  return current === "inactive" ? "active" : current;
 }
 
 export async function commitIntake(userId: string, contacts: ParsedContact[]) {
@@ -156,7 +142,7 @@ export async function commitIntake(userId: string, contacts: ParsedContact[]) {
           addedByUserId: userId,
           firstMetContext: c.firstMetContext ?? null,
           firstMetAt: new Date(),
-          funnelStage: "new",
+          funnelStage: "active",
         })
         .returning();
       sid = row.id;
@@ -181,7 +167,7 @@ export async function commitIntake(userId: string, contacts: ParsedContact[]) {
 
       const [s] = await db.select().from(students).where(eq(students.id, sid)).limit(1);
       if (s) {
-        const next = bumpStage(s.funnelStage as FunnelStage, attempted, responded);
+        const next = reactivateIfInactive(s.funnelStage as FunnelStage);
         if (next !== s.funnelStage) {
           const before = pickStudentFields(s as Record<string, unknown>);
           await db

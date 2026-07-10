@@ -41,7 +41,7 @@ export const PARSE_STUDENTS_BATCH_TOOL: Anthropic.Tool = {
             contactedViaIg: { type: "boolean", description: "Whether the student has been contacted via Instagram." },
             funnelStage: {
               type: "string",
-              enum: ["new", "reaching_out", "connected", "met", "active", "engaged", "inactive"],
+              enum: ["active", "engaged", "inactive"],
               description: "Welcome funnel stage if mentioned.",
             },
             primaryContact: { type: "string", description: "Primary contact person or method." },

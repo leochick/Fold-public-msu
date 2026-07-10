@@ -41,15 +41,7 @@ export type MergePreviewResult = {
   values: Record<string, string | boolean | string[] | null>;
 };
 
-const FUNNEL_ORDER = [
-  "new",
-  "reaching_out",
-  "connected",
-  "met",
-  "active",
-  "engaged",
-  "inactive",
-] as const;
+const FUNNEL_ORDER = ["active", "engaged", "inactive"] as const;
 
 function normText(value: string | null | undefined): string {
   return (value ?? "").trim();

@@ -75,6 +75,12 @@ describe("students bodies", () => {
   });
   test("funnelStageBody requires valid stage", () => {
     expect(funnelStageBody.safeParse({ stage: "engaged" }).success).toBe(true);
+    expect(funnelStageBody.safeParse({ stage: "active" }).success).toBe(true);
+    expect(funnelStageBody.safeParse({ stage: "inactive" }).success).toBe(true);
+    expect(funnelStageBody.safeParse({ stage: "new" }).success).toBe(false);
+    expect(funnelStageBody.safeParse({ stage: "reaching_out" }).success).toBe(false);
+    expect(funnelStageBody.safeParse({ stage: "connected" }).success).toBe(false);
+    expect(funnelStageBody.safeParse({ stage: "met" }).success).toBe(false);
     expect(funnelStageBody.safeParse({ stage: "made_up" }).success).toBe(false);
   });
 });

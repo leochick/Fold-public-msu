@@ -201,25 +201,6 @@ async function ensureTextUserIds(db: Client) {
   await db.execute("PRAGMA foreign_keys=ON");
 }
 
-async function ensureFunnelSweepLog(db: Client) {
-  console.log("\n0016 funnel_sweep_log repair:");
-  if (await tableExists(db, "funnel_sweep_log")) {
-    console.log("  skip: funnel_sweep_log already exists");
-    return;
-  }
-
-  await db.execute(`CREATE TABLE funnel_sweep_log (
-    id integer PRIMARY KEY AUTOINCREMENT NOT NULL,
-    run_at integer DEFAULT (unixepoch()) NOT NULL,
-    threshold_days integer NOT NULL,
-    evaluated integer NOT NULL,
-    flipped_count integer NOT NULL,
-    flipped text,
-    triggered_by text DEFAULT 'manual' NOT NULL
-  )`);
-  console.log("  create: funnel_sweep_log");
-}
-
 async function ensureStudentsAddedByText(db: Client) {
   console.log("\n0017 students.added_by_user_id text:");
   const type = await columnType(db, "students", "added_by_user_id");
@@ -251,7 +232,7 @@ async function ensureStudentsAddedByText(db: Client) {
     added_by_user_id text,
     first_met_context text,
     first_met_at integer,
-    funnel_stage text DEFAULT 'new' NOT NULL,
+    funnel_stage text DEFAULT 'active' NOT NULL,
     invited_by_student_id integer,
     created_at integer DEFAULT (unixepoch()) NOT NULL,
     updated_at integer DEFAULT (unixepoch()) NOT NULL,
@@ -280,7 +261,6 @@ async function main() {
   console.log("Backfilling production schema + migration journal...\n");
 
   await ensureTextUserIds(client);
-  await ensureFunnelSweepLog(client);
   await ensureStudentsAddedByText(client);
 
   console.log("\nRecording migration journal entries:");

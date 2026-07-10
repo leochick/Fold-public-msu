@@ -8,9 +8,8 @@ Fold helps campus ministries and student groups track who shows up, who invites 
 
 - **Dashboard** -- 30-day snapshot at a glance: events hosted, total check-ins, unique attendees, and new students. Interactive charts show attendance trends, engagement funnels, and demographic breakdowns.
 - **Events** -- create events, mark attendance with a quick-add form, and view per-event breakdowns (first-timers vs returners, invite chains, gender split).
-- **Students** -- searchable roster with health metrics per person: attendance frequency, who invited them, who they've brought, and how many contact attempts have been made. A "Gone Cold" tab surfaces students who haven't shown up in 30+ days.
+- **Students** -- searchable roster with health metrics per person: attendance frequency, who invited them, who they've brought, and how many contact attempts have been made.
 - **Smart Intake** -- paste unstructured text (names, phone numbers, Instagram handles, however you collected it) and AI extracts structured student records. Duplicate detection built in.
-- **Engagement Funnel** -- track students across stages from "new" to "engaged." Filter by stale responses, missing contact attempts, or inactive status. Automated sweep moves students between stages based on activity.
 - **Ride Coordination** -- create carpool sessions per event (there, back, Sunday morning), assign drivers and riders, and manage seat constraints.
 - **Natural Language Queries** -- ask questions like "who came to the last 3 events but not this week" or "all freshmen who were invited by someone" and get results back as a table.
 

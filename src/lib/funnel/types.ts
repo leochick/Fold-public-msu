@@ -4,14 +4,7 @@ import type { DedupCandidate } from "./dedup";
 
 export type Channel = "ig_dm" | "text" | "phone" | "email" | "in_person" | "other";
 
-export type FunnelStage =
-  | "new"
-  | "reaching_out"
-  | "connected"
-  | "met"
-  | "active"
-  | "engaged"
-  | "inactive";
+export type FunnelStage = "active" | "engaged" | "inactive";
 
 export interface ParsedContact {
   // From Claude:

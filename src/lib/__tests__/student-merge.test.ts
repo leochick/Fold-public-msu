@@ -43,7 +43,7 @@ describe("buildMergePreview", () => {
     goals: null,
     notes: null,
     courseMaterial: ["ERT"],
-    funnelStage: "connected" as const,
+    funnelStage: "engaged" as const,
   };
 
   it("combines blank fields and flags additively", () => {
@@ -54,7 +54,7 @@ describe("buildMergePreview", () => {
     expect(preview.values.groupme).toBe(true);
     expect(preview.values.year).toBe("sophomore");
     expect(preview.values.courseMaterial).toEqual(["Course 101", "ERT"]);
-    expect(preview.values.funnelStage).toBe("active");
+    expect(preview.values.funnelStage).toBe("engaged");
   });
 
   it("marks editable conflicts and applies overrides", () => {

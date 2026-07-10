@@ -21,7 +21,6 @@ export default function HelpPage() {
           <li><a href="#events" className="hover:underline">Events & attendance</a></li>
           <li><a href="#students" className="hover:underline">Students</a></li>
           <li><a href="#intake" className="hover:underline">Smart Intake</a></li>
-          <li><a href="#funnel" className="hover:underline">Engagement Funnel</a></li>
           <li><a href="#insights" className="hover:underline">AI Insights</a></li>
           <li><a href="#modify" className="hover:underline">Modify (bulk edits)</a></li>
           <li><a href="#account" className="hover:underline">Your account</a></li>
@@ -40,8 +39,7 @@ export default function HelpPage() {
         </ul>
         <p>
           Almost every feature in Fold is a different way of slicing those three things: who&apos;s
-          gone cold, who&apos;s actually growing your group through invites, who should be in
-          which carpool.
+          growing your group through invites, who needs follow-up, who should be in which carpool.
         </p>
       </Section>
 
@@ -68,8 +66,8 @@ export default function HelpPage() {
       <Section id="dashboard" title="Dashboard">
         <p>
           The home page is a 30-day snapshot: how many events you hosted, total check-ins, unique
-          attendees, and brand-new students. The charts show attendance trends, the engagement
-          funnel by stage, and demographic breakdowns.
+          attendees, and brand-new students. The charts show attendance trends, engagement
+          depth, and demographic breakdowns.
         </p>
         <p className="text-xs text-black/60">
           If a chart looks empty, you usually just need more data — most aggregates need 3+
@@ -106,9 +104,8 @@ export default function HelpPage() {
           <li>How many contact attempts have been logged.</li>
         </ul>
         <p>
-          The <strong>Gone Cold</strong> tab surfaces students who haven&apos;t shown up in
-          30+ days. Click a student to see their profile, log a contact attempt, or draft an
-          outreach message.
+          Click a student to see their profile, log a contact attempt, set their engagement
+          stage (active / engaged / inactive), or draft an outreach message.
         </p>
       </Section>
 
@@ -124,20 +121,6 @@ export default function HelpPage() {
           <li>You can edit each row in the preview before clicking commit.</li>
           <li>Phrases like &quot;brought by Joe&quot; or &quot;Sarah&apos;s friend&quot; capture invite chains automatically.</li>
         </ul>
-      </Section>
-
-      <Section id="funnel" title="Engagement Funnel">
-        <p>
-          The <Link href="/funnel" className="underline">Funnel</Link> tracks students across
-          stages from <em>new</em> → <em>contacted</em> → <em>engaged</em>. An automated nightly
-          sweep moves students between stages based on activity (attendance, contact attempts,
-          time since last seen).
-        </p>
-        <p>
-          Use the filter chips to find students who are stuck — stale responses, missing contact
-          attempts, no recent activity. The funnel is the most useful page for &quot;who do I
-          need to text this week.&quot;
-        </p>
       </Section>
 
       <Section id="insights" title="AI Insights">
@@ -187,12 +170,6 @@ export default function HelpPage() {
 
       <section id="faq" className="space-y-3">
         <h2 className="text-lg font-semibold">FAQ</h2>
-
-        <Faq q="A student I just added isn't showing up in Gone Cold — why?">
-          Gone Cold only includes students with at least one attendance record that&apos;s
-          30+ days old. Brand-new students with no attendance yet are still in the regular
-          roster.
-        </Faq>
 
         <Faq q="The Insights panel says 'not enough events for insights'.">
           You need 3 or more events in the aggregate window. Add more events (or wait for them

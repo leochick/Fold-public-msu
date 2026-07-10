@@ -24,9 +24,8 @@ Fold is a Next.js 15 app with a Turso (hosted SQLite) database and Claude API in
 
 1. **Attendance tracking** — create events, mark who came, keep a roster of students with health metrics (last seen, who invited them, who they've invited).
 2. **Smart Intake** — paste messy text (group chat dumps, form exports, IG handles) and AI extracts structured student records with duplicate detection.
-3. **Engagement funnel** — automated stages from "new" to "engaged" with a Gone Cold view for students who haven't shown up in 30+ days.
-4. **Natural-language queries** — ask "who came the last three weeks but not this one" in plain English and get a table back.
-5. **Ride coordination** — carpool sessions per event with a solver that respects seat caps and an optional same-gender driver/passenger rule.
+3. **Natural-language queries** — ask "who came the last three weeks but not this one" in plain English and get a table back.
+4. **Ride coordination** — carpool sessions per event with a solver that respects seat caps and an optional same-gender driver/passenger rule.
 
 It also produces AI-generated insights about what drove attendance, and lets advisors draft outreach messages.
 

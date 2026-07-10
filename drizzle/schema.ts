@@ -106,10 +106,10 @@ export const students = sqliteTable("students", {
   firstMetContext: text("first_met_context"),
   firstMetAt: integer("first_met_at", { mode: "timestamp" }),
   funnelStage: text("funnel_stage", {
-    enum: ["new", "reaching_out", "connected", "met", "active", "engaged", "inactive"],
+    enum: ["active", "engaged", "inactive"],
   })
     .notNull()
-    .default("new"),
+    .default("active"),
   // --- /WELCOME FUNNEL ---
   // --- HEALTH METRICS ---
   invitedByStudentId: integer("invited_by_student_id").references((): AnySQLiteColumn => students.id, {
@@ -170,18 +170,6 @@ export const feedback = sqliteTable("feedback", {
 });
 
 // --- WELCOME FUNNEL ---
-export const funnelSweepLog = sqliteTable("funnel_sweep_log", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  runAt: integer("run_at", { mode: "timestamp" })
-    .notNull()
-    .default(sql`(unixepoch())`),
-  thresholdDays: integer("threshold_days").notNull(),
-  evaluated: integer("evaluated").notNull(),
-  flippedCount: integer("flipped_count").notNull(),
-  flipped: text("flipped", { mode: "json" }).$type<Array<{ studentId: number; from: string }>>(),
-  triggeredBy: text("triggered_by", { enum: ["manual", "scheduled"] }).notNull().default("manual"),
-});
-
 export const contactAttempts = sqliteTable("contact_attempts", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   studentId: integer("student_id")
@@ -225,7 +213,6 @@ export type User = typeof users.$inferSelect;
 export type ContactAttempt = typeof contactAttempts.$inferSelect;
 export type NewContactAttempt = typeof contactAttempts.$inferInsert;
 export type FunnelStage = NonNullable<Student["funnelStage"]>;
-export type FunnelSweepLog = typeof funnelSweepLog.$inferSelect;
 
 export const views = sqliteTable("views", {
   id: integer("id").primaryKey({ autoIncrement: true }),

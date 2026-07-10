@@ -134,6 +134,20 @@
       "when": 1780200000000,
       "tag": "0018_staff",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "6",
+      "when": 1780300000000,
+      "tag": "0019_simplify_funnel_stages",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "6",
+      "when": 1780400000000,
+      "tag": "0020_drop_funnel_sweep_log",
+      "breakpoints": true
     }
   ]
 }

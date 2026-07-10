@@ -11,7 +11,7 @@ import { loadRosterWithStatus, formatRosterCompactWithStatus } from "./roster";
 import { callClaudeOrThrow } from "./attendance";
 import { commitUpdatesBody, draftOutreachBody, contactLogBody } from "@/lib/contracts/students";
 import { funnelStageSchema } from "@/lib/contracts/shared";
-import type { Channel, FunnelStage } from "@/lib/funnel/types";
+import type { Channel } from "@/lib/funnel/types";
 import { pickStudentFields } from "@/lib/changelog";
 import {
   logStudentCreated,
@@ -218,29 +218,18 @@ export async function logContact(userId: string, body: z.infer<typeof contactLog
     notes: body.notes ?? null,
   });
 
-  const order: FunnelStage[] = [
-    "new",
-    "reaching_out",
-    "connected",
-    "met",
-    "active",
-    "engaged",
-  ];
-  const target: FunnelStage = responded ? "connected" : "reaching_out";
-  const currentIdx =
-    s.funnelStage === "inactive" ? 1 : order.indexOf(s.funnelStage as FunnelStage);
-  const targetIdx = order.indexOf(target);
-  if (targetIdx > currentIdx || s.funnelStage === "inactive") {
+  // Contact logging reactivates inactive students; otherwise stages are manual.
+  if (s.funnelStage === "inactive") {
     const before = pickStudentFields(s as Record<string, unknown>);
     await db
       .update(students)
-      .set({ funnelStage: target, updatedAt: new Date() })
+      .set({ funnelStage: "active", updatedAt: new Date() })
       .where(eq(students.id, body.studentId));
     await logStudentUpdated(
       userId,
       body.studentId,
       before,
-      pickStudentFields({ ...s, funnelStage: target })
+      pickStudentFields({ ...s, funnelStage: "active" })
     );
   }
   return { ok: true };

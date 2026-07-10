@@ -23,15 +23,12 @@ const CHANNEL_LABEL: Record<Channel, string> = {
   other: "Other",
 };
 
-const STAGES: FunnelStage[] = [
-  "new",
-  "reaching_out",
-  "connected",
-  "met",
-  "active",
-  "engaged",
-  "inactive",
-];
+const STAGES: FunnelStage[] = ["active", "engaged", "inactive"];
+const STAGE_LABEL: Record<FunnelStage, string> = {
+  active: "Active",
+  engaged: "Engaged",
+  inactive: "Inactive",
+};
 
 export default function ContactLog({
   studentId,
@@ -114,7 +111,7 @@ export default function ContactLog({
           >
             {STAGES.map((s) => (
               <option key={s} value={s}>
-                {s}
+                {STAGE_LABEL[s]}
               </option>
             ))}
           </select>

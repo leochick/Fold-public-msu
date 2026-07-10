@@ -32,7 +32,7 @@ function buildCreateValues(userId: string, incoming: CommitStudentRosterBatchBod
     newsletter: incoming.newsletter ?? false,
     groupme: incoming.groupme ?? false,
     contactedViaIg: incoming.contactedViaIg ?? false,
-    funnelStage: incoming.funnelStage ?? "new",
+    funnelStage: incoming.funnelStage ?? "active",
     primaryContact: incoming.primaryContact ?? null,
     goals: incoming.goals ?? null,
     courseMaterial: mergeCourseMaterial(null, incoming.courseMaterialAdd),
