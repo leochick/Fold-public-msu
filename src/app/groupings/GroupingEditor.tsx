@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { GroupingContainerData, GroupingContainerItem } from "../../../drizzle/schema";
 import { updateGroupingAction } from "../groupings-actions";
@@ -15,8 +15,11 @@ import {
   studentMatchesFilters,
   type GroupingStudentFilters,
 } from "@/lib/grouping-student-filters";
+import { formatGroupingEventSelection } from "@/lib/grouping-events";
 import { readGroupingDragData, type GroupingDragEntity } from "@/lib/grouping-drag";
+import type { GroupingExportMember, GroupingExportSnapshot } from "@/lib/grouping-export";
 import ContainerCard from "./ContainerCard";
+import { useGroupingExport } from "./GroupingExport";
 import StudentDragCard, { type StudentCardData } from "./StudentDragCard";
 import StaffDragCard, { type StaffCardData } from "./StaffDragCard";
 import StudentFiltersCard from "./StudentFiltersCard";
@@ -57,6 +60,7 @@ export default function GroupingEditor({
   staff: GroupingStaffItem[];
 }) {
   const router = useRouter();
+  const { setSnapshot } = useGroupingExport();
   const [checkedEventIds, setCheckedEventIds] = useState<number[] | null>(grouping.checkedEventIds);
   const [containers, setContainers] = useState<GroupingContainerData[]>(grouping.containers);
   const [studentFilters, setStudentFilters] = useState<GroupingStudentFilters>(
@@ -85,6 +89,14 @@ export default function GroupingEditor({
     return map;
   }, [students]);
 
+  const studentsFullById = useMemo(() => {
+    const map = new Map<number, GroupingStudentItem>();
+    for (const student of students) {
+      map.set(student.id, student);
+    }
+    return map;
+  }, [students]);
+
   const staffById = useMemo(() => {
     const map = new Map<number, StaffCardData>();
     for (const member of staff) {
@@ -97,6 +109,88 @@ export default function GroupingEditor({
     }
     return map;
   }, [staff]);
+
+  const eventNameById = useMemo(() => {
+    const map = new Map<number, string>();
+    for (const event of events) {
+      map.set(event.id, event.name);
+    }
+    return map;
+  }, [events]);
+
+  const exportSnapshot = useMemo((): GroupingExportSnapshot => {
+    const eventNames =
+      checkedEventIds === null
+        ? events.map((event) => event.name)
+        : checkedEventIds
+            .map((eventId) => eventNameById.get(eventId))
+            .filter((name): name is string => Boolean(name));
+
+    return {
+      groupingName: grouping.name,
+      viewName: grouping.viewName,
+      viewFrom: grouping.viewFrom,
+      viewTo: grouping.viewTo,
+      eventSelectionLabel: formatGroupingEventSelection(checkedEventIds, eventNameById),
+      eventNames,
+      groups: containers.map((container) => ({
+        title: container.title,
+        members: container.items.flatMap((item): GroupingExportMember[] => {
+          if (item.entity === "student") {
+            const student = studentsFullById.get(item.id);
+            if (!student) return [];
+            return [
+              {
+                entity: "student",
+                firstName: student.firstName,
+                lastName: student.lastName,
+                gender: student.gender,
+                year: student.year,
+                statuses: student.statuses,
+                courseMaterial: student.courseMaterial,
+                newsletter: student.newsletter,
+                groupme: student.groupme,
+                attendanceCountInRange: student.attendanceCountInRange,
+              },
+            ];
+          }
+
+          const member = staffById.get(item.id);
+          if (!member) return [];
+          return [
+            {
+              entity: "staff",
+              firstName: member.firstName,
+              lastName: member.lastName,
+              gender: member.gender,
+              year: null,
+              statuses: [],
+              courseMaterial: null,
+              newsletter: null,
+              groupme: null,
+              attendanceCountInRange: null,
+            },
+          ];
+        }),
+      })),
+    };
+  }, [
+    checkedEventIds,
+    containers,
+    eventNameById,
+    events,
+    grouping.name,
+    grouping.viewFrom,
+    grouping.viewName,
+    grouping.viewTo,
+    staffById,
+    studentsFullById,
+  ]);
+
+  useEffect(() => {
+    setSnapshot(exportSnapshot);
+    return () => setSnapshot(null);
+  }, [exportSnapshot, setSnapshot]);
 
   const assignedStudentIds = useMemo(() => {
     const ids = new Set<number>();
