@@ -1,11 +1,12 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { students, events, attendances } from "../../drizzle/schema";
-import { sql, eq, and, gte, lte, isNotNull, inArray, or, isNull } from "drizzle-orm";
+import { sql, eq, and, gte, lte, isNotNull, inArray, or, isNull, notInArray } from "drizzle-orm";
 import { dashboardDateRangeLabel, resolveDashboardDateRange } from "@/lib/dashboard-date-range";
 import {
   classifyEngagementInRange,
   isActiveOrEngagedInRange,
+  buildEngagementFunnelData,
   type RangeEngagementStage,
 } from "@/lib/dashboard-engagement";
 import { getDefaultDashboardView, listDashboardViews } from "@/server/dashboard-views";
@@ -37,7 +38,7 @@ export default async function DashboardPage({
   const [
     overTime,
     repeatRows,
-    coreMembers,
+    attendanceTypeRows,
     byYear,
     byGender,
     byType,
@@ -66,11 +67,13 @@ export default async function DashboardPage({
       .where(eventDateRange)
       .groupBy(attendances.studentId),
     db
-      .select({ c: sql<number>`count(distinct ${students.id})` })
-      .from(students)
-      .innerJoin(attendances, eq(attendances.studentId, students.id))
+      .select({
+        studentId: attendances.studentId,
+        eventType: events.type,
+      })
+      .from(attendances)
       .innerJoin(events, eq(attendances.eventId, events.id))
-      .where(and(eventDateRange, eq(students.memberStatus, "core"))),
+      .where(eventDateRange),
     db
       .select({ year: students.year, c: sql<number>`count(distinct ${students.id})`.as("c") })
       .from(students)
@@ -124,16 +127,52 @@ export default async function DashboardPage({
     eventId: r.eventId,
   }));
 
-  const repeatSet = new Set(repeatRows.filter((r) => Number(r.c) >= 2).map((r) => r.sid));
-  const activeSet = new Set(repeatRows.filter((r) => Number(r.c) >= 3).map((r) => r.sid));
-  const visitorCount = repeatRows.length;
+  const eventTypesByStudent = new Map<number, string[]>();
+  for (const row of attendanceTypeRows) {
+    const list = eventTypesByStudent.get(row.studentId) ?? [];
+    if (row.eventType) list.push(row.eventType);
+    eventTypesByStudent.set(row.studentId, list);
+  }
 
-  const funnelData = [
-    { stage: "All visitors", count: visitorCount },
-    { stage: "Repeat (2+)", count: repeatSet.size },
-    { stage: "Active (3+)", count: activeSet.size },
-    { stage: "Core members", count: Number(coreMembers[0]?.c ?? 0) },
-  ];
+  const attendanceInRangeIds = repeatRows.map((r) => r.sid);
+
+  const [newsletterOnlyRows, leaderCandidateRows] = await Promise.all([
+    db
+      .select({ id: students.id })
+      .from(students)
+      .where(
+        and(
+          eq(students.newsletter, true),
+          attendanceInRangeIds.length > 0
+            ? notInArray(students.id, attendanceInRangeIds)
+            : undefined
+        )
+      ),
+    attendanceInRangeIds.length > 0
+      ? db
+          .select({
+            id: students.id,
+            courseMaterial: students.courseMaterial,
+          })
+          .from(students)
+          .where(inArray(students.id, attendanceInRangeIds))
+      : Promise.resolve([] as { id: number; courseMaterial: string[] | null }[]),
+  ]);
+
+  const funnelData = buildEngagementFunnelData({
+    attendances: repeatRows.map((r) => ({
+      studentId: r.sid,
+      attendanceCount: Number(r.c),
+      eventTypes: eventTypesByStudent.get(r.sid) ?? [],
+    })),
+    newsletterOnlyStudentIds: newsletterOnlyRows.map((r) => r.id),
+    studentLeaderIds: leaderCandidateRows
+      .filter((row) => {
+        const materials = row.courseMaterial as string[] | null;
+        return Array.isArray(materials) && materials.includes("Student Leader");
+      })
+      .map((row) => row.id),
+  });
 
   const breakdowns = {
     year: byYear.map((r) => ({ name: r.year ?? "—", value: Number(r.c) })),
@@ -143,8 +182,6 @@ export default async function DashboardPage({
     })),
     eventType: byType.map((r) => ({ name: r.type ?? "—", value: Number(r.c) })),
   };
-
-  const attendanceInRangeIds = repeatRows.map((r) => r.sid);
 
   const studentsActiveOrEngaged = repeatRows.filter((r) => isActiveOrEngagedInRange(Number(r.c)));
   const engagementByStudent = new Map<number, RangeEngagementStage>(

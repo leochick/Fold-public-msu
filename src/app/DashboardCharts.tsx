@@ -72,10 +72,10 @@ export default function DashboardCharts({
         <p className="text-xs text-black/50 mb-2">{rangeLabel}</p>
         {funnel.every((f:any) => f.count === 0) ? <Empty /> : (
           <ResponsiveContainer width="100%" height={220}>
-            <BarChart data={funnel} layout="vertical" margin={{ left: 40 }}>
+            <BarChart data={funnel} layout="vertical" margin={{ left: 8 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.06)" />
               <XAxis type="number" fontSize={11} allowDecimals={false} />
-              <YAxis type="category" dataKey="stage" fontSize={11} width={120} />
+              <YAxis type="category" dataKey="stage" fontSize={11} width={190} />
               <Tooltip />
               <Bar dataKey="count" fill="#7c3aed" />
             </BarChart>
