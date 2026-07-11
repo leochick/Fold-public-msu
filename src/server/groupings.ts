@@ -8,7 +8,7 @@ import {
   views,
   type GroupingContainerData,
 } from "../../drizzle/schema";
-import { and, asc, eq, gte, inArray, lte, sql } from "drizzle-orm";
+import { and, asc, eq, gte, inArray, lte, notInArray, sql } from "drizzle-orm";
 import { formatDashboardDate } from "@/lib/dashboard-date-range";
 import { formatGroupingEventSelection } from "@/lib/grouping-events";
 import { getStudentStatuses, type GroupingStudentStatus } from "@/lib/grouping-status";
@@ -71,8 +71,9 @@ export type GroupingDetail = {
   viewName: string;
   viewFrom: string;
   viewTo: string;
-  /** null = all events in the view; [] = none; otherwise specific event ids */
+  /** null = all non-tabling events in the view; [] = none; otherwise specific event ids */
   checkedEventIds: number[] | null;
+  includeNewsletterContacts: boolean;
   containers: GroupingContainerData[];
 };
 
@@ -153,6 +154,7 @@ export async function getGroupingById(id: number): Promise<GroupingDetail | null
       row.grouping.createdAt,
       row.grouping.updatedAt
     ),
+    includeNewsletterContacts: row.grouping.includeNewsletterContacts,
     containers: normalizeGroupingContainers(row.grouping.containers),
   };
 }
@@ -206,22 +208,35 @@ export async function getStudentsForView(viewId: number): Promise<GroupingStuden
     .where(eventDateRange)
     .groupBy(attendances.studentId);
 
-  const studentIds = [...new Set(attendanceRows.map((row) => row.studentId))];
-  if (studentIds.length === 0) return [];
+  const attendanceStudentIds = [...new Set(attendanceRows.map((row) => row.studentId))];
 
-  const studentRows = await db
-    .select({
-      id: students.id,
-      firstName: students.firstName,
-      lastName: students.lastName,
-      gender: students.gender,
-      year: students.year,
-      courseMaterial: students.courseMaterial,
-      newsletter: students.newsletter,
-      groupme: students.groupme,
-    })
+  const studentSelect = {
+    id: students.id,
+    firstName: students.firstName,
+    lastName: students.lastName,
+    gender: students.gender,
+    year: students.year,
+    courseMaterial: students.courseMaterial,
+    newsletter: students.newsletter,
+    groupme: students.groupme,
+  };
+
+  const attendedStudentRows =
+    attendanceStudentIds.length > 0
+      ? await db.select(studentSelect).from(students).where(inArray(students.id, attendanceStudentIds))
+      : [];
+
+  const newsletterOnlyRows = await db
+    .select(studentSelect)
     .from(students)
-    .where(inArray(students.id, studentIds));
+    .where(
+      and(
+        eq(students.newsletter, true),
+        attendanceStudentIds.length > 0
+          ? notInArray(students.id, attendanceStudentIds)
+          : undefined
+      )
+    );
 
   const eventsByStudent = new Map<number, number[]>();
   const typesByStudent = new Map<number, Set<string>>();
@@ -237,36 +252,45 @@ export async function getStudentsForView(viewId: number): Promise<GroupingStuden
 
   const countByStudent = new Map(countRows.map((row) => [row.studentId, Number(row.count)]));
 
-  return studentRows
-    .map((student) => {
-      const attendedEventTypesInRange = [...(typesByStudent.get(student.id) ?? new Set<string>())];
-      const attendanceCountInRange = countByStudent.get(student.id) ?? 0;
-      const statuses = getStudentStatuses({
-        courseMaterial: student.courseMaterial,
-        attendanceCountInRange,
-        attendedEventTypesInRange,
-      });
-
-      return {
-        id: student.id,
-        firstName: student.firstName,
-        lastName: student.lastName,
-        gender: student.gender,
-        year: student.year,
-        courseMaterial: student.courseMaterial,
-        newsletter: student.newsletter,
-        groupme: student.groupme,
-        attendedEventIds: eventsByStudent.get(student.id) ?? [],
-        attendanceCountInRange,
-        attendedEventTypesInRange,
-        statuses,
-      };
-    })
-    .sort((a, b) => {
-      const aName = `${a.firstName} ${a.lastName ?? ""}`.trim();
-      const bName = `${b.firstName} ${b.lastName ?? ""}`.trim();
-      return aName.localeCompare(bName);
+  const mapStudent = (
+    student: (typeof attendedStudentRows)[number],
+    opts: { attended: boolean }
+  ): GroupingStudentItem => {
+    const attendedEventTypesInRange = opts.attended
+      ? [...(typesByStudent.get(student.id) ?? new Set<string>())]
+      : [];
+    const attendanceCountInRange = opts.attended ? (countByStudent.get(student.id) ?? 0) : 0;
+    const statuses = getStudentStatuses({
+      courseMaterial: student.courseMaterial,
+      attendanceCountInRange,
+      attendedEventTypesInRange,
+      newsletter: student.newsletter,
     });
+
+    return {
+      id: student.id,
+      firstName: student.firstName,
+      lastName: student.lastName,
+      gender: student.gender,
+      year: student.year,
+      courseMaterial: student.courseMaterial,
+      newsletter: student.newsletter,
+      groupme: student.groupme,
+      attendedEventIds: opts.attended ? (eventsByStudent.get(student.id) ?? []) : [],
+      attendanceCountInRange,
+      attendedEventTypesInRange,
+      statuses,
+    };
+  };
+
+  return [
+    ...attendedStudentRows.map((student) => mapStudent(student, { attended: true })),
+    ...newsletterOnlyRows.map((student) => mapStudent(student, { attended: false })),
+  ].sort((a, b) => {
+    const aName = `${a.firstName} ${a.lastName ?? ""}`.trim();
+    const bName = `${b.firstName} ${b.lastName ?? ""}`.trim();
+    return aName.localeCompare(bName);
+  });
 }
 
 export async function getAllStaff(): Promise<GroupingStaffItem[]> {

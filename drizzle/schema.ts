@@ -242,6 +242,9 @@ export const groupings = sqliteTable("groupings", {
     .notNull()
     .references(() => views.id, { onDelete: "cascade" }),
   checkedEventIds: text("checked_event_ids", { mode: "json" }).$type<number[]>(),
+  includeNewsletterContacts: integer("include_newsletter_contacts", { mode: "boolean" })
+    .notNull()
+    .default(false),
   containers: text("containers", { mode: "json" }).$type<GroupingContainerData[]>().notNull(),
   addedByUserId: text("added_by_user_id").references(() => users.id, { onDelete: "set null" }),
   createdAt: integer("created_at", { mode: "timestamp" })

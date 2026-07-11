@@ -1,6 +1,7 @@
 import {
   classifyEngagementInRange,
   ENGAGEMENT_STAGE_LABELS,
+  isTablingOnlyAttendance,
 } from "@/lib/dashboard-engagement";
 
 export type GroupingStudentStatus = "student_leader" | "engaged" | "active" | "outreach";
@@ -16,6 +17,7 @@ export function getStudentStatuses(params: {
   courseMaterial: string[] | null | undefined;
   attendanceCountInRange: number;
   attendedEventTypesInRange: string[];
+  newsletter?: boolean;
 }): GroupingStudentStatus[] {
   const statuses: GroupingStudentStatus[] = [];
 
@@ -30,10 +32,10 @@ export function getStudentStatuses(params: {
     statuses.push("active");
   }
 
-  const types = params.attendedEventTypesInRange.filter(Boolean);
-  const onlyOutreach =
-    types.length > 0 && types.every((type) => type.trim().toLowerCase() === "outreach");
-  if (onlyOutreach) {
+  const newsletterOnly =
+    params.attendanceCountInRange === 0 && Boolean(params.newsletter);
+  const tablingOnly = isTablingOnlyAttendance(params.attendedEventTypesInRange);
+  if (newsletterOnly || tablingOnly) {
     statuses.push("outreach");
   }
 

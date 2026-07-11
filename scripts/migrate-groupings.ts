@@ -22,14 +22,13 @@ async function tableExists(name: string) {
 async function main() {
   console.log("Applying groupings schema...\n");
 
-  if (await tableExists("groupings")) {
-    console.log("skip: groupings table already exists");
-  } else {
+  if (!(await tableExists("groupings"))) {
     await client.execute(`CREATE TABLE \`groupings\` (
       \`id\` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
       \`name\` text NOT NULL,
       \`view_id\` integer NOT NULL,
       \`checked_event_ids\` text,
+      \`include_newsletter_contacts\` integer DEFAULT false NOT NULL,
       \`containers\` text NOT NULL,
       \`added_by_user_id\` text,
       \`created_at\` integer DEFAULT (unixepoch()) NOT NULL,
@@ -38,6 +37,16 @@ async function main() {
       FOREIGN KEY (\`added_by_user_id\`) REFERENCES \`users\`(\`id\`) ON UPDATE no action ON DELETE set null
     )`);
     console.log("create: groupings");
+  } else {
+    console.log("skip: groupings table already exists");
+    const info = await client.execute("PRAGMA table_info(groupings)");
+    const hasNewsletter = info.rows.some((row) => row.name === "include_newsletter_contacts");
+    if (!hasNewsletter) {
+      await client.execute(
+        "ALTER TABLE `groupings` ADD `include_newsletter_contacts` integer DEFAULT false NOT NULL"
+      );
+      console.log("add: groupings.include_newsletter_contacts");
+    }
   }
 
   console.log("\n✓ Groupings schema is live.");

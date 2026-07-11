@@ -22,21 +22,42 @@ describe("getStudentStatuses", () => {
     expect(statuses).not.toContain("active");
   });
 
-  it("marks outreach when only outreach events were attended", () => {
+  it("marks outreach when only tabling events were attended", () => {
     const statuses = getStudentStatuses({
       courseMaterial: [],
       attendanceCountInRange: 1,
-      attendedEventTypesInRange: ["Outreach"],
+      attendedEventTypesInRange: ["Tabling"],
     });
     expect(statuses).toContain("outreach");
     expect(statuses).toContain("active");
   });
 
-  it("does not mark outreach when other event types were attended", () => {
+  it("marks outreach for newsletter-only students", () => {
+    const statuses = getStudentStatuses({
+      courseMaterial: [],
+      attendanceCountInRange: 0,
+      attendedEventTypesInRange: [],
+      newsletter: true,
+    });
+    expect(statuses).toContain("outreach");
+    expect(statuses).not.toContain("active");
+  });
+
+  it("does not mark outreach for the old Outreach event type alone", () => {
+    const statuses = getStudentStatuses({
+      courseMaterial: [],
+      attendanceCountInRange: 1,
+      attendedEventTypesInRange: ["Outreach"],
+    });
+    expect(statuses).not.toContain("outreach");
+    expect(statuses).toContain("active");
+  });
+
+  it("does not mark outreach when other event types were attended with tabling", () => {
     const statuses = getStudentStatuses({
       courseMaterial: [],
       attendanceCountInRange: 2,
-      attendedEventTypesInRange: ["Outreach", "Weekly"],
+      attendedEventTypesInRange: ["Tabling", "Weekly"],
     });
     expect(statuses).not.toContain("outreach");
   });

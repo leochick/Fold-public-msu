@@ -33,6 +33,7 @@ export async function createGroupingAction(viewId: number, name: string) {
       name: trimmed,
       viewId,
       checkedEventIds: null,
+      includeNewsletterContacts: false,
       containers: emptyGroupingContainers(),
       addedByUserId: user.id,
     })
@@ -45,7 +46,8 @@ export async function createGroupingAction(viewId: number, name: string) {
 export async function updateGroupingAction(
   id: number,
   checkedEventIds: number[] | null,
-  containers: GroupingContainerData[]
+  containers: GroupingContainerData[],
+  includeNewsletterContacts = false
 ) {
   await requireUser();
   if (!Number.isFinite(id)) throw new Error("Invalid grouping");
@@ -60,6 +62,7 @@ export async function updateGroupingAction(
     .update(groupings)
     .set({
       checkedEventIds: normalizedEventIds,
+      includeNewsletterContacts: Boolean(includeNewsletterContacts),
       containers: normalizedContainers,
       updatedAt: sql`(unixepoch())`,
     })

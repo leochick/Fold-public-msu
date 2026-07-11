@@ -24,7 +24,7 @@ export const ENGAGEMENT_FUNNEL_LABELS: Record<EngagementFunnelStage, string> = {
   student_leader: "Student Leaders",
 };
 
-const TABLING_TYPE = "tabling";
+export const TABLING_EVENT_TYPE = "tabling";
 
 export function classifyEngagementInRange(
   attendanceCount: number
@@ -38,12 +38,16 @@ export function isActiveOrEngagedInRange(attendanceCount: number): boolean {
   return classifyEngagementInRange(attendanceCount) !== null;
 }
 
+export function isTablingEventType(type: string | null | undefined): boolean {
+  return (type ?? "").trim().toLowerCase() === TABLING_EVENT_TYPE;
+}
+
 /** True when the student attended at least one event and every event type is Tabling. */
 export function isTablingOnlyAttendance(
   eventTypes: Array<string | null | undefined>
 ): boolean {
   const types = eventTypes.map((type) => (type ?? "").trim()).filter(Boolean);
-  return types.length > 0 && types.every((type) => type.toLowerCase() === TABLING_TYPE);
+  return types.length > 0 && types.every((type) => isTablingEventType(type));
 }
 
 export type StudentAttendanceInRange = {

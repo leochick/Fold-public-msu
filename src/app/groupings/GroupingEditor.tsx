@@ -15,7 +15,17 @@ import {
   studentMatchesFilters,
   type GroupingStudentFilters,
 } from "@/lib/grouping-student-filters";
-import { formatGroupingEventSelection } from "@/lib/grouping-events";
+import {
+  areAllNonTablingEventsChecked,
+  areAllTablingEventsChecked,
+  formatGroupingEventSelection,
+  isGroupingEventChecked,
+  resolveCheckedEventIdSet,
+  studentMatchesGroupingEvents,
+  toggleAllNonTablingEvents,
+  toggleAllTablingEvents,
+  toggleGroupingEvent,
+} from "@/lib/grouping-events";
 import { readGroupingDragData, type GroupingDragEntity } from "@/lib/grouping-drag";
 import type { GroupingExportMember, GroupingExportSnapshot } from "@/lib/grouping-export";
 import ContainerCard from "./ContainerCard";
@@ -23,15 +33,6 @@ import { useGroupingExport } from "./GroupingExport";
 import StudentDragCard, { type StudentCardData } from "./StudentDragCard";
 import StaffDragCard, { type StaffCardData } from "./StaffDragCard";
 import StudentFiltersCard from "./StudentFiltersCard";
-
-function studentMatchesEvents(
-  student: GroupingStudentItem,
-  checkedEventIds: number[] | null
-): boolean {
-  if (checkedEventIds === null) return student.attendedEventIds.length > 0;
-  if (checkedEventIds.length === 0) return false;
-  return checkedEventIds.some((eventId) => student.attendedEventIds.includes(eventId));
-}
 
 function isDragLeave(currentTarget: EventTarget & Element, relatedTarget: EventTarget | null) {
   if (!relatedTarget || !(relatedTarget instanceof Node)) return true;
@@ -62,6 +63,9 @@ export default function GroupingEditor({
   const router = useRouter();
   const { setSnapshot } = useGroupingExport();
   const [checkedEventIds, setCheckedEventIds] = useState<number[] | null>(grouping.checkedEventIds);
+  const [includeNewsletterContacts, setIncludeNewsletterContacts] = useState(
+    grouping.includeNewsletterContacts
+  );
   const [containers, setContainers] = useState<GroupingContainerData[]>(grouping.containers);
   const [studentFilters, setStudentFilters] = useState<GroupingStudentFilters>(
     EMPTY_GROUPING_STUDENT_FILTERS
@@ -73,7 +77,8 @@ export default function GroupingEditor({
   const [saveError, setSaveError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
-  const allChecked = checkedEventIds === null;
+  const allNonTablingChecked = areAllNonTablingEventsChecked(checkedEventIds, events);
+  const allTablingChecked = areAllTablingEventsChecked(checkedEventIds, events);
 
   const studentsById = useMemo(() => {
     const map = new Map<number, StudentCardData>();
@@ -119,12 +124,13 @@ export default function GroupingEditor({
   }, [events]);
 
   const exportSnapshot = useMemo((): GroupingExportSnapshot => {
-    const eventNames =
-      checkedEventIds === null
-        ? events.map((event) => event.name)
-        : checkedEventIds
-            .map((eventId) => eventNameById.get(eventId))
-            .filter((name): name is string => Boolean(name));
+    const checkedIds = resolveCheckedEventIdSet(checkedEventIds, events);
+    const eventNames = [...checkedIds]
+      .map((eventId) => eventNameById.get(eventId))
+      .filter((name): name is string => Boolean(name));
+    if (includeNewsletterContacts) {
+      eventNames.push("Newsletter Contacts");
+    }
 
     return {
       groupingName: grouping.name,
@@ -183,6 +189,7 @@ export default function GroupingEditor({
     grouping.viewFrom,
     grouping.viewName,
     grouping.viewTo,
+    includeNewsletterContacts,
     staffById,
     studentsFullById,
   ]);
@@ -213,8 +220,17 @@ export default function GroupingEditor({
   }, [containers]);
 
   const eventMatchedStudents = useMemo(
-    () => students.filter((student) => studentMatchesEvents(student, checkedEventIds)),
-    [students, checkedEventIds]
+    () =>
+      students.filter((student) =>
+        studentMatchesGroupingEvents({
+          attendedEventIds: student.attendedEventIds,
+          newsletter: student.newsletter,
+          checkedEventIds,
+          includeNewsletterContacts,
+          events,
+        })
+      ),
+    [students, checkedEventIds, includeNewsletterContacts, events]
   );
 
   const filteredStudents = useMemo(
@@ -255,26 +271,20 @@ export default function GroupingEditor({
     [unassignedStaff, staffSearch]
   );
 
-  function toggleAll() {
-    setCheckedEventIds((current) => (current === null ? [] : null));
+  function toggleAllNonTabling() {
+    setCheckedEventIds((current) => toggleAllNonTablingEvents(current, events));
+  }
+
+  function toggleTablingContacts() {
+    setCheckedEventIds((current) => toggleAllTablingEvents(current, events));
   }
 
   function toggleEvent(eventId: number) {
-    setCheckedEventIds((current) => {
-      if (current === null) {
-        return events.map((event) => event.id).filter((id) => id !== eventId);
-      }
-      if (current.includes(eventId)) {
-        return current.filter((id) => id !== eventId);
-      }
-      const next = [...current, eventId];
-      if (next.length === events.length) return null;
-      return next;
-    });
+    setCheckedEventIds((current) => toggleGroupingEvent(eventId, current, events));
   }
 
   function isEventChecked(eventId: number) {
-    return allChecked || (checkedEventIds?.includes(eventId) ?? false);
+    return isGroupingEventChecked(eventId, checkedEventIds, events);
   }
 
   function beginDrag(entity: GroupingDragEntity) {
@@ -354,7 +364,12 @@ export default function GroupingEditor({
     setSaveError(null);
     startTransition(async () => {
       try {
-        await updateGroupingAction(grouping.id, checkedEventIds, containers);
+        await updateGroupingAction(
+          grouping.id,
+          checkedEventIds,
+          containers,
+          includeNewsletterContacts
+        );
         router.refresh();
       } catch (error) {
         setSaveError(error instanceof Error ? error.message : "Could not save grouping");
@@ -371,10 +386,28 @@ export default function GroupingEditor({
             <input
               type="checkbox"
               className="h-4 w-4"
-              checked={allChecked}
-              onChange={toggleAll}
+              checked={includeNewsletterContacts}
+              onChange={() => setIncludeNewsletterContacts((current) => !current)}
             />
-            <span>All</span>
+            <span>Newsletter Contacts</span>
+          </label>
+          <label className="flex items-center gap-2 text-sm cursor-pointer">
+            <input
+              type="checkbox"
+              className="h-4 w-4"
+              checked={allTablingChecked}
+              onChange={toggleTablingContacts}
+            />
+            <span>Tabling Contacts</span>
+          </label>
+          <label className="flex items-center gap-2 text-sm cursor-pointer">
+            <input
+              type="checkbox"
+              className="h-4 w-4"
+              checked={allNonTablingChecked}
+              onChange={toggleAllNonTabling}
+            />
+            <span>All Non-Tabling Events</span>
           </label>
           {events.map((event) => (
             <label key={event.id} className="flex items-center gap-2 text-sm cursor-pointer">

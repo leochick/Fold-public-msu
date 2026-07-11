@@ -1,0 +1,1 @@
+ALTER TABLE `groupings` ADD `include_newsletter_contacts` integer DEFAULT false NOT NULL;
