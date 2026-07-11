@@ -27,7 +27,7 @@ Fold is a Next.js 15 app with a Turso (hosted SQLite) database and Claude API in
 3. **Natural-language queries** — ask "who came the last three weeks but not this one" in plain English and get a table back.
 4. **Ride coordination** — carpool sessions per event with a solver that respects seat caps and an optional same-gender driver/passenger rule.
 
-It also produces AI-generated insights about what drove attendance, and lets advisors draft outreach messages.
+It also produces AI-generated insights about what drove attendance.
 
 There is more detail in the repo's README. Read it before you start guiding the user, or fetch it on demand.
 
@@ -152,7 +152,7 @@ You're done when:
 There is a `DEMO_MODE=1` env var that exists *only* for running the public demo site at fold-public.vercel.app. When it's on:
 
 - The login wall is bypassed. Every visitor acts as the first user in the database.
-- All AI features (Insights, Smart Intake, Ask, Modify, ride parsing, draft outreach) return mocked or canned responses instead of calling Anthropic.
+- All AI features (Insights, Smart Intake, Ask, Modify, ride parsing) return mocked or canned responses instead of calling Anthropic.
 
 **Do not enable `DEMO_MODE` on a real ministry instance.** It exposes everything to anyone with the URL. If the user asks about it, explain clearly: it is for the maintainer's public showcase, not for their deployment.
 

@@ -1,12 +1,10 @@
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { db } from "@/lib/db";
-import { students, attendances, events, contactAttempts, users } from "../../../../drizzle/schema";
-import { eq, desc, ne, asc, notInArray } from "drizzle-orm";
+import { students, attendances, events } from "../../../../drizzle/schema";
+import { eq, desc, asc, notInArray } from "drizzle-orm";
 import StudentForm from "./StudentForm";
 import { parseStudent } from "@/lib/parse-student";
-import ContactLog from "./ContactLog";
-import DraftOutreach from "./DraftOutreach";
 import {
   perStudentHealth,
   type StudentLite,
@@ -40,31 +38,6 @@ export default async function StudentPage({ params }: { params: Promise<{ id: st
     .from(events)
     .where(attendedEventIds.length > 0 ? notInArray(events.id, attendedEventIds) : undefined)
     .orderBy(desc(events.startDate));
-
-  const attemptRows = await db
-    .select({
-      id: contactAttempts.id,
-      channel: contactAttempts.channel,
-      channelDetail: contactAttempts.channelDetail,
-      attemptedAt: contactAttempts.attemptedAt,
-      responded: contactAttempts.responded,
-      notes: contactAttempts.notes,
-      byName: users.name,
-    })
-    .from(contactAttempts)
-    .leftJoin(users, eq(users.id, contactAttempts.attemptedByUserId))
-    .where(eq(contactAttempts.studentId, id))
-    .orderBy(desc(contactAttempts.attemptedAt));
-
-  const attempts = attemptRows.map((a) => ({
-    id: a.id,
-    channel: a.channel,
-    channelDetail: a.channelDetail,
-    attemptedAt: a.attemptedAt.toISOString(),
-    responded: a.responded,
-    notes: a.notes,
-    attemptedByDisplayName: a.byName ?? undefined,
-  }));
 
   const rosterRows = await db
     .select({
@@ -218,13 +191,6 @@ export default async function StudentPage({ params }: { params: Promise<{ id: st
           )}
         </section>
       )}
-
-      <DraftOutreach studentId={s.id} />
-
-      <ContactLog
-        studentId={s.id}
-        attempts={attempts}
-      />
 
       <AddEventCardClient 
         studentId={id} 

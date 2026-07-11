@@ -101,11 +101,9 @@ export default function HelpPage() {
           <li>How often they attend.</li>
           <li>Who originally invited them.</li>
           <li>Who they&apos;ve brought in turn.</li>
-          <li>How many contact attempts have been logged.</li>
         </ul>
         <p>
-          Click a student to see their profile, log a contact attempt, set their engagement
-          stage (active / engaged / inactive), or draft an outreach message.
+          Click a student to see their profile, edit details, and review attendance history.
         </p>
       </Section>
 
@@ -206,7 +204,7 @@ export default function HelpPage() {
 
         <Faq q="Can two advisors be logged in at the same time on the same account?">
           Yes — sessions are per cookie, not per device, and there&apos;s no exclusive lock. But
-          we recommend each advisor sign up with their own email so feedback, contact attempts,
+          we recommend each advisor sign up with their own email so feedback
           and edits are attributed correctly.
         </Faq>
 

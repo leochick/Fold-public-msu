@@ -1,5 +1,5 @@
 /**
- * End-to-end smoke test for the welcome funnel.
+ * End-to-end smoke test for Smart Intake dedup.
  * Exercises the headline scenario: Leader A adds "Jordan Chen", Leader B adds
  * "Alexander Chen" 30s later → server dedup must surface Mike as a duplicate.
  *
@@ -11,7 +11,7 @@ import { drizzle } from "drizzle-orm/libsql";
 import { eq } from "drizzle-orm";
 import { randomBytes } from "node:crypto";
 import * as schema from "../drizzle/schema";
-const { users, sessions, students, contactAttempts } = schema;
+const { users, sessions, students } = schema;
 
 const BASE = process.env.BASE_URL ?? "http://127.0.0.1:3000";
 const client = createClient({
@@ -66,7 +66,6 @@ async function main() {
       `  ${c.contactId}  ${c.firstName ?? ""} ${c.lastName ?? ""} (${c.match}, gender=${c.gender ?? "?"}, year=${c.year ?? "?"})`
     );
     console.log(`    firstMetContext: ${c.firstMetContext ?? "—"}`);
-    console.log(`    attemptedChannel: ${c.attemptedChannel ?? "—"}`);
     console.log(`    serverDedupCandidates: ${c.serverDedupCandidates.length}`);
   }
 
@@ -129,8 +128,8 @@ async function main() {
     process.exit(1);
   }
 
-  // Now leader B commits the contact (either Claude already pointed at Mike, or B adopts the dedup candidate)
-  console.log("\n=== Window B: log an IG DM attempt against Mike ===");
+  // Leader B adopts the existing Mike (via Claude match or server dedup) — no new row.
+  console.log("\n=== Window B: adopt existing Mike (no new create) ===");
   const adopted = parseBJson.contacts.map((c: any, i: number) => {
     if (i !== 0) return c;
     if (c.match !== "existing" && c.serverDedupCandidates?.length > 0) {
@@ -139,18 +138,9 @@ async function main() {
         ...c,
         match: "existing",
         studentId: cand.studentId,
-        attemptedChannel: "ig_dm",
-        attemptedChannelDetail: "@jordanc99",
-        responded: false,
       };
     }
-    // Claude matched directly — just add the contact attempt.
-    return {
-      ...c,
-      attemptedChannel: "ig_dm",
-      attemptedChannelDetail: "@jordanc99",
-      responded: false,
-    };
+    return c;
   });
   const commitB = await fetch(BASE + "/api/intake/commit", {
     method: "POST",
@@ -165,10 +155,6 @@ async function main() {
     .from(students)
     .where(eq(students.id, mike.id))
     .limit(1);
-  const attempts = await db
-    .select()
-    .from(contactAttempts)
-    .where(eq(contactAttempts.studentId, mike.id));
   const totalMikes = await client.execute(
     "SELECT COUNT(*) as c FROM students WHERE first_name IN ('Mike','Michael')"
   );
@@ -177,17 +163,9 @@ async function main() {
   console.log("\n=== Final state ===");
   console.log(`Mike row → id=${mike2.id}, firstMetContext=${mike2.firstMetContext}`);
   console.log(`Total Mike/Michael rows in DB: ${totalMikesCount} (must be 1)`);
-  console.log(`Contact attempts on Mike: ${attempts.length}`);
-  for (const a of attempts) {
-    console.log(`  • channel=${a.channel}, by=${a.attemptedByUserId}, responded=${a.responded}`);
-  }
 
   if (totalMikesCount !== 1) {
     console.log("❌ FAIL: duplicate row was created.");
-    process.exit(1);
-  }
-  if (attempts.length !== 2) {
-    console.log(`❌ FAIL: expected 2 contact attempts (A in_person + B ig_dm), got ${attempts.length}.`);
     process.exit(1);
   }
   console.log("\n✅ Scenario 1 passed (Claude+IG handle catches Mike↔Michael).");

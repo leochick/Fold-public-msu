@@ -2,16 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import type { ParsedContact, IntakePreview, Channel } from "@/lib/funnel/types";
-
-const CHANNELS: { value: Channel; label: string }[] = [
-  { value: "in_person", label: "In person" },
-  { value: "ig_dm", label: "IG DM" },
-  { value: "text", label: "Text" },
-  { value: "phone", label: "Phone" },
-  { value: "email", label: "Email" },
-  { value: "other", label: "Other" },
-];
+import type { ParsedContact, IntakePreview } from "@/lib/funnel/types";
 
 export default function IntakeDumper() {
   const router = useRouter();
@@ -300,45 +291,13 @@ function ContactCard({
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-2 pt-2 border-t border-black/5 dark:border-white/10">
+      <div className="pt-2 border-t border-black/5 dark:border-white/10">
         <input
-          className="input md:col-span-2"
+          className="input w-full"
           placeholder="Where/how met (optional)"
           value={contact.firstMetContext ?? ""}
           onChange={(e) => onUpdate({ firstMetContext: e.target.value })}
         />
-        <select
-          className="input"
-          value={contact.attemptedChannel ?? ""}
-          onChange={(e) =>
-            onUpdate({ attemptedChannel: (e.target.value || undefined) as Channel | undefined })
-          }
-        >
-          <option value="">no attempt logged</option>
-          {CHANNELS.map((ch) => (
-            <option key={ch.value} value={ch.value}>
-              {ch.label}
-            </option>
-          ))}
-        </select>
-        {contact.attemptedChannel && (
-          <>
-            <input
-              className="input md:col-span-2"
-              placeholder="Channel detail (optional)"
-              value={contact.attemptedChannelDetail ?? ""}
-              onChange={(e) => onUpdate({ attemptedChannelDetail: e.target.value })}
-            />
-            <label className="flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={!!contact.responded}
-                onChange={(e) => onUpdate({ responded: e.target.checked })}
-              />
-              Responded
-            </label>
-          </>
-        )}
       </div>
 
       {contact.notes && <p className="text-xs text-black/50">note: {contact.notes}</p>}

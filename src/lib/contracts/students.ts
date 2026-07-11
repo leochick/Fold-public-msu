@@ -1,6 +1,5 @@
 import { z } from "zod";
 import {
-  channelSchema,
   genderSchema,
   memberStatusSchema,
   nonEmptyText,
@@ -109,22 +108,7 @@ export const commitStudentsBatchBody = z.object({
   ).min(1),
 });
 
-export const draftOutreachBody = z.object({
-  channel: channelSchema.default("ig_dm"),
-  purpose: z.string().optional(),
-  refinement: z.string().optional(),
-});
-
-export type DraftOutreachBody = z.infer<typeof draftOutreachBody>;
 export type CommitStudentsBatchBody = z.infer<typeof commitStudentsBatchBody>;
-
-export const contactLogBody = z.object({
-  studentId: z.number().int().positive(),
-  channel: channelSchema,
-  channelDetail: z.string().optional(),
-  responded: z.boolean().optional(),
-  notes: z.string().optional(),
-});
 
 export const linkStudentEventBody = z.object({
   studentId: z.number().int().positive(),

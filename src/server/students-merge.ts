@@ -2,7 +2,6 @@ import { db } from "@/lib/db";
 import {
   students,
   attendances,
-  contactAttempts,
 } from "../../drizzle/schema";
 import { eq, inArray } from "drizzle-orm";
 import { httpErr } from "@/lib/http";
@@ -84,11 +83,6 @@ export async function mergeStudents(
         await tx.update(attendances).set({ studentId: keepId }).where(eq(attendances.id, row.id));
       }
     }
-
-    await tx
-      .update(contactAttempts)
-      .set({ studentId: keepId })
-      .where(eq(contactAttempts.studentId, mergeId));
 
     await tx
       .update(students)

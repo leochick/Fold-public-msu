@@ -163,26 +163,6 @@ export const feedback = sqliteTable("feedback", {
     .default(sql`(unixepoch())`),
 });
 
-// --- WELCOME FUNNEL ---
-export const contactAttempts = sqliteTable("contact_attempts", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  studentId: integer("student_id")
-    .notNull()
-    .references(() => students.id, { onDelete: "cascade" }),
-  attemptedByUserId: text("attempted_by_user_id").references(() => users.id, { onDelete: "set null" }),
-  channel: text("channel", { enum: ["ig_dm", "text", "phone", "email", "in_person", "other"] }).notNull(),
-  channelDetail: text("channel_detail"),
-  attemptedAt: integer("attempted_at", { mode: "timestamp" })
-    .notNull()
-    .default(sql`(unixepoch())`),
-  responded: integer("responded", { mode: "boolean" }).notNull().default(false),
-  notes: text("notes"),
-  createdAt: integer("created_at", { mode: "timestamp" })
-    .notNull()
-    .default(sql`(unixepoch())`),
-});
-// --- /WELCOME FUNNEL ---
-
 export const staff = sqliteTable("staff", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   firstName: text("first_name").notNull(),
@@ -204,8 +184,6 @@ export type Event = typeof events.$inferSelect;
 export type NewEvent = typeof events.$inferInsert;
 export type Attendance = typeof attendances.$inferSelect;
 export type User = typeof users.$inferSelect;
-export type ContactAttempt = typeof contactAttempts.$inferSelect;
-export type NewContactAttempt = typeof contactAttempts.$inferInsert;
 
 export const views = sqliteTable("views", {
   id: integer("id").primaryKey({ autoIncrement: true }),

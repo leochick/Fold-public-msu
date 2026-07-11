@@ -176,28 +176,6 @@ async function ensureTextUserIds(db: Client) {
   await db.execute("ALTER TABLE feedback__new RENAME TO feedback");
   console.log("  migrate: feedback");
 
-  await db.execute(`CREATE TABLE contact_attempts__new (
-    id integer PRIMARY KEY AUTOINCREMENT NOT NULL,
-    student_id integer NOT NULL,
-    attempted_by_user_id text,
-    channel text NOT NULL,
-    channel_detail text,
-    attempted_at integer DEFAULT (unixepoch()) NOT NULL,
-    responded integer DEFAULT 0 NOT NULL,
-    notes text,
-    created_at integer DEFAULT (unixepoch()) NOT NULL,
-    FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE,
-    FOREIGN KEY (attempted_by_user_id) REFERENCES users(id) ON DELETE SET NULL
-  )`);
-  await db.execute(`INSERT INTO contact_attempts__new (
-    id, student_id, attempted_by_user_id, channel, channel_detail, attempted_at, responded, notes, created_at
-  )
-    SELECT id, student_id, cast(attempted_by_user_id as text), channel, channel_detail, attempted_at, responded, notes, created_at
-    FROM contact_attempts`);
-  await db.execute("DROP TABLE contact_attempts");
-  await db.execute("ALTER TABLE contact_attempts__new RENAME TO contact_attempts");
-  console.log("  migrate: contact_attempts");
-
   await db.execute("PRAGMA foreign_keys=ON");
 }
 

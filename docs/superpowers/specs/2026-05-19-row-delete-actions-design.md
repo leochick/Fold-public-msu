@@ -19,7 +19,7 @@ Out of scope (deliberately): bulk select, undo, edit/duplicate menu items, custo
 - **Delete server action**: `src/app/vehicles/actions.ts` → `deleteVehicleAction` (`requireUser` → validate id → `db.delete` → `revalidatePath` → `redirect`).
 - **Tech stack**: Next.js 15 App Router, React 19, Tailwind, Drizzle ORM over libSQL/Turso. No component or icon libraries — Unicode symbols and server actions only.
 - **Button classes** (globals.css): `.btn-ghost`, `.btn-danger`, `.btn`.
-- **Cascade rules** (drizzle/schema.ts): deleting an event/student cascades to `attendances`, ride-session members, and contact attempts (`onDelete: "cascade"`); inviter/driver references are `onDelete: "set null"`. The DB handles all of this, so the action only deletes the single row.
+- **Cascade rules** (drizzle/schema.ts): deleting an event/student cascades to `attendances` and ride-session members (`onDelete: "cascade"`); inviter/driver references are `onDelete: "set null"`. The DB handles all of this, so the action only deletes the single row.
 
 ## Components
 

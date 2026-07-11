@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { channelSchema, genderSchema, nonEmptyText } from "./shared";
+import { genderSchema, nonEmptyText } from "./shared";
 
 export const intakeParseBody = z.object({ text: nonEmptyText });
 export type IntakeParseBody = z.infer<typeof intakeParseBody>;
@@ -15,9 +15,6 @@ const parsedContactSchema = z.object({
   phone: z.string().optional(),
   email: z.string().optional(),
   firstMetContext: z.string().optional(),
-  attemptedChannel: channelSchema.optional(),
-  attemptedChannelDetail: z.string().optional(),
-  responded: z.boolean().optional(),
   notes: z.string().optional(),
   rawText: z.string(),
   contactId: z.string(),

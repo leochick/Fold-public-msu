@@ -1,7 +1,6 @@
 import { describe, test, expect } from "vitest";
 import { parseAttendanceBody, commitAttendanceBody } from "../contracts/attendance";
 import { parseEventBatchBody, commitEventBatchBody } from "../contracts/events";
-import { draftOutreachBody } from "../contracts/students";
 
 describe("parseAttendanceBody", () => {
   test("accepts valid input", () => {
@@ -61,16 +60,5 @@ describe("commitEventBatchBody discriminated union", () => {
         items: [{ action: "create", incoming: { name: "X", date: "2026-05-22" } }],
       }).success
     ).toBe(true);
-  });
-});
-
-describe("students bodies", () => {
-  test("draftOutreachBody defaults channel to ig_dm", () => {
-    const out = draftOutreachBody.safeParse({});
-    expect(out.success).toBe(true);
-    if (out.success) expect(out.data.channel).toBe("ig_dm");
-  });
-  test("draftOutreachBody rejects invalid channel", () => {
-    expect(draftOutreachBody.safeParse({ channel: "carrierpigeon" }).success).toBe(false);
   });
 });

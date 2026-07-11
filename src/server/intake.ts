@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { students, contactAttempts, users } from "../../drizzle/schema";
+import { students, users } from "../../drizzle/schema";
 import { anthropic, MODEL } from "@/lib/claude";
 import { PARSE_INTAKE_TOOL } from "@/lib/funnel/claude-tools";
 import { findPossibleDuplicates } from "@/lib/funnel/dedup";
@@ -114,49 +114,28 @@ export async function parseIntake(text: string): Promise<IntakePreview> {
 
 export async function commitIntake(userId: string, contacts: ParsedContact[]) {
   let created = 0;
-  let attemptsLogged = 0;
 
   for (const c of contacts) {
-    let sid: number | undefined;
-    if (c.match === "existing" && typeof c.studentId === "number") {
-      sid = c.studentId;
-    } else if (c.match === "new" && c.firstName) {
-      const [row] = await db
-        .insert(students)
-        .values({
-          firstName: c.firstName,
-          lastName: c.lastName ?? null,
-          gender: c.gender ?? null,
-          year: (c.year as never) ?? null,
-          igHandle: c.igHandle ?? null,
-          phone: c.phone ?? null,
-          email: c.email ?? null,
-          notes: c.notes ?? null,
-          addedByUserId: userId,
-          firstMetContext: c.firstMetContext ?? null,
-          firstMetAt: new Date(),
-        })
-        .returning();
-      sid = row.id;
-      await logStudentCreated(userId, row, "Smart Intake");
-      created += 1;
-    }
-    if (!sid) continue;
+    if (c.match !== "new" || !c.firstName) continue;
 
-    const attempted = !!c.attemptedChannel;
-    const responded = !!c.responded;
-
-    if (attempted) {
-      await db.insert(contactAttempts).values({
-        studentId: sid,
-        attemptedByUserId: userId,
-        channel: c.attemptedChannel!,
-        channelDetail: c.attemptedChannelDetail ?? null,
-        responded,
+    const [row] = await db
+      .insert(students)
+      .values({
+        firstName: c.firstName,
+        lastName: c.lastName ?? null,
+        gender: c.gender ?? null,
+        year: (c.year as never) ?? null,
+        igHandle: c.igHandle ?? null,
+        phone: c.phone ?? null,
+        email: c.email ?? null,
         notes: c.notes ?? null,
-      });
-      attemptsLogged += 1;
-    }
+        addedByUserId: userId,
+        firstMetContext: c.firstMetContext ?? null,
+        firstMetAt: new Date(),
+      })
+      .returning();
+    await logStudentCreated(userId, row, "Smart Intake");
+    created += 1;
   }
-  return { ok: true, created, attemptsLogged };
+  return { ok: true, created };
 }

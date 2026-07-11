@@ -63,13 +63,6 @@ export const api = {
       post<Awaited<ReturnType<typeof svStudents.parseUpdate>>>("/api/parse-update", b),
     commitUpdates: (b: In<typeof students.commitUpdatesBody>) =>
       post<Awaited<ReturnType<typeof svStudents.commitUpdates>>>("/api/commit-updates", b),
-    draftOutreach: (id: number, b: In<typeof students.draftOutreachBody>) =>
-      post<Awaited<ReturnType<typeof svStudents.draftOutreach>>>(
-        `/api/students/${id}/draft-outreach`,
-        b
-      ),
-    logContact: (b: In<typeof students.contactLogBody>) =>
-      post<Awaited<ReturnType<typeof svStudents.logContact>>>("/api/contacts/log", b),
     parseBatch: (b: { text: string }) =>
       post<any>("/api/students/parse-batch", b),
     commitBatch: (b: { items: any[] }) =>

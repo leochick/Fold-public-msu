@@ -124,7 +124,7 @@ export default function StudentsAllList({ students }: { students: StudentListRow
                     <RowActions
                       id={s.id}
                       deleteAction={deleteStudentAction}
-                      confirmMessage={`Delete ${s.firstName} ${s.lastName ?? ""}? This also removes their attendance and contact history. This can't be undone.`}
+                      confirmMessage={`Delete ${s.firstName} ${s.lastName ?? ""}? This also removes their attendance history. This can't be undone.`}
                     />
                   </td>
                 </tr>

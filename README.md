@@ -8,7 +8,7 @@ Fold helps campus ministries and student groups track who shows up, who invites 
 
 - **Dashboard** -- 30-day snapshot at a glance: events hosted, total check-ins, unique attendees, and new students. Interactive charts show attendance trends, engagement funnels, and demographic breakdowns.
 - **Events** -- create events, mark attendance with a quick-add form, and view per-event breakdowns (first-timers vs returners, invite chains, gender split).
-- **Students** -- searchable roster with health metrics per person: attendance frequency, who invited them, who they've brought, and how many contact attempts have been made.
+- **Students** -- searchable roster with health metrics per person: attendance frequency, who invited them, and who they've brought.
 - **Smart Intake** -- paste unstructured text (names, phone numbers, Instagram handles, however you collected it) and AI extracts structured student records. Duplicate detection built in.
 - **Ride Coordination** -- create carpool sessions per event (there, back, Sunday morning), assign drivers and riders, and manage seat constraints.
 - **Natural Language Queries** -- ask questions like "who came to the last 3 events but not this week" or "all freshmen who were invited by someone" and get results back as a table.
@@ -128,7 +128,7 @@ src/
   app/           # Next.js pages and API routes
     api/         # Backend endpoints (intake, rides, funnel, query)
     events/      # Event CRUD and attendance
-    students/    # Student profiles and contact logs
+    students/    # Student profiles
     funnel/      # Engagement pipeline
     query/       # Natural language search
   lib/           # Shared utilities

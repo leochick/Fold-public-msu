@@ -5,7 +5,7 @@ export const PARSE_INTAKE_TOOL: Anthropic.Tool = {
   description:
     "Parse a free-text dump from a group organizer who just met / contacted some people. " +
     "For each person mentioned, decide whether they match an existing roster entry (use studentId) or are brand-new (extract attributes). " +
-    "Also capture HOW the organizer met them (firstMetContext) and any contact attempt the organizer described (channel + responded).",
+    "Also capture HOW the organizer met them (firstMetContext).",
   input_schema: {
     type: "object",
     properties: {
@@ -32,19 +32,6 @@ export const PARSE_INTAKE_TOOL: Anthropic.Tool = {
             firstMetContext: {
               type: "string",
               description: "Where/how the organizer met them, in their own words. e.g. 'the booth', 'BBQ at the park', 'dorm visit'.",
-            },
-            attemptedChannel: {
-              type: "string",
-              enum: ["ig_dm", "text", "phone", "email", "in_person", "other"],
-              description: "If the organizer described a contact attempt, which channel. 'in_person' for booth/BBQ/dorm meetups.",
-            },
-            attemptedChannelDetail: {
-              type: "string",
-              description: "Optional: who/what/where for the channel. e.g. 'told her I'd see her at the event' for in_person.",
-            },
-            responded: {
-              type: "boolean",
-              description: "If the organizer said the person did or didn't reply/show. Omit if not stated.",
             },
             notes: { type: "string" },
             rawText: {

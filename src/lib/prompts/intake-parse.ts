@@ -7,8 +7,6 @@ For each person mentioned:
 
 ALSO capture:
 - firstMetContext: where/how they met, in the organizer's own words. e.g. "the booth", "BBQ at the park", "dorm visit on 5th floor". Pull this from the input verbatim if you can.
-- attemptedChannel + attemptedChannelDetail: if the organizer described a contact attempt. "I IG'd Mike" → ig_dm. "texted her" → text. "called him" → phone. "met at the booth" → in_person. Skip if no channel mentioned.
-- responded: only set if the organizer explicitly said "she replied" / "no answer" / "didn't respond" / "she said yes". Omit otherwise.
 
 If a name matches 0 or 2+ roster entries, list it under ambiguous.
 

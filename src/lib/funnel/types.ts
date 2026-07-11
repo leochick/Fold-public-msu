@@ -2,8 +2,6 @@
 
 import type { DedupCandidate } from "./dedup";
 
-export type Channel = "ig_dm" | "text" | "phone" | "email" | "in_person" | "other";
-
 export interface ParsedContact {
   // From Claude:
   match: "existing" | "new";
@@ -16,9 +14,6 @@ export interface ParsedContact {
   phone?: string;
   email?: string;
   firstMetContext?: string;
-  attemptedChannel?: Channel;
-  attemptedChannelDetail?: string;
-  responded?: boolean;
   notes?: string;
   rawText: string;
   // Server-augmented:

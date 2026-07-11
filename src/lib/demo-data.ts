@@ -75,8 +75,6 @@ export function mockIntakeParse() {
         year: "sophomore",
         igHandle: "mayachen",
         firstMetContext: "Brought by Sarah at boba night.",
-        attemptedChannel: "ig_dm",
-        responded: false,
         notes: "Asked about small groups.",
         rawText: "Maya Chen (@mayachen) - sophomore, came w/ Sarah, asked about small groups",
         contactId: "row:0",
@@ -90,8 +88,6 @@ export function mockIntakeParse() {
         year: "freshman",
         phone: "555-0142",
         firstMetContext: "Met at fall fest table.",
-        attemptedChannel: "text",
-        responded: true,
         rawText: "Jordan Park - frosh, met at fall fest, texted him, replied",
         contactId: "row:1",
         serverDedupCandidates: [],
@@ -193,37 +189,5 @@ export function mockParseUpdate() {
       },
     ],
     deletes: [],
-  };
-}
-
-// ----- Draft outreach -----
-
-export function mockDraftOutreach(channel: string) {
-  const drafts: Record<string, { label: string; body: string }[]> = {
-    ig_dm: [
-      { label: "Warm + casual", body: "hey! noticed you haven't been to weekly in a bit — totally no pressure, just wanted to check in. anything fun coming up for you this week?" },
-      { label: "Direct invite", body: "hey, friday's weekly is going to be a worship night, would love to have you back if you can swing it" },
-    ],
-    text: [
-      { label: "Check-in", body: "Hey, hope your week is going alright. We missed you at weekly the past couple Fridays. Anything going on, or just busy?" },
-      { label: "Invite to coffee", body: "Hey, want to grab coffee sometime this week? Would love to catch up." },
-    ],
-    email: [
-      { label: "Re-engagement", body: "Subject: Checking in\n\nHey,\n\nI realized it's been a few weeks since we've seen you at weekly. No pressure either way — just wanted to say we'd love to have you back if life slows down.\n\nLet me know if there's anything going on we can pray for.\n\nAndrew" },
-    ],
-    phone: [
-      { label: "First 15 seconds", body: "Hey! It's Andrew. Got a minute? I just wanted to call and say hi — realized I haven't seen you in a bit and wanted to check in." },
-    ],
-    in_person: [
-      { label: "Hallway opener", body: "Hey! Good to see you. I was just thinking about you actually — how's the semester going?" },
-    ],
-    other: [
-      { label: "Short note", body: "Thinking of you this week — hope things are going well. Let me know if you ever want to grab coffee or chat." },
-    ],
-  };
-  return {
-    drafts: drafts[channel] ?? drafts.ig_dm,
-    explanation: "Sample drafts shown in demo mode. Self-host with your own Anthropic key for personalized drafts based on the student's actual context.",
-    channel,
   };
 }
