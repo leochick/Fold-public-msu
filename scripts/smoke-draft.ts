@@ -53,7 +53,7 @@ async function main() {
   }
 
   console.log(`Testing draft for student #${pick.id}: ${pick.firstName} ${pick.lastName ?? ""}`);
-  console.log(`  funnelStage=${pick.funnelStage}  year=${pick.year ?? "?"}`);
+  console.log(`  year=${pick.year ?? "?"}`);
   console.log(`  notes=${(pick.notes ?? "").slice(0, 80)}${(pick.notes ?? "").length > 80 ? "…" : ""}`);
   console.log(`  firstMetContext=${pick.firstMetContext ?? "—"}`);
 

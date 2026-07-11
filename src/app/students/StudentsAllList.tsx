@@ -13,7 +13,6 @@ export type StudentListRow = {
   year: string | null;
   memberStatus: string | null;
   igHandle: string | null;
-  isActive: boolean;
   primaryContact: string | null;
   email: string | null;
   phone: string | null;
@@ -77,7 +76,6 @@ export default function StudentsAllList({ students }: { students: StudentListRow
               <th>Year</th>
               <th>Status</th>
               <th>IG</th>
-              <th>Active</th>
               <th>Contact</th>
               <th></th>
             </tr>
@@ -85,13 +83,13 @@ export default function StudentsAllList({ students }: { students: StudentListRow
           <tbody>
             {students.length === 0 ? (
               <tr>
-                <td colSpan={7} className="text-center text-black/50 py-8">
+                <td colSpan={6} className="text-center text-black/50 py-8">
                   No students yet. Use Quick Add above or <Link className="underline" href="/students/new">add one manually</Link>.
                 </td>
               </tr>
             ) : filtered.length === 0 ? (
               <tr>
-                <td colSpan={7} className="text-center text-black/50 py-8">
+                <td colSpan={6} className="text-center text-black/50 py-8">
                   No matches for &ldquo;{query.trim()}&rdquo;.
                 </td>
               </tr>
@@ -121,7 +119,6 @@ export default function StudentsAllList({ students }: { students: StudentListRow
                       <span className="text-black/30">—</span>
                     )}
                   </td>
-                  <td>{s.isActive ? "✓" : <span className="text-black/30">—</span>}</td>
                   <td className="text-sm">{s.primaryContact ?? <span className="text-black/30">—</span>}</td>
                   <td className="text-right">
                     <RowActions

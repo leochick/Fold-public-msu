@@ -7,7 +7,6 @@ import StudentForm from "./StudentForm";
 import { parseStudent } from "@/lib/parse-student";
 import ContactLog from "./ContactLog";
 import DraftOutreach from "./DraftOutreach";
-import type { FunnelStage } from "@/lib/funnel/types";
 import {
   perStudentHealth,
   type StudentLite,
@@ -152,7 +151,6 @@ export default async function StudentPage({ params }: { params: Promise<{ id: st
               email: s.email,
               igHandle: s.igHandle,
               memberStatus: s.memberStatus,
-              isActive: s.isActive,
               newsletter: s.newsletter,
               groupme: s.groupme,
               contactedViaIg: s.contactedViaIg,
@@ -160,7 +158,6 @@ export default async function StudentPage({ params }: { params: Promise<{ id: st
               goals: s.goals,
               notes: s.notes,
               courseMaterial: s.courseMaterial,
-              funnelStage: s.funnelStage,
             }}
           />
           <form action={del}>
@@ -227,7 +224,6 @@ export default async function StudentPage({ params }: { params: Promise<{ id: st
       <ContactLog
         studentId={s.id}
         attempts={attempts}
-        currentStage={s.funnelStage as FunnelStage}
       />
 
       <AddEventCardClient 

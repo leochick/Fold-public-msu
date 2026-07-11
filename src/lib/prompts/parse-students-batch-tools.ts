@@ -12,7 +12,7 @@ export const PARSE_STUDENTS_BATCH_TOOL: Anthropic.Tool = {
       students: {
         type: "array",
         description:
-          "One entry per person in the input. For bulk updates (newsletter, Groupme, course completions, active/inactive, etc.) " +
+          "One entry per person in the input. For bulk updates (newsletter, Groupme, course completions, etc.) " +
           "or contact-info updates (phone, email), emit one entry per named student with the parsed field changes — never return an empty array when names are listed.",
         items: {
           type: "object",
@@ -35,15 +35,9 @@ export const PARSE_STUDENTS_BATCH_TOOL: Anthropic.Tool = {
             },
             igHandle: { type: "string", description: "Instagram account handle explicitly without the leading @ symbol." },
             memberStatus: { type: "string", enum: ["prospect", "member", "core"], description: "Membership tier if mentioned or implied by bulk instruction." },
-            isActive: { type: "boolean", description: "Whether the student is active in the group." },
             newsletter: { type: "boolean", description: "Whether the student is subscribed to the newsletter." },
             groupme: { type: "boolean", description: "Whether the student is in the Groupme chat." },
             contactedViaIg: { type: "boolean", description: "Whether the student has been contacted via Instagram." },
-            funnelStage: {
-              type: "string",
-              enum: ["active", "engaged", "inactive"],
-              description: "Welcome funnel stage if mentioned.",
-            },
             primaryContact: { type: "string", description: "Primary contact person or method." },
             goals: { type: "string", description: "Student goals if mentioned." },
             courseMaterialAdd: {

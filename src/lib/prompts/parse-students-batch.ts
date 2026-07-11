@@ -37,8 +37,6 @@ Bulk update rules — when the user gives an instruction that applies to every l
 - "in Groupme" / "added to Groupme" -> groupme: true
 - "not in Groupme" / "removed from Groupme" -> groupme: false
 - "mark as core" / "make core members" -> memberStatus: "core"
-- "mark inactive" / "stopped coming" -> isActive: false
-- "mark active" -> isActive: true
 - "in the IG group chat" -> contactedViaIg: true
 - Apply the shared instruction to EVERY student in the list, not just the first one.
 

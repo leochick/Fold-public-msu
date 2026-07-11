@@ -221,7 +221,6 @@ async function ensureStudentsAddedByText(db: Client) {
     email text,
     ig_handle text,
     member_status text,
-    is_active integer DEFAULT 1 NOT NULL,
     newsletter integer DEFAULT 0 NOT NULL,
     groupme integer DEFAULT 0 NOT NULL,
     contacted_via_ig integer DEFAULT 0 NOT NULL,
@@ -232,7 +231,6 @@ async function ensureStudentsAddedByText(db: Client) {
     added_by_user_id text,
     first_met_context text,
     first_met_at integer,
-    funnel_stage text DEFAULT 'active' NOT NULL,
     invited_by_student_id integer,
     created_at integer DEFAULT (unixepoch()) NOT NULL,
     updated_at integer DEFAULT (unixepoch()) NOT NULL,
@@ -241,15 +239,15 @@ async function ensureStudentsAddedByText(db: Client) {
   )`);
   await db.execute(`INSERT INTO students__new (
     id, first_name, last_name, student_id, gender, year, phone, email, ig_handle,
-    member_status, is_active, newsletter, groupme, contacted_via_ig, primary_contact,
+    member_status, newsletter, groupme, contacted_via_ig, primary_contact,
     goals, notes, course_material, added_by_user_id, first_met_context, first_met_at,
-    funnel_stage, invited_by_student_id, created_at, updated_at
+    invited_by_student_id, created_at, updated_at
   )
     SELECT
       id, first_name, last_name, student_id, gender, year, phone, email, ig_handle,
-      member_status, is_active, newsletter, groupme, contacted_via_ig, primary_contact,
+      member_status, newsletter, groupme, contacted_via_ig, primary_contact,
       goals, notes, course_material, cast(added_by_user_id as text), first_met_context, first_met_at,
-      funnel_stage, invited_by_student_id, created_at, updated_at
+      invited_by_student_id, created_at, updated_at
     FROM students`);
   await db.execute("DROP TABLE students");
   await db.execute("ALTER TABLE students__new RENAME TO students");

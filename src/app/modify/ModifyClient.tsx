@@ -26,7 +26,6 @@ const FIELD_LABEL: Record<string, string> = {
   email: "Email",
   igHandle: "IG handle",
   memberStatus: "Status",
-  isActive: "Active",
   contactedViaIg: "In IG groupchat",
   primaryContact: "Primary contact",
   goals: "Goals",

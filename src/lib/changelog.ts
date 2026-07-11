@@ -8,7 +8,6 @@ export const STUDENT_FIELD_LABELS: Record<string, string> = {
   email: "Email",
   igHandle: "IG handle",
   memberStatus: "Status",
-  isActive: "Active",
   newsletter: "Newsletter",
   groupme: "Groupme",
   contactedViaIg: "In IG groupchat",
@@ -17,7 +16,6 @@ export const STUDENT_FIELD_LABELS: Record<string, string> = {
   notes: "Notes",
   courseMaterial: "Course material",
   invitedByStudentId: "Invited by",
-  funnelStage: "Funnel stage",
 };
 
 export const EVENT_FIELD_LABELS: Record<string, string> = {

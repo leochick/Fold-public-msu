@@ -47,7 +47,6 @@ export const POST = withAuth(
           igHandle: item.incoming.igHandle ?? null,
           notes: item.incoming.notes ?? null,
           addedByUserId: user.id,
-          funnelStage: "active",
         }).returning();
         
         finalStudentId = newStudent.id;

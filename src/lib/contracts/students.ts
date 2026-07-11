@@ -1,7 +1,6 @@
 import { z } from "zod";
 import {
   channelSchema,
-  funnelStageSchema,
   genderSchema,
   memberStatusSchema,
   nonEmptyText,
@@ -20,11 +19,9 @@ export const batchRosterIncomingSchema = z.object({
   email: z.string().nullable().optional(),
   igHandle: z.string().nullable().optional(),
   memberStatus: memberStatusSchema.nullable().optional(),
-  isActive: z.boolean().nullable().optional(),
   newsletter: z.boolean().nullable().optional(),
   groupme: z.boolean().nullable().optional(),
   contactedViaIg: z.boolean().nullable().optional(),
-  funnelStage: funnelStageSchema.nullable().optional(),
   primaryContact: z.string().nullable().optional(),
   goals: z.string().nullable().optional(),
   courseMaterialAdd: courseMaterialSchema.optional(),
@@ -51,7 +48,6 @@ const patchSchema = z
     email: z.string(),
     igHandle: z.string(),
     memberStatus: memberStatusSchema,
-    isActive: z.boolean(),
     contactedViaIg: z.boolean(),
     primaryContact: z.string(),
     goals: z.string(),
@@ -112,8 +108,6 @@ export const commitStudentsBatchBody = z.object({
     })
   ).min(1),
 });
-
-export const funnelStageBody = z.object({ stage: funnelStageSchema });
 
 export const draftOutreachBody = z.object({
   channel: channelSchema.default("ig_dm"),

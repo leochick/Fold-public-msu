@@ -35,8 +35,7 @@ export default function StudentForm({
         <Field label="Email" name="email" type="email" defaultValue={s.email ?? ""} />
         <Field label="IG handle" name="igHandle" defaultValue={s.igHandle ?? ""} placeholder="(without @)" />
       </div>
-      <div className="grid grid-cols-2 gap-3 items-end sm:grid-cols-4">
-        <Checkbox label="Is active" name="isActive" defaultChecked={s.isActive ?? true} />
+      <div className="grid grid-cols-3 gap-3 items-end">
         <Checkbox label="Newsletter" name="newsletter" defaultChecked={s.newsletter ?? false} />
         <Checkbox label="Groupme" name="groupme" defaultChecked={s.groupme ?? false} />
         <Checkbox label="Contacted via IG" name="contactedViaIg" defaultChecked={s.contactedViaIg ?? false} />

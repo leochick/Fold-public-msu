@@ -33,7 +33,6 @@ export async function loadRosterWithStatus() {
       igHandle: students.igHandle,
       year: students.year,
       memberStatus: students.memberStatus,
-      isActive: students.isActive,
     })
     .from(students);
 }
@@ -55,7 +54,7 @@ export function formatRosterCompactWithStatus(rows: Awaited<ReturnType<typeof lo
       (r) =>
         `${r.id}|${r.firstName}${r.lastName ? " " + r.lastName : ""}${
           r.igHandle ? " (@" + r.igHandle + ")" : ""
-        }|${r.year ?? ""}|${r.memberStatus ?? ""}|${r.isActive ? "active" : "inactive"}`
+        }|${r.year ?? ""}|${r.memberStatus ?? ""}`
     )
     .join("\n");
 }

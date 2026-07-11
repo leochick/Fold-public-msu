@@ -12,7 +12,6 @@ export type MergeStudentRecord = Pick<
   | "email"
   | "igHandle"
   | "memberStatus"
-  | "isActive"
   | "newsletter"
   | "groupme"
   | "contactedViaIg"
@@ -20,7 +19,6 @@ export type MergeStudentRecord = Pick<
   | "goals"
   | "notes"
   | "courseMaterial"
-  | "funnelStage"
 >;
 
 export const MERGE_EDITABLE_FIELDS = ["firstName", "lastName", "phone", "email"] as const;
@@ -40,8 +38,6 @@ export type MergePreviewResult = {
   fields: MergePreviewField[];
   values: Record<string, string | boolean | string[] | null>;
 };
-
-const FUNNEL_ORDER = ["active", "engaged", "inactive"] as const;
 
 function normText(value: string | null | undefined): string {
   return (value ?? "").trim();
@@ -81,17 +77,6 @@ function mergeNotes(left: string | null | undefined, right: string | null | unde
   if (!b) return a;
   if (a === b) return a;
   return `${a}\n\n---\n\n${b}`;
-}
-
-function mergeFunnelStage(
-  left: Student["funnelStage"],
-  right: Student["funnelStage"]
-): Student["funnelStage"] {
-  if (left === "inactive" && right !== "inactive") return right;
-  if (right === "inactive" && left !== "inactive") return left;
-  const leftIdx = FUNNEL_ORDER.indexOf(left);
-  const rightIdx = FUNNEL_ORDER.indexOf(right);
-  return FUNNEL_ORDER[Math.max(leftIdx, rightIdx)] ?? left;
 }
 
 function previewTextField(
@@ -138,7 +123,6 @@ export function buildMergePreview(
 
   const mergedNotes = mergeNotes(keep.notes, merge.notes);
   const mergedCourses = mergeCourseMaterial(keep.courseMaterial, merge.courseMaterial);
-  const mergedFunnel = mergeFunnelStage(keep.funnelStage, merge.funnelStage);
 
   const values: MergePreviewResult["values"] = {
     firstName: resolvedFirst,
@@ -154,8 +138,6 @@ export function buildMergePreview(
     goals: goals.value,
     notes: mergedNotes,
     courseMaterial: mergedCourses,
-    funnelStage: mergedFunnel,
-    isActive: mergeBoolean(keep.isActive, merge.isActive),
     newsletter: mergeBoolean(keep.newsletter, merge.newsletter),
     groupme: mergeBoolean(keep.groupme, merge.groupme),
     contactedViaIg: mergeBoolean(keep.contactedViaIg, merge.contactedViaIg),
@@ -226,24 +208,6 @@ export function buildMergePreview(
       right: merge.contactedViaIg ? "Yes" : "No",
       value: values.contactedViaIg ? "Yes" : "No",
       conflict: keep.contactedViaIg !== merge.contactedViaIg,
-      editable: false,
-    },
-    {
-      key: "isActive",
-      label: "Active",
-      left: keep.isActive ? "Yes" : "No",
-      right: merge.isActive ? "Yes" : "No",
-      value: values.isActive ? "Yes" : "No",
-      conflict: keep.isActive !== merge.isActive,
-      editable: false,
-    },
-    {
-      key: "funnelStage",
-      label: "Funnel stage",
-      left: displayText(keep.funnelStage),
-      right: displayText(merge.funnelStage),
-      value: displayText(mergedFunnel),
-      conflict: keep.funnelStage !== merge.funnelStage,
       editable: false,
     },
   ];

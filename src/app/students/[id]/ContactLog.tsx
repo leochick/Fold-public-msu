@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import type { Channel, FunnelStage } from "@/lib/funnel/types";
+import type { Channel } from "@/lib/funnel/types";
 
 interface AttemptRow {
   id: number;
@@ -23,21 +23,12 @@ const CHANNEL_LABEL: Record<Channel, string> = {
   other: "Other",
 };
 
-const STAGES: FunnelStage[] = ["active", "engaged", "inactive"];
-const STAGE_LABEL: Record<FunnelStage, string> = {
-  active: "Active",
-  engaged: "Engaged",
-  inactive: "Inactive",
-};
-
 export default function ContactLog({
   studentId,
   attempts,
-  currentStage,
 }: {
   studentId: number;
   attempts: AttemptRow[];
-  currentStage: FunnelStage;
 }) {
   const router = useRouter();
   const [channel, setChannel] = useState<Channel>("ig_dm");
@@ -46,8 +37,6 @@ export default function ContactLog({
   const [notes, setNotes] = useState("");
   const [error, setError] = useState("");
   const [logging, startLog] = useTransition();
-  const [stage, setStage] = useState<FunnelStage>(currentStage);
-  const [stageSaving, startStageSave] = useTransition();
 
   const log = () => {
     setError("");
@@ -76,47 +65,9 @@ export default function ContactLog({
     });
   };
 
-  const saveStage = (next: FunnelStage) => {
-    setStage(next);
-    startStageSave(async () => {
-      try {
-        const r = await fetch(`/api/students/${studentId}/funnel-stage`, {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ stage: next }),
-        });
-        if (!r.ok) {
-          const data = await r.json().catch(() => ({}));
-          throw new Error(data.error ?? "Save failed");
-        }
-        router.refresh();
-      } catch (e) {
-        setError(e instanceof Error ? e.message : "Save failed");
-        setStage(currentStage);
-      }
-    });
-  };
-
   return (
     <div className="card space-y-4">
-      <div className="flex items-baseline justify-between">
-        <h2 className="font-semibold">Contact log</h2>
-        <label className="flex items-center gap-2 text-xs">
-          <span className="text-black/60">Funnel stage:</span>
-          <select
-            className="text-sm bg-transparent border border-black/10 dark:border-white/10 rounded px-2 py-1"
-            value={stage}
-            disabled={stageSaving}
-            onChange={(e) => saveStage(e.target.value as FunnelStage)}
-          >
-            {STAGES.map((s) => (
-              <option key={s} value={s}>
-                {STAGE_LABEL[s]}
-              </option>
-            ))}
-          </select>
-        </label>
-      </div>
+      <h2 className="font-semibold">Contact log</h2>
 
       <div className="space-y-1">
         {attempts.length === 0 && (

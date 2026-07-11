@@ -10,7 +10,6 @@ import { httpErr } from "@/lib/http";
 import { loadRosterWithStatus, formatRosterCompactWithStatus } from "./roster";
 import { callClaudeOrThrow } from "./attendance";
 import { commitUpdatesBody, draftOutreachBody, contactLogBody } from "@/lib/contracts/students";
-import { funnelStageSchema } from "@/lib/contracts/shared";
 import type { Channel } from "@/lib/funnel/types";
 import { pickStudentFields } from "@/lib/changelog";
 import {
@@ -28,7 +27,6 @@ const ALLOWED_PATCH_FIELDS = new Set([
   "email",
   "igHandle",
   "memberStatus",
-  "isActive",
   "contactedViaIg",
   "primaryContact",
   "goals",
@@ -178,28 +176,6 @@ export async function commitUpdates(userId: string, body: z.infer<typeof commitU
   return { ok: true, applied, created, deleted };
 }
 
-export async function setFunnelStage(
-  userId: string,
-  studentId: number,
-  body: z.infer<typeof funnelStageSchema>
-) {
-  const [beforeRow] = await db.select().from(students).where(eq(students.id, studentId)).limit(1);
-  if (!beforeRow) throw httpErr.notFound("student not found");
-
-  await db
-    .update(students)
-    .set({ funnelStage: body, updatedAt: new Date() })
-    .where(eq(students.id, studentId));
-
-  await logStudentUpdated(
-    userId,
-    studentId,
-    pickStudentFields(beforeRow as Record<string, unknown>),
-    pickStudentFields({ ...beforeRow, funnelStage: body })
-  );
-  return { ok: true };
-}
-
 export async function logContact(userId: string, body: z.infer<typeof contactLogBody>) {
   const [s] = await db
     .select()
@@ -218,20 +194,6 @@ export async function logContact(userId: string, body: z.infer<typeof contactLog
     notes: body.notes ?? null,
   });
 
-  // Contact logging reactivates inactive students; otherwise stages are manual.
-  if (s.funnelStage === "inactive") {
-    const before = pickStudentFields(s as Record<string, unknown>);
-    await db
-      .update(students)
-      .set({ funnelStage: "active", updatedAt: new Date() })
-      .where(eq(students.id, body.studentId));
-    await logStudentUpdated(
-      userId,
-      body.studentId,
-      before,
-      pickStudentFields({ ...s, funnelStage: "active" })
-    );
-  }
   return { ok: true };
 }
 
@@ -275,7 +237,6 @@ export async function draftOutreach(
   if (s.gender) profileLines.push(`Gender: ${s.gender === "M" ? "male" : "female"}`);
   if (s.year) profileLines.push(`Year: ${s.year}`);
   if (s.igHandle) profileLines.push(`IG: @${s.igHandle}`);
-  if (s.funnelStage) profileLines.push(`Funnel stage: ${s.funnelStage}`);
   if (s.firstMetContext) profileLines.push(`First met: ${s.firstMetContext}`);
   if (s.primaryContact) profileLines.push(`Primary contact (leader): ${s.primaryContact}`);
   if (s.goals) profileLines.push(`Goals: ${s.goals}`);

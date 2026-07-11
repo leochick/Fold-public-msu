@@ -84,7 +84,7 @@ async function main() {
     .where(eq(students.firstName, "Mike"))
     .limit(1);
   console.log(
-    `\nMike row → id=${mike.id}, addedBy=${mike.addedByUserId}, stage=${mike.funnelStage}, firstMetContext=${mike.firstMetContext}`
+    `\nMike row → id=${mike.id}, addedBy=${mike.addedByUserId}, firstMetContext=${mike.firstMetContext}`
   );
 
   console.log("\n=== Window B (30s later): paste 'Alexander Chen, freshman, IG @jordanc99' ===");
@@ -175,7 +175,7 @@ async function main() {
   const totalMikesCount = totalMikes.rows[0].c as number;
 
   console.log("\n=== Final state ===");
-  console.log(`Mike row → stage=${mike2.funnelStage}`);
+  console.log(`Mike row → id=${mike2.id}, firstMetContext=${mike2.firstMetContext}`);
   console.log(`Total Mike/Michael rows in DB: ${totalMikesCount} (must be 1)`);
   console.log(`Contact attempts on Mike: ${attempts.length}`);
   for (const a of attempts) {

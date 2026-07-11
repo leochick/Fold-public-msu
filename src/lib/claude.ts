@@ -199,7 +199,6 @@ export const UPDATE_STUDENTS_TOOL: Anthropic.Tool = {
                 email: { type: "string" },
                 igHandle: { type: "string", description: "Without leading @" },
                 memberStatus: { type: "string", enum: ["prospect", "member", "core"] },
-                isActive: { type: "boolean" },
                 contactedViaIg: { type: "boolean" },
                 primaryContact: { type: "string" },
                 goals: { type: "string" },
@@ -251,7 +250,7 @@ export const UPDATE_STUDENTS_TOOL: Anthropic.Tool = {
       deletes: {
         type: "array",
         description:
-          "Students the user wants to permanently remove. Use ONLY when the user explicitly says 'delete', 'remove', 'get rid of' a person from the database. This cascades to wipe their attendance history. If the user says 'mark inactive' or 'they stopped coming', that's an update with isActive=false, NOT a delete.",
+          "Students the user wants to permanently remove. Use ONLY when the user explicitly says 'delete', 'remove', 'get rid of' a person from the database. This cascades to wipe their attendance history. If the user says someone 'stopped coming', use notesAppend — that is NOT a delete.",
         items: {
           type: "object",
           properties: {

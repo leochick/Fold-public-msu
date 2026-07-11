@@ -113,8 +113,6 @@ async function main() {
     gender: "M" | "F";
     year: (typeof years)[number];
     memberStatus: "prospect" | "member" | "core";
-    funnelStage: "active";
-    isActive: boolean;
     addedByUserId: string;
     createdAt: Date;
   }> = [];
@@ -147,8 +145,6 @@ async function main() {
       gender: rand() < 0.5 ? "M" : "F",
       year: years[Math.floor(rand() * years.length)],
       memberStatus,
-      funnelStage: "active",
-      isActive: true,
       addedByUserId: admin.id,
       createdAt,
     });

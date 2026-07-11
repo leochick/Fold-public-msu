@@ -6,6 +6,7 @@ import {
   LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer,
   BarChart, Bar, CartesianGrid, PieChart, Pie, Cell, Legend,
 } from "recharts";
+import { ENGAGEMENT_STAGE_LABELS } from "@/lib/dashboard-engagement";
 
 const COLORS = ["#7c3aed", "#10b981", "#f59e0b", "#ef4444", "#3b82f6", "#a855f7"];
 
@@ -93,15 +94,15 @@ export default function DashboardCharts({
 
       <SearchableStudentList
         title="Should Take Course 101"
-        description={`Active (1+ visit) and Engaged (3+ visits) in ${rangeLabel} missing this prerequisite.`}
+        description={`${ENGAGEMENT_STAGE_LABELS.active} and ${ENGAGEMENT_STAGE_LABELS.engaged} in ${rangeLabel} missing this prerequisite.`}
         countLabel={`${pendingC101.length} Missing`}
         chipClass="bg-amber-500/10 text-amber-600 dark:text-amber-400"
         students={pendingC101}
         emptyMessage="All active and engaged students are up to date!"
         renderTrailing={(student) =>
           "engagementStage" in student ? (
-            <span className="chip text-xs px-2 py-0.5 bg-black/5 dark:bg-white/5 uppercase tracking-wider font-mono text-[10px]">
-              {(student as PendingC101Student).engagementStage}
+            <span className="chip text-xs px-2 py-0.5 bg-black/5 dark:bg-white/5 tracking-wider font-mono text-[10px]">
+              {ENGAGEMENT_STAGE_LABELS[(student as PendingC101Student).engagementStage]}
             </span>
           ) : null
         }

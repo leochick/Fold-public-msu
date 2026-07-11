@@ -28,11 +28,9 @@ function buildCreateValues(userId: string, incoming: CommitStudentRosterBatchBod
     email: incoming.email ?? null,
     igHandle: incoming.igHandle ?? null,
     memberStatus: incoming.memberStatus ?? null,
-    isActive: incoming.isActive ?? true,
     newsletter: incoming.newsletter ?? false,
     groupme: incoming.groupme ?? false,
     contactedViaIg: incoming.contactedViaIg ?? false,
-    funnelStage: incoming.funnelStage ?? "active",
     primaryContact: incoming.primaryContact ?? null,
     goals: incoming.goals ?? null,
     courseMaterial: mergeCourseMaterial(null, incoming.courseMaterialAdd),
@@ -54,11 +52,9 @@ function buildMergePatch(
   if (incoming.email) patch.email = incoming.email;
   if (incoming.igHandle) patch.igHandle = incoming.igHandle;
   if (incoming.memberStatus != null) patch.memberStatus = incoming.memberStatus;
-  if (incoming.isActive != null) patch.isActive = incoming.isActive;
   if (incoming.newsletter != null) patch.newsletter = incoming.newsletter;
   if (incoming.groupme != null) patch.groupme = incoming.groupme;
   if (incoming.contactedViaIg != null) patch.contactedViaIg = incoming.contactedViaIg;
-  if (incoming.funnelStage != null) patch.funnelStage = incoming.funnelStage;
   if (incoming.primaryContact) patch.primaryContact = incoming.primaryContact;
   if (incoming.goals) patch.goals = incoming.goals;
 

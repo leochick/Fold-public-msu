@@ -1,7 +1,7 @@
 import { describe, test, expect } from "vitest";
 import { parseAttendanceBody, commitAttendanceBody } from "../contracts/attendance";
 import { parseEventBatchBody, commitEventBatchBody } from "../contracts/events";
-import { draftOutreachBody, funnelStageBody } from "../contracts/students";
+import { draftOutreachBody } from "../contracts/students";
 
 describe("parseAttendanceBody", () => {
   test("accepts valid input", () => {
@@ -72,15 +72,5 @@ describe("students bodies", () => {
   });
   test("draftOutreachBody rejects invalid channel", () => {
     expect(draftOutreachBody.safeParse({ channel: "carrierpigeon" }).success).toBe(false);
-  });
-  test("funnelStageBody requires valid stage", () => {
-    expect(funnelStageBody.safeParse({ stage: "engaged" }).success).toBe(true);
-    expect(funnelStageBody.safeParse({ stage: "active" }).success).toBe(true);
-    expect(funnelStageBody.safeParse({ stage: "inactive" }).success).toBe(true);
-    expect(funnelStageBody.safeParse({ stage: "new" }).success).toBe(false);
-    expect(funnelStageBody.safeParse({ stage: "reaching_out" }).success).toBe(false);
-    expect(funnelStageBody.safeParse({ stage: "connected" }).success).toBe(false);
-    expect(funnelStageBody.safeParse({ stage: "met" }).success).toBe(false);
-    expect(funnelStageBody.safeParse({ stage: "made_up" }).success).toBe(false);
   });
 });

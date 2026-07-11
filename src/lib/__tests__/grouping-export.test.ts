@@ -62,7 +62,7 @@ describe("buildGroupingMemberRows", () => {
         lastName: "Doe",
         gender: "F",
         year: "sophomore",
-        status: "Engaged",
+        status: "Engaged (3+ events)",
         courseMaterial: "Course 101",
         newsletter: "Yes",
         groupme: "No",

@@ -63,11 +63,6 @@ export const api = {
       post<Awaited<ReturnType<typeof svStudents.parseUpdate>>>("/api/parse-update", b),
     commitUpdates: (b: In<typeof students.commitUpdatesBody>) =>
       post<Awaited<ReturnType<typeof svStudents.commitUpdates>>>("/api/commit-updates", b),
-    setFunnelStage: (id: number, b: In<typeof students.funnelStageBody>) =>
-      post<Awaited<ReturnType<typeof svStudents.setFunnelStage>>>(
-        `/api/students/${id}/funnel-stage`,
-        b
-      ),
     draftOutreach: (id: number, b: In<typeof students.draftOutreachBody>) =>
       post<Awaited<ReturnType<typeof svStudents.draftOutreach>>>(
         `/api/students/${id}/draft-outreach`,

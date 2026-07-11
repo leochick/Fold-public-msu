@@ -6,7 +6,7 @@ export const PARSE_UPDATE_SYSTEM = `You translate a group organizer's free-text 
   • "mark X as core" / "X is committed" → memberStatus: "core"
   • "X is a prospect" → memberStatus: "prospect"
   • "X is now a junior" → year: "junior"
-  • "X is inactive" / "X stopped coming" → isActive: false
+  • "X stopped coming" / "X hasn't been around" → notesAppend with that observation
   • "X is in the IG group chat" / "added X to IG" → contactedViaIg: true
   • "X's phone is 555-..." → phone: "..."
   • "her primary contact is Aaron" → primaryContact: "Aaron"
@@ -16,5 +16,5 @@ export const PARSE_UPDATE_SYSTEM = `You translate a group organizer's free-text 
 - Be conservative: only set fields the user explicitly mentioned.`;
 
 export function buildParseUpdateUserMsg(rosterCompact: string, text: string) {
-  return `Roster (id|name (@ig)|year|status|active):\n${rosterCompact || "(empty)"}\n\nInstruction:\n${text}`;
+  return `Roster (id|name (@ig)|year|status):\n${rosterCompact || "(empty)"}\n\nInstruction:\n${text}`;
 }

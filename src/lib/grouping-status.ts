@@ -1,11 +1,14 @@
-import { classifyEngagementInRange } from "@/lib/dashboard-engagement";
+import {
+  classifyEngagementInRange,
+  ENGAGEMENT_STAGE_LABELS,
+} from "@/lib/dashboard-engagement";
 
 export type GroupingStudentStatus = "student_leader" | "engaged" | "active" | "outreach";
 
 export const GROUPING_STATUS_LABELS: Record<GroupingStudentStatus, string> = {
   student_leader: "Student Leader",
-  engaged: "Engaged",
-  active: "Active",
+  engaged: ENGAGEMENT_STAGE_LABELS.engaged,
+  active: ENGAGEMENT_STAGE_LABELS.active,
   outreach: "Outreach",
 };
 

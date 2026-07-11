@@ -13,7 +13,6 @@ describe("buildMergePreview", () => {
     email: "old@msu.edu",
     igHandle: null,
     memberStatus: null,
-    isActive: true,
     newsletter: false,
     groupme: false,
     contactedViaIg: false,
@@ -21,7 +20,6 @@ describe("buildMergePreview", () => {
     goals: null,
     notes: "Keep notes",
     courseMaterial: ["Course 101"],
-    funnelStage: "active" as const,
   };
 
   const merge = {
@@ -35,7 +33,6 @@ describe("buildMergePreview", () => {
     email: "morefie3@msu.edu",
     igHandle: null,
     memberStatus: null,
-    isActive: true,
     newsletter: true,
     groupme: true,
     contactedViaIg: false,
@@ -43,7 +40,6 @@ describe("buildMergePreview", () => {
     goals: null,
     notes: null,
     courseMaterial: ["ERT"],
-    funnelStage: "engaged" as const,
   };
 
   it("combines blank fields and flags additively", () => {
@@ -54,7 +50,6 @@ describe("buildMergePreview", () => {
     expect(preview.values.groupme).toBe(true);
     expect(preview.values.year).toBe("sophomore");
     expect(preview.values.courseMaterial).toEqual(["Course 101", "ERT"]);
-    expect(preview.values.funnelStage).toBe("engaged");
   });
 
   it("marks editable conflicts and applies overrides", () => {

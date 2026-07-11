@@ -20,7 +20,6 @@ export const GET = withAuth<{ id: string }>(
           email: student.email,
           igHandle: student.igHandle,
           memberStatus: student.memberStatus,
-          isActive: student.isActive,
           newsletter: student.newsletter,
           groupme: student.groupme,
           contactedViaIg: student.contactedViaIg,
@@ -28,7 +27,6 @@ export const GET = withAuth<{ id: string }>(
           goals: student.goals,
           notes: student.notes,
           courseMaterial: student.courseMaterial,
-          funnelStage: student.funnelStage,
         },
       })),
     };

@@ -113,8 +113,6 @@ export async function mergeStudents(
         goals: (values.goals as string | null) ?? null,
         notes: (values.notes as string | null) ?? null,
         courseMaterial: (values.courseMaterial as string[]) ?? null,
-        funnelStage: (values.funnelStage as Student["funnelStage"]) ?? keep.funnelStage,
-        isActive: Boolean(values.isActive),
         newsletter: Boolean(values.newsletter),
         groupme: Boolean(values.groupme),
         contactedViaIg: Boolean(values.contactedViaIg),

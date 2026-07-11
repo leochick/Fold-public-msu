@@ -1,15 +1,13 @@
 import { db } from "@/lib/db";
 import { students, contactAttempts, users } from "../../drizzle/schema";
-import { eq } from "drizzle-orm";
 import { anthropic, MODEL } from "@/lib/claude";
 import { PARSE_INTAKE_TOOL } from "@/lib/funnel/claude-tools";
 import { findPossibleDuplicates } from "@/lib/funnel/dedup";
 import { INTAKE_PARSE_SYSTEM, buildIntakeParseUserMsg } from "@/lib/prompts/intake-parse";
 import { httpErr } from "@/lib/http";
 import { callClaudeOrThrow } from "./attendance";
-import type { ParsedContact, FunnelStage, IntakePreview, DedupCandidateWithName } from "@/lib/funnel/types";
-import { pickStudentFields } from "@/lib/changelog";
-import { logStudentCreated, logStudentUpdated } from "./changelog";
+import type { ParsedContact, IntakePreview, DedupCandidateWithName } from "@/lib/funnel/types";
+import { logStudentCreated } from "./changelog";
 
 interface IntakeToolInput {
   contacts?: Array<Omit<ParsedContact, "contactId" | "serverDedupCandidates" | "existingDisplayName"> & {
@@ -114,14 +112,9 @@ export async function parseIntake(text: string): Promise<IntakePreview> {
   };
 }
 
-function reactivateIfInactive(current: FunnelStage): FunnelStage {
-  return current === "inactive" ? "active" : current;
-}
-
 export async function commitIntake(userId: string, contacts: ParsedContact[]) {
   let created = 0;
   let attemptsLogged = 0;
-  let stageChanges = 0;
 
   for (const c of contacts) {
     let sid: number | undefined;
@@ -142,7 +135,6 @@ export async function commitIntake(userId: string, contacts: ParsedContact[]) {
           addedByUserId: userId,
           firstMetContext: c.firstMetContext ?? null,
           firstMetAt: new Date(),
-          funnelStage: "active",
         })
         .returning();
       sid = row.id;
@@ -164,26 +156,7 @@ export async function commitIntake(userId: string, contacts: ParsedContact[]) {
         notes: c.notes ?? null,
       });
       attemptsLogged += 1;
-
-      const [s] = await db.select().from(students).where(eq(students.id, sid)).limit(1);
-      if (s) {
-        const next = reactivateIfInactive(s.funnelStage as FunnelStage);
-        if (next !== s.funnelStage) {
-          const before = pickStudentFields(s as Record<string, unknown>);
-          await db
-            .update(students)
-            .set({ funnelStage: next, updatedAt: new Date() })
-            .where(eq(students.id, sid));
-          await logStudentUpdated(
-            userId,
-            sid,
-            before,
-            pickStudentFields({ ...s, funnelStage: next })
-          );
-          stageChanges += 1;
-        }
-      }
     }
   }
-  return { ok: true, created, attemptsLogged, stageChanges };
+  return { ok: true, created, attemptsLogged };
 }

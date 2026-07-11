@@ -56,7 +56,7 @@ const studentData: Array<{
 
 const createdStudents = await db
   .insert(students)
-  .values(studentData.map((s) => ({ ...s, funnelStage: "active" as const })))
+  .values(studentData)
   .returning();
 console.log(`Created ${createdStudents.length} students`);
 

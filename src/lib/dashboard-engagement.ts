@@ -6,6 +6,11 @@ export const ENGAGED_MIN_ATTENDANCES = 3;
 
 export type RangeEngagementStage = "active" | "engaged";
 
+export const ENGAGEMENT_STAGE_LABELS: Record<RangeEngagementStage, string> = {
+  active: "Active (1-2 events)",
+  engaged: "Engaged (3+ events)",
+};
+
 export function classifyEngagementInRange(
   attendanceCount: number
 ): RangeEngagementStage | null {

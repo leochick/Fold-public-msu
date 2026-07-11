@@ -379,12 +379,6 @@ export function detectBulkFlags(text: string): Partial<BatchRosterIncoming> {
     flags.groupme = true;
   }
 
-  if (/(?:mark inactive|stopped coming|make inactive)/i.test(text)) {
-    flags.isActive = false;
-  } else if (/(?:mark active|make active)/i.test(text)) {
-    flags.isActive = true;
-  }
-
   if (/(?:in the ig group|added to ig|ig group chat)/i.test(text)) {
     flags.contactedViaIg = true;
   }
