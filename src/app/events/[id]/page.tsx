@@ -117,6 +117,7 @@ export default async function EventPage({ params }: { params: Promise<{ id: stri
     const date = String(formData.get("date") || "").trim();
     const type = String(formData.get("type") || "").trim();
     const location = String(formData.get("location") || "").trim();
+    const notes = String(formData.get("notes") || "").trim();
 
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
       redirect(`/events/${eventId}`);
@@ -132,6 +133,7 @@ export default async function EventPage({ params }: { params: Promise<{ id: stri
         startDate,
         type: type || null,
         location: location || null,
+        notes: notes || null,
       };
     await db
       .update(events)
@@ -179,6 +181,7 @@ export default async function EventPage({ params }: { params: Promise<{ id: stri
         startDate={e.startDate}
         type={e.type}
         location={e.location}
+        notes={e.notes}
         saveAction={saveEventDetails}
       />
 

@@ -10,12 +10,14 @@ export default function EditEventCard({
   startDate,
   type,
   location,
+  notes,
   saveAction,
 }: {
   eventId: number;
   startDate: Date;
   type: string | null;
   location: string | null;
+  notes: string | null;
   saveAction: (formData: FormData) => Promise<void>;
 }) {
   return (
@@ -58,6 +60,18 @@ export default function EditEventCard({
             defaultValue={location ?? ""}
           />
         </div>
+      </div>
+      <div>
+        <label className="label" htmlFor={`notes-${eventId}`}>
+          Notes
+        </label>
+        <textarea
+          id={`notes-${eventId}`}
+          name="notes"
+          rows={3}
+          className="input"
+          defaultValue={notes ?? ""}
+        />
       </div>
       <div className="flex justify-end">
         <button type="submit" className="btn-ghost">
