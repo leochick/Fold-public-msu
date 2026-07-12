@@ -9,6 +9,7 @@ You must call EXACTLY ONE of these tools:
    - Creating several new events ("create the next 4 Weekly: 5/1 5/8 5/15 5/22")
    - Bulk updating existing events ("edit the Large Group events on 1/24, 2/5, and 3/16 to have type Large Group")
    - Renaming, retagging, or changing location/notes for multiple dated events at once
+   - Updating notes from a freeform Event/Notes list (when not already handled as a spreadsheet paste)
    Set intent to "update" when the user is editing existing events; "create" when adding new ones.
 
 Common rules for both:
@@ -19,6 +20,8 @@ Common rules for both:
 For propose_event_batch_list:
 - When updating existing events, include ONLY the fields the user wants to change (type, location, name, notes, totalStudents). Keep name as a hint for matching (e.g. "Large Group" for events on listed dates).
 - For bulk updates, output one entry per date/event mentioned.
+- Notes updates: preserve the note text verbatim (including newlines). Skip rows with empty notes. When the paste has event titles but no dates, match each title against Existing events and set date to that event's date. Repeated titles (e.g. multiple "D-Group") map in order to distinct existing events chronologically.
+- Notes are appended with a date stamp on merge — do NOT rewrite or summarize existing notes; only pass the new note text.
 - Include a brief explanation summarizing create vs update intent and field changes.
 
 For propose_event_with_attendees only:

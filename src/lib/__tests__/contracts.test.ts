@@ -61,4 +61,18 @@ describe("commitEventBatchBody discriminated union", () => {
       }).success
     ).toBe(true);
   });
+
+  test("batch merge allows notes without date", () => {
+    const out = commitEventBatchBody.safeParse({
+      mode: "batch",
+      items: [
+        {
+          action: "merge",
+          existingId: 1,
+          incoming: { name: "D-Group", notes: "Psalm 1" },
+        },
+      ],
+    });
+    expect(out.success).toBe(true);
+  });
 });

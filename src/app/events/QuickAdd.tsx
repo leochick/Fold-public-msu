@@ -197,7 +197,7 @@ export default function QuickAdd({ roster = [] }: { roster?: RosterEntry[] }) {
             onChange={(e) => setText(e.target.value)}
             rows={3}
             className="input font-sans text-sm"
-            placeholder={`e.g. "add Alex, Jordan to new Weekly 5/1 at Community Center"\n"create Weekly meetings 5/1, 5/8, 5/15 at Community Center"\n"Edit the Large Group events on 1/24, 2/5, and 3/16 to have type Large Group"`}
+            placeholder={`e.g. "add Alex, Jordan to new Weekly 5/1 at Community Center"\n"create Weekly meetings 5/1, 5/8, 5/15 at Community Center"\n"Edit the Large Group events on 1/24, 2/5, and 3/16 to have type Large Group"\nOr paste Event + Notes columns from a spreadsheet to append dated notes`}
           />
           <button
             onClick={handleProcessText}

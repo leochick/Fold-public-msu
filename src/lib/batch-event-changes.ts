@@ -1,4 +1,5 @@
 import type { BatchEventIncoming } from "@/lib/contracts/events";
+import { appendStampedLine } from "@/lib/append-stamped-line";
 
 export type FieldChange = {
   label: string;
@@ -30,10 +31,17 @@ export function getIncomingEventFieldChanges(
     const value = incoming[key];
     if (value == null || value === "") continue;
     const before = existingRecord?.[key];
+    const merging = Boolean(existingRecord);
+    let after: string;
+    if (merging && key === "notes" && typeof value === "string") {
+      after = appendStampedLine(typeof before === "string" ? before : null, value) ?? fmt(value);
+    } else {
+      after = fmt(value);
+    }
     changes.push({
       label,
       before: existingRecord ? fmt(before) : undefined,
-      after: fmt(value),
+      after,
     });
   }
 

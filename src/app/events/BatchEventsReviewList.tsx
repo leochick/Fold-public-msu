@@ -90,7 +90,8 @@ export default function BatchEventsReviewList({
       {explanation && <p className="text-xs text-black/50 italic">{explanation}</p>}
       {intent === "update" && (
         <p className="text-xs text-amber-700 bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2">
-          Bulk update mode — matched events will be merged. Unmatched dates default to skip.
+          Bulk update mode — matched events will be merged. Unmatched events default to skip.
+          Notes append with a date stamp (they do not overwrite existing notes).
         </p>
       )}
 
@@ -110,7 +111,7 @@ export default function BatchEventsReviewList({
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div>
                   <span className="font-semibold text-base">{item.incoming.name}</span>
-                  <span className="ml-2 text-xs text-black/40">{item.incoming.date}</span>
+                  <span className="ml-2 text-xs text-black/40">{item.incoming.date ?? "no date"}</span>
                 </div>
 
                 <div className="flex gap-1">
@@ -168,9 +169,9 @@ export default function BatchEventsReviewList({
                   <input
                     className="input text-xs"
                     type="date"
-                    value={item.incoming.date}
+                    value={item.incoming.date ?? ""}
                     onChange={(e) =>
-                      onIncomingChange(i, { ...item.incoming, date: e.target.value })
+                      onIncomingChange(i, { ...item.incoming, date: e.target.value || undefined })
                     }
                   />
                   <input
@@ -187,6 +188,14 @@ export default function BatchEventsReviewList({
                     value={item.incoming.location ?? ""}
                     onChange={(e) =>
                       onIncomingChange(i, { ...item.incoming, location: e.target.value || undefined })
+                    }
+                  />
+                  <textarea
+                    className="input md:col-span-4 text-xs min-h-[4.5rem]"
+                    placeholder="Notes to append"
+                    value={item.incoming.notes ?? ""}
+                    onChange={(e) =>
+                      onIncomingChange(i, { ...item.incoming, notes: e.target.value || undefined })
                     }
                   />
                 </div>
@@ -247,7 +256,7 @@ export default function BatchEventsReviewList({
 
               {!item.isDuplicate && intent === "update" && item.chosenAction === "skip" && (
                 <div className="p-2 bg-red-500/10 text-red-700 text-xs rounded-lg font-medium">
-                  No event found on {item.incoming.date} — skipped.
+                  No matching event found{item.incoming.date ? ` on ${item.incoming.date}` : ""} — skipped.
                 </div>
               )}
             </div>

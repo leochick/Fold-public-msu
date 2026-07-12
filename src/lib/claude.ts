@@ -143,7 +143,9 @@ export const PROPOSE_EVENT_BATCH_LIST_TOOL: Anthropic.Tool = {
             },
             date: {
               type: "string",
-              description: "ISO date YYYY-MM-DD. If only month/day given, use the current year. If 'next Friday', resolve from today.",
+              description:
+                "ISO date YYYY-MM-DD. If only month/day given, use the current year. If 'next Friday', resolve from today. " +
+                "For notes-only updates matched by title, copy the date from the matched Existing events row.",
             },
             type: {
               type: "string",
@@ -159,7 +161,7 @@ export const PROPOSE_EVENT_BATCH_LIST_TOOL: Anthropic.Tool = {
               description: "Total student count if mentioned or being updated.",
             },
           },
-          required: ["name", "date"],
+          required: ["name"],
         },
       },
       explanation: {

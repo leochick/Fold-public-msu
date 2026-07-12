@@ -9,7 +9,9 @@ import { loadBasicRoster, formatRosterCompact, fuzzyMatchInviter } from "./roste
 import { callClaudeOrThrow } from "./attendance";
 import type { BatchEventIncoming, CommitEventBatchBody, ParseEventBatchBody } from "@/lib/contracts/events";
 import { eq } from "drizzle-orm";
-import { eventDateStr, findPossibleEventMatches } from "@/lib/funnel/event-dedup";
+import { assignEventMatches, eventDateStr } from "@/lib/funnel/event-dedup";
+import { parseEventNotesTable } from "@/lib/parse-event-notes-table";
+import { appendStampedLine } from "@/lib/append-stamped-line";
 import { pickEventFields } from "@/lib/changelog";
 import {
   logEventCreated,
@@ -47,9 +49,7 @@ function buildEventMergePatch(
   if (incoming.type?.trim()) patch.type = incoming.type.trim();
   if (incoming.location?.trim()) patch.location = incoming.location.trim();
   if (incoming.notes?.trim()) {
-    patch.notes = old.notes
-      ? `${old.notes}\n[AI Merge]: ${incoming.notes.trim()}`
-      : incoming.notes.trim();
+    patch.notes = appendStampedLine(old.notes, incoming.notes);
   }
   if (incoming.totalStudents != null) patch.totalStudents = incoming.totalStudents;
 
@@ -57,6 +57,7 @@ function buildEventMergePatch(
 }
 
 function buildEventCreateValues(incoming: BatchEventIncoming) {
+  if (!incoming.date) throw httpErr.badRequest("date is required when creating an event");
   return {
     name: incoming.name.trim(),
     type: incoming.type?.trim() || null,
@@ -72,23 +73,52 @@ function enrichBatchItem(
   currentEventsList: typeof events.$inferSelect[],
   intent: "create" | "update"
 ) {
-  const matches = findPossibleEventMatches(incoming, currentEventsList);
-  const isDuplicate = matches.length > 0;
-  const defaultAction =
-    intent === "update"
-      ? isDuplicate
-        ? "merge"
-        : "skip"
-      : isDuplicate
-        ? "merge"
-        : "create";
+  return assignEventMatches([incoming], currentEventsList, intent)[0];
+}
+
+function parseEventNotesTableBatch(text: string, currentEventsList: typeof events.$inferSelect[]) {
+  const rows = parseEventNotesTable(text);
+  if (!rows) return null;
+
+  const withNotes = rows.filter((r) => r.notes.trim());
+  if (withNotes.length === 0) {
+    return {
+      mode: "batch" as const,
+      intent: "update" as const,
+      items: [],
+      explanation: "Found an Event/Notes table, but every notes cell was empty.",
+    };
+  }
+
+  const incomingList: BatchEventIncoming[] = withNotes.map((r) => ({
+    name: r.name,
+    notes: r.notes,
+  }));
+
+  const items = assignEventMatches(incomingList, currentEventsList, "update").map((item) => {
+    const selected =
+      item.existingRecords.find((r) => r.id === item.selectedExistingId) ?? item.existingRecords[0];
+    if (!selected) return item;
+    // Keep the DB event title — spreadsheet titles are match hints only.
+    return {
+      ...item,
+      incoming: {
+        ...item.incoming,
+        name: selected.name,
+        date: eventDateStr(selected),
+      },
+    };
+  });
+  const matched = items.filter((i) => i.isDuplicate).length;
+  const unmatched = items.length - matched;
 
   return {
-    incoming,
-    isDuplicate,
-    existingRecords: matches,
-    chosenAction: defaultAction as "create" | "merge" | "skip",
-    selectedExistingId: matches[0]?.id,
+    mode: "batch" as const,
+    intent: "update" as const,
+    items,
+    explanation:
+      `Parsed ${items.length} note update${items.length === 1 ? "" : "s"} from spreadsheet` +
+      (unmatched > 0 ? ` (${matched} matched, ${unmatched} unmatched).` : "."),
   };
 }
 
@@ -96,6 +126,10 @@ export async function parseEventBatch(body: ParseEventBatchBody) {
   const roster = await loadBasicRoster();
   const rosterCompact = formatRosterCompact(roster);
   const currentEventsList = await db.select().from(events);
+
+  const notesTable = parseEventNotesTableBatch(body.text, currentEventsList);
+  if (notesTable) return notesTable;
+
   const eventsCompact = formatEventsCompact(currentEventsList);
   const today = new Date().toISOString().slice(0, 10);
   const system = buildParseEventBatchSystem(today);
@@ -104,7 +138,7 @@ export async function parseEventBatch(body: ParseEventBatchBody) {
   const resp = await callClaudeOrThrow(() =>
     anthropic.messages.create({
       model: MODEL,
-      max_tokens: 2048,
+      max_tokens: 8192,
       system,
       tools: [PROPOSE_EVENT_BATCH_TOOL, PROPOSE_EVENT_BATCH_LIST_TOOL],
       tool_choice: { type: "any" },
@@ -122,8 +156,12 @@ export async function parseEventBatch(body: ParseEventBatchBody) {
       explanation?: string;
     };
     const intent = out.intent ?? "create";
-    const list = (out.events ?? []).filter((e) => e.name?.trim() && e.date);
-    const items = list.map((ev) => enrichBatchItem(ev, currentEventsList, intent));
+    const list = (out.events ?? []).filter((e) => {
+      if (!e.name?.trim()) return false;
+      if (intent === "update" && e.notes?.trim()) return true;
+      return Boolean(e.date);
+    });
+    const items = assignEventMatches(list, currentEventsList, intent);
 
     return {
       mode: "batch" as const,
