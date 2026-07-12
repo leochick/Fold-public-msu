@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   buildEngagementFunnelData,
+  classifyPrimaryEngagement,
   ENGAGEMENT_FUNNEL_LABELS,
   isTablingOnlyAttendance,
+  primaryEngagementLabel,
 } from "../dashboard-engagement";
 
 describe("isTablingOnlyAttendance", () => {
@@ -39,5 +41,60 @@ describe("buildEngagementFunnelData", () => {
       { stage: ENGAGEMENT_FUNNEL_LABELS.engaged, count: 1 },
       { stage: ENGAGEMENT_FUNNEL_LABELS.student_leader, count: 2 },
     ]);
+  });
+});
+
+describe("classifyPrimaryEngagement", () => {
+  it("prioritizes student leader over attendance stages", () => {
+    expect(
+      classifyPrimaryEngagement({
+        courseMaterial: ["Student Leader"],
+        attendanceCount: 4,
+        eventTypes: ["Weekly"],
+      })
+    ).toBe("student_leader");
+  });
+
+  it("classifies tabling-only as outreach even with 3+ events", () => {
+    expect(
+      classifyPrimaryEngagement({
+        attendanceCount: 3,
+        eventTypes: ["Tabling", "Tabling", "Tabling"],
+      })
+    ).toBe("outreach");
+  });
+
+  it("classifies newsletter-only as outreach", () => {
+    expect(
+      classifyPrimaryEngagement({
+        attendanceCount: 0,
+        eventTypes: [],
+        newsletter: true,
+      })
+    ).toBe("outreach");
+  });
+
+  it("classifies active and engaged by attendance count", () => {
+    expect(
+      classifyPrimaryEngagement({
+        attendanceCount: 2,
+        eventTypes: ["Weekly", "Social"],
+      })
+    ).toBe("active");
+    expect(
+      classifyPrimaryEngagement({
+        attendanceCount: 3,
+        eventTypes: ["Weekly"],
+      })
+    ).toBe("engaged");
+  });
+
+  it("returns funnel labels for primary engagement", () => {
+    expect(
+      primaryEngagementLabel({
+        attendanceCount: 2,
+        eventTypes: ["Weekly", "Social"],
+      })
+    ).toBe(ENGAGEMENT_FUNNEL_LABELS.active);
   });
 });

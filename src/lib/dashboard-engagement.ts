@@ -34,6 +34,38 @@ export function classifyEngagementInRange(
   return null;
 }
 
+/**
+ * Single primary engagement stage for roster display.
+ * Priority matches funnel hierarchy: Student Leader → Engaged/Active → Outreach.
+ * Tabling-only attendance is Outreach (same as the dashboard funnel).
+ */
+export function classifyPrimaryEngagement(params: {
+  courseMaterial?: string[] | null;
+  attendanceCount: number;
+  eventTypes: Array<string | null | undefined>;
+  newsletter?: boolean;
+}): EngagementFunnelStage | null {
+  if (params.courseMaterial?.includes("Student Leader")) {
+    return "student_leader";
+  }
+  if (isTablingOnlyAttendance(params.eventTypes)) {
+    return "outreach";
+  }
+  const stage = classifyEngagementInRange(params.attendanceCount);
+  if (stage) return stage;
+  if (params.attendanceCount === 0 && params.newsletter) {
+    return "outreach";
+  }
+  return null;
+}
+
+export function primaryEngagementLabel(
+  params: Parameters<typeof classifyPrimaryEngagement>[0]
+): string | null {
+  const stage = classifyPrimaryEngagement(params);
+  return stage ? ENGAGEMENT_FUNNEL_LABELS[stage] : null;
+}
+
 export function isActiveOrEngagedInRange(attendanceCount: number): boolean {
   return classifyEngagementInRange(attendanceCount) !== null;
 }

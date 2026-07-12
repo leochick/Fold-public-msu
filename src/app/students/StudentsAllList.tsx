@@ -11,7 +11,7 @@ export type StudentListRow = {
   lastName: string | null;
   gender: string | null;
   year: string | null;
-  memberStatus: string | null;
+  engagement: string | null;
   igHandle: string | null;
   primaryContact: string | null;
   email: string | null;
@@ -27,7 +27,7 @@ function studentMatchesQuery(student: StudentListRow, query: string): boolean {
     student.email ?? "",
     student.phone ?? "",
     student.primaryContact ?? "",
-    student.memberStatus ?? "",
+    student.engagement ?? "",
     student.year ?? "",
   ]
     .join(" ")
@@ -74,7 +74,7 @@ export default function StudentsAllList({ students }: { students: StudentListRow
             <tr>
               <th>Name</th>
               <th>Year</th>
-              <th>Status</th>
+              <th>Engagement</th>
               <th>IG</th>
               <th>Contact</th>
               <th></th>
@@ -106,8 +106,8 @@ export default function StudentsAllList({ students }: { students: StudentListRow
                   </td>
                   <td>{s.year ?? <span className="text-black/30">—</span>}</td>
                   <td>
-                    {s.memberStatus ? (
-                      <span className="chip">{s.memberStatus}</span>
+                    {s.engagement ? (
+                      <span className="chip">{s.engagement}</span>
                     ) : (
                       <span className="text-black/30">—</span>
                     )}
