@@ -53,10 +53,10 @@ function FieldChangesPanel({
               <>
                 <span className="text-black/40 line-through">{change.before}</span>
                 <span className="text-black/30">→</span>
-                <span className="font-semibold text-accent">{change.after}</span>
+                <span className="font-semibold text-accent whitespace-pre-wrap">{change.after}</span>
               </>
             ) : (
-              <span className="font-semibold text-accent">{change.after}</span>
+              <span className="font-semibold text-accent whitespace-pre-wrap">{change.after}</span>
             )}
           </div>
         ))}

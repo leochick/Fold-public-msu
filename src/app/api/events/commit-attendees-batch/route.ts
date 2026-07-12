@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { students, attendances } from "../../../../../drizzle/schema";
 import { eq } from "drizzle-orm";
 import { pickStudentFields } from "@/lib/changelog";
+import { appendStampedLine } from "@/lib/append-stamped-line";
 import { logStudentCreated, logStudentUpdated } from "@/server/changelog";
 
 const commitAttendeesSchema = z.object({
@@ -19,6 +20,7 @@ const commitAttendeesSchema = z.object({
         phone: z.string().nullable().optional(),
         email: z.string().nullable().optional(),
         igHandle: z.string().nullable().optional(),
+        goals: z.string().nullable().optional(),
         notes: z.string().nullable().optional(),
       }),
       selectedExistingId: z.number().int().optional(),
@@ -45,6 +47,7 @@ export const POST = withAuth(
           phone: item.incoming.phone ?? null,
           email: item.incoming.email ?? null,
           igHandle: item.incoming.igHandle ?? null,
+          goals: item.incoming.goals ?? null,
           notes: item.incoming.notes ?? null,
           addedByUserId: user.id,
         }).returning();
@@ -64,8 +67,11 @@ export const POST = withAuth(
               phone: item.incoming.phone || old.phone,
               email: item.incoming.email || old.email,
               igHandle: item.incoming.igHandle || old.igHandle,
-              notes: item.incoming.notes 
-                ? `${old.notes ?? ""}\n[Event Ingest Merge]: ${item.incoming.notes}`.trim()
+              goals: item.incoming.goals
+                ? appendStampedLine(old.goals, item.incoming.goals)
+                : old.goals,
+              notes: item.incoming.notes
+                ? appendStampedLine(old.notes, item.incoming.notes)
                 : old.notes,
               updatedAt: new Date(),
             };

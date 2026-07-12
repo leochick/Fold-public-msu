@@ -11,6 +11,7 @@ import { callClaudeOrThrow } from "./attendance";
 import { httpErr } from "@/lib/http";
 import type { CommitStudentRosterBatchBody } from "@/lib/contracts/students";
 import { pickStudentFields } from "@/lib/changelog";
+import { appendStampedLine } from "@/lib/append-stamped-line";
 import { logStudentCreated, logStudentUpdated } from "./changelog";
 
 function mergeCourseMaterial(existing: string[] | null | undefined, toAdd?: string[]) {
@@ -56,14 +57,17 @@ function buildMergePatch(
   if (incoming.groupme != null) patch.groupme = incoming.groupme;
   if (incoming.contactedViaIg != null) patch.contactedViaIg = incoming.contactedViaIg;
   if (incoming.primaryContact) patch.primaryContact = incoming.primaryContact;
-  if (incoming.goals) patch.goals = incoming.goals;
+
+  if (incoming.goals) {
+    patch.goals = appendStampedLine(old.goals, incoming.goals);
+  }
 
   if (incoming.courseMaterialAdd?.length) {
     patch.courseMaterial = mergeCourseMaterial(old.courseMaterial ?? null, incoming.courseMaterialAdd);
   }
 
   if (incoming.notes) {
-    patch.notes = `${old.notes ?? ""}\n[AI Merge]: ${incoming.notes}`.trim();
+    patch.notes = appendStampedLine(old.notes, incoming.notes);
   }
 
   return patch;

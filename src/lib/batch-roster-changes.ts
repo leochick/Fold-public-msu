@@ -1,4 +1,5 @@
 import type { BatchRosterIncoming } from "@/lib/contracts/students";
+import { appendStampedLine } from "@/lib/append-stamped-line";
 
 export type FieldChange = {
   label: string;
@@ -16,6 +17,8 @@ function fmt(value: unknown): string {
 function courseList(value: unknown): string[] {
   return Array.isArray(value) ? value.map(String) : [];
 }
+
+const APPEND_ON_MERGE_FIELDS = new Set(["goals", "notes"]);
 
 export function getIncomingFieldChanges(
   incoming: BatchRosterIncoming,
@@ -42,10 +45,19 @@ export function getIncomingFieldChanges(
     const value = incoming[key];
     if (value == null || value === "") continue;
     const before = existingRecord?.[key];
+    const merging = Boolean(existingRecord);
+    let after: string;
+    if (merging && APPEND_ON_MERGE_FIELDS.has(key) && typeof value === "string") {
+      after = appendStampedLine(typeof before === "string" ? before : null, value) ?? fmt(value);
+    } else if (key === "igHandle" && typeof value === "string") {
+      after = `@${value.replace(/^@/, "")}`;
+    } else {
+      after = fmt(value);
+    }
     changes.push({
       label,
       before: existingRecord ? fmt(before) : undefined,
-      after: key === "igHandle" && typeof value === "string" ? `@${value.replace(/^@/, "")}` : fmt(value),
+      after,
     });
   }
 
