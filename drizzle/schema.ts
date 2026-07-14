@@ -230,6 +230,45 @@ export const groupings = sqliteTable("groupings", {
 export type Grouping = typeof groupings.$inferSelect;
 export type NewGrouping = typeof groupings.$inferInsert;
 
+export type RoleBoardPerson = {
+  entity: "student" | "staff";
+  id: number;
+};
+
+export type RoleBoardRow = {
+  name: string;
+  people: Array<RoleBoardPerson | null>;
+};
+
+export const roleBoards = sqliteTable(
+  "role_boards",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    viewId: integer("view_id")
+      .notNull()
+      .references(() => views.id, { onDelete: "cascade" }),
+    /** When set, students are loaded from this view instead of viewId. */
+    eventAndStudentDataView: integer("event_and_student_data_view").references(() => views.id, {
+      onDelete: "set null",
+    }),
+    personColumnCount: integer("person_column_count").notNull().default(0),
+    rows: text("rows", { mode: "json" }).$type<RoleBoardRow[]>().notNull(),
+    addedByUserId: text("added_by_user_id").references(() => users.id, { onDelete: "set null" }),
+    createdAt: integer("created_at", { mode: "timestamp" })
+      .notNull()
+      .default(sql`(unixepoch())`),
+    updatedAt: integer("updated_at", { mode: "timestamp" })
+      .notNull()
+      .default(sql`(unixepoch())`),
+  },
+  (t) => ({
+    uniqView: uniqueIndex("uniq_role_board_view").on(t.viewId),
+  })
+);
+
+export type RoleBoard = typeof roleBoards.$inferSelect;
+export type NewRoleBoard = typeof roleBoards.$inferInsert;
+
 export const changelogEntries = sqliteTable("changelog_entries", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   userId: text("user_id").references(() => users.id, { onDelete: "set null" }),

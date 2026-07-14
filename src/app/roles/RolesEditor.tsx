@@ -1,0 +1,271 @@
+"use client";
+
+import { useEffect, useRef, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import type { RoleBoardPerson, RoleBoardRow } from "../../../drizzle/schema";
+import { updateRoleBoardAction } from "../roles-actions";
+import type { RoleBoardDetail, RoleBoardPersonOption } from "@/server/roles";
+import PersonPicker from "./PersonPicker";
+
+type ViewOption = {
+  id: number;
+  name: string;
+};
+
+type SaveStatus = "idle" | "saving" | "saved" | "error";
+
+export default function RolesEditor({
+  board,
+  viewName,
+  otherViews,
+  personOptions,
+}: {
+  board: RoleBoardDetail;
+  viewName: string;
+  otherViews: ViewOption[];
+  personOptions: RoleBoardPersonOption[];
+}) {
+  const router = useRouter();
+  const [eventAndStudentDataView, setEventAndStudentDataView] = useState(
+    board.eventAndStudentDataView != null ? String(board.eventAndStudentDataView) : ""
+  );
+  const [personColumnCount, setPersonColumnCount] = useState(board.personColumnCount);
+  const [rows, setRows] = useState<RoleBoardRow[]>(board.rows);
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const skipNextAutosaveRef = useRef(true);
+  const savedDataViewRef = useRef(eventAndStudentDataView);
+  const latestRef = useRef({
+    eventAndStudentDataView,
+    personColumnCount,
+    rows,
+  });
+
+  latestRef.current = { eventAndStudentDataView, personColumnCount, rows };
+
+  useEffect(() => {
+    skipNextAutosaveRef.current = true;
+    const nextDataView =
+      board.eventAndStudentDataView != null ? String(board.eventAndStudentDataView) : "";
+    setEventAndStudentDataView(nextDataView);
+    setPersonColumnCount(board.personColumnCount);
+    setRows(board.rows);
+    savedDataViewRef.current = nextDataView;
+  }, [board.id]);
+
+  useEffect(() => {
+    if (skipNextAutosaveRef.current) {
+      skipNextAutosaveRef.current = false;
+      return;
+    }
+
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    setSaveStatus("saving");
+    setSaveError(null);
+
+    saveTimerRef.current = setTimeout(() => {
+      const snapshot = latestRef.current;
+      const dataViewId = snapshot.eventAndStudentDataView
+        ? Number(snapshot.eventAndStudentDataView)
+        : null;
+      const dataViewChanged = snapshot.eventAndStudentDataView !== savedDataViewRef.current;
+
+      startTransition(async () => {
+        try {
+          await updateRoleBoardAction(board.id, {
+            eventAndStudentDataView:
+              dataViewId != null && Number.isFinite(dataViewId) ? dataViewId : null,
+            personColumnCount: snapshot.personColumnCount,
+            rows: snapshot.rows,
+          });
+          savedDataViewRef.current = snapshot.eventAndStudentDataView;
+          setSaveStatus("saved");
+          if (dataViewChanged) {
+            router.refresh();
+          }
+        } catch (error) {
+          setSaveStatus("error");
+          setSaveError(error instanceof Error ? error.message : "Could not save");
+        }
+      });
+    }, 450);
+
+    return () => {
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    };
+  }, [board.id, eventAndStudentDataView, personColumnCount, rows, router]);
+
+  function updateRowName(index: number, name: string) {
+    setRows((current) =>
+      current.map((row, rowIndex) => (rowIndex === index ? { ...row, name } : row))
+    );
+  }
+
+  function updatePerson(rowIndex: number, columnIndex: number, person: RoleBoardPerson | null) {
+    setRows((current) =>
+      current.map((row, index) => {
+        if (index !== rowIndex) return row;
+        const people = [...row.people];
+        people[columnIndex] = person;
+        return { ...row, people };
+      })
+    );
+  }
+
+  function addPersonColumn() {
+    setPersonColumnCount((count) => count + 1);
+    setRows((current) =>
+      current.map((row) => ({
+        ...row,
+        people: [...row.people, null],
+      }))
+    );
+  }
+
+  function addRoleRow() {
+    setRows((current) => [
+      ...current,
+      {
+        name: "",
+        people: Array.from({ length: personColumnCount }, () => null),
+      },
+    ]);
+  }
+
+  function removeRoleRow(index: number) {
+    setRows((current) => current.filter((_, rowIndex) => rowIndex !== index));
+  }
+
+  const statusLabel =
+    saveStatus === "saving" || isPending
+      ? "Saving…"
+      : saveStatus === "saved"
+        ? "Saved"
+        : saveStatus === "error"
+          ? "Save failed"
+          : null;
+
+  return (
+    <div className="space-y-6">
+      <div className="card">
+        <div className="flex flex-col sm:flex-row sm:items-end gap-3">
+          <div className="flex-1">
+            <label htmlFor="roles-event-student-data-view" className="label block mb-1">
+              Event and student data from:
+            </label>
+            <select
+              id="roles-event-student-data-view"
+              className="input"
+              value={eventAndStudentDataView}
+              onChange={(event) => setEventAndStudentDataView(event.target.value)}
+              disabled={otherViews.length === 0}
+            >
+              <option value="">{viewName} (current view)</option>
+              {otherViews.map((view) => (
+                <option key={view.id} value={view.id}>
+                  {view.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          {statusLabel && (
+            <p
+              className={`text-xs shrink-0 pb-2 ${
+                saveStatus === "error"
+                  ? "text-red-600 dark:text-red-400"
+                  : "text-black/50 dark:text-white/50"
+              }`}
+            >
+              {statusLabel}
+            </p>
+          )}
+        </div>
+        {saveError && (
+          <p className="text-xs text-red-600 dark:text-red-400 mt-2">{saveError}</p>
+        )}
+        <p className="text-xs text-black/60 dark:text-white/60 mt-2">
+          Role assignments for {viewName}. Changes save automatically.
+        </p>
+      </div>
+
+      <div className="card overflow-x-auto">
+        <table>
+          <thead>
+            <tr>
+              <th className="min-w-[12rem]">Role</th>
+              {Array.from({ length: personColumnCount }, (_, index) => (
+                <th key={index} className="min-w-[12rem]">
+                  Person {index + 1}
+                </th>
+              ))}
+              <th className="w-12">
+                <button
+                  type="button"
+                  className="btn-ghost px-2 py-1 text-lg leading-none"
+                  aria-label="Add person column"
+                  title="Add person column"
+                  onClick={addPersonColumn}
+                >
+                  +
+                </button>
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.length === 0 ? (
+              <tr>
+                <td
+                  colSpan={personColumnCount + 2}
+                  className="text-sm text-black/50 dark:text-white/50"
+                >
+                  No roles yet. Add a role below.
+                </td>
+              </tr>
+            ) : (
+              rows.map((row, rowIndex) => (
+                <tr key={rowIndex}>
+                  <td>
+                    <input
+                      type="text"
+                      className="input"
+                      placeholder="Role name"
+                      value={row.name}
+                      onChange={(event) => updateRowName(rowIndex, event.target.value)}
+                    />
+                  </td>
+                  {Array.from({ length: personColumnCount }, (_, columnIndex) => (
+                    <td key={columnIndex}>
+                      <PersonPicker
+                        value={row.people[columnIndex] ?? null}
+                        options={personOptions}
+                        onChange={(person) => updatePerson(rowIndex, columnIndex, person)}
+                      />
+                    </td>
+                  ))}
+                  <td>
+                    <button
+                      type="button"
+                      className="btn-ghost px-2 py-1 text-xs"
+                      aria-label={`Remove role ${row.name || rowIndex + 1}`}
+                      onClick={() => removeRoleRow(rowIndex)}
+                    >
+                      ✕
+                    </button>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+
+        <div className="mt-4">
+          <button type="button" className="btn btn-ghost" onClick={addRoleRow}>
+            + Add role
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}

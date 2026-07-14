@@ -183,6 +183,13 @@
       "when": 1780900000000,
       "tag": "0025_migrate_groupings_to_2027_fall",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "6",
+      "when": 1781000000000,
+      "tag": "0026_role_boards",
+      "breakpoints": true
     }
   ]
 }
