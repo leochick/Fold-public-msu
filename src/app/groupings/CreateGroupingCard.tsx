@@ -64,7 +64,7 @@ export default function CreateGroupingCard({
         </p>
       ) : (
         <p className="text-xs text-black/60 dark:text-white/60 mt-2">
-          New groupings will use {viewName}.
+          A new grouping for {viewName}.
         </p>
       )}
     </div>

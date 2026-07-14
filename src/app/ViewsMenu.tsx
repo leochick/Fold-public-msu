@@ -113,7 +113,7 @@ export default function ViewsMenu({
     });
   }
 
-  const label = activeView ? `Views · ${activeView.name}` : "Views";
+  const label = activeView ? `${activeView.name}` : "Views";
   const createValid = Boolean(createName.trim() && createFrom && createTo && createFrom <= createTo);
 
   return (
