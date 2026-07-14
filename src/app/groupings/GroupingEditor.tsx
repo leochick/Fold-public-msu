@@ -380,7 +380,11 @@ export default function GroupingEditor({
   return (
     <div className="space-y-6">
       <div className="card">
-        <h2 className="text-sm font-semibold mb-3">Events in {grouping.viewName}</h2>
+        <h2 className="text-sm font-semibold mb-3">
+          {grouping.eventAndStudentDataViewName
+            ? `${grouping.viewName}: Event data from "${grouping.eventAndStudentDataViewName}"`
+            : `Events in ${grouping.viewName}`}
+        </h2>
         <div className="max-h-40 overflow-y-auto space-y-2 pr-1">
           <label className="flex items-center gap-2 text-sm cursor-pointer">
             <input

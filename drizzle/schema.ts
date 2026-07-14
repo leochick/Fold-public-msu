@@ -209,6 +209,10 @@ export const groupings = sqliteTable("groupings", {
   viewId: integer("view_id")
     .notNull()
     .references(() => views.id, { onDelete: "cascade" }),
+  /** When set, events/students are loaded from this view instead of viewId. */
+  eventAndStudentDataView: integer("event_and_student_data_view").references(() => views.id, {
+    onDelete: "set null",
+  }),
   checkedEventIds: text("checked_event_ids", { mode: "json" }).$type<number[]>(),
   includeNewsletterContacts: integer("include_newsletter_contacts", { mode: "boolean" })
     .notNull()

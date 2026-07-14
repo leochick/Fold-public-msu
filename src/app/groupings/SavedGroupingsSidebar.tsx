@@ -125,6 +125,11 @@ export default function SavedGroupingsSidebar({
                             <p className="mt-1 text-xs text-black/50 dark:text-white/50">
                               {grouping.viewName}
                             </p>
+                            {grouping.eventAndStudentDataViewName && (
+                              <p className="mt-0.5 text-xs text-black/40 dark:text-white/40">
+                                Events & students from {grouping.eventAndStudentDataViewName}
+                              </p>
+                            )}
                             <p className="mt-0.5 text-xs text-black/40 dark:text-white/40">
                               {grouping.eventSelectionLabel}
                             </p>

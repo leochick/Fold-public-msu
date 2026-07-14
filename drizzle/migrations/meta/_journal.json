@@ -169,6 +169,13 @@
       "when": 1780700000000,
       "tag": "0023_drop_contact_attempts",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "6",
+      "when": 1780800000000,
+      "tag": "0024_grouping_event_student_data_view",
+      "breakpoints": true
     }
   ]
 }

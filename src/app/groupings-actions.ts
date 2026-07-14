@@ -18,7 +18,11 @@ function assertContainers(containers: GroupingContainerData[]): GroupingContaine
   }));
 }
 
-export async function createGroupingAction(viewId: number, name: string) {
+export async function createGroupingAction(
+  viewId: number,
+  name: string,
+  eventAndStudentDataView: number | null = null
+) {
   const user = await requireUser();
   if (!Number.isFinite(viewId)) throw new Error("Invalid view");
   const trimmed = name.trim();
@@ -27,11 +31,25 @@ export async function createGroupingAction(viewId: number, name: string) {
   const [view] = await db.select({ id: views.id }).from(views).where(eq(views.id, viewId)).limit(1);
   if (!view) throw new Error("View not found");
 
+  let dataViewId: number | null = null;
+  if (eventAndStudentDataView != null && Number.isFinite(eventAndStudentDataView)) {
+    if (eventAndStudentDataView !== viewId) {
+      const [dataView] = await db
+        .select({ id: views.id })
+        .from(views)
+        .where(eq(views.id, eventAndStudentDataView))
+        .limit(1);
+      if (!dataView) throw new Error("Event and student data view not found");
+      dataViewId = dataView.id;
+    }
+  }
+
   const [created] = await db
     .insert(groupings)
     .values({
       name: trimmed,
       viewId,
+      eventAndStudentDataView: dataViewId,
       checkedEventIds: null,
       includeNewsletterContacts: false,
       containers: emptyGroupingContainers(),

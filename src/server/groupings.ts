@@ -9,16 +9,21 @@ import {
   type GroupingContainerData,
 } from "../../drizzle/schema";
 import { and, asc, eq, gte, inArray, lte, notInArray, sql } from "drizzle-orm";
+import { alias } from "drizzle-orm/sqlite-core";
 import { formatDashboardDate } from "@/lib/dashboard-date-range";
 import { formatGroupingEventSelection } from "@/lib/grouping-events";
 import { getStudentStatuses, type GroupingStudentStatus } from "@/lib/grouping-status";
 import { normalizeGroupingContainers, emptyGroupingContainers } from "@/lib/grouping-containers";
+
+const eventAndStudentDataViews = alias(views, "event_and_student_data_views");
 
 export type GroupingListItem = {
   id: number;
   name: string;
   viewId: number;
   viewName: string;
+  eventAndStudentDataView: number | null;
+  eventAndStudentDataViewName: string | null;
   eventSelectionLabel: string;
 };
 
@@ -71,11 +76,22 @@ export type GroupingDetail = {
   viewName: string;
   viewFrom: string;
   viewTo: string;
+  /** When set, events/students come from this view instead of viewId. */
+  eventAndStudentDataView: number | null;
+  eventAndStudentDataViewName: string | null;
   /** null = all non-tabling events in the view; [] = none; otherwise specific event ids */
   checkedEventIds: number[] | null;
   includeNewsletterContacts: boolean;
   containers: GroupingContainerData[];
 };
+
+/** View id used for loading events and students for a grouping. */
+export function getGroupingDataViewId(grouping: {
+  viewId: number;
+  eventAndStudentDataView: number | null;
+}): number {
+  return grouping.eventAndStudentDataView ?? grouping.viewId;
+}
 
 export { emptyGroupingContainers } from "@/lib/grouping-containers";
 
@@ -86,12 +102,18 @@ export async function listGroupings(viewId?: number): Promise<GroupingListItem[]
       name: groupings.name,
       viewId: groupings.viewId,
       viewName: views.name,
+      eventAndStudentDataView: groupings.eventAndStudentDataView,
+      eventAndStudentDataViewName: eventAndStudentDataViews.name,
       checkedEventIds: groupings.checkedEventIds,
       createdAt: groupings.createdAt,
       updatedAt: groupings.updatedAt,
     })
     .from(groupings)
     .innerJoin(views, eq(groupings.viewId, views.id))
+    .leftJoin(
+      eventAndStudentDataViews,
+      eq(groupings.eventAndStudentDataView, eventAndStudentDataViews.id)
+    )
     .where(viewId != null ? eq(groupings.viewId, viewId) : undefined)
     .orderBy(asc(groupings.name));
 
@@ -116,16 +138,24 @@ export async function listGroupings(viewId?: number): Promise<GroupingListItem[]
 
   const eventNameById = new Map(eventNameRows.map((event) => [event.id, event.name]));
 
-  return rows.map((row) => ({
-    id: row.id,
-    name: row.name,
-    viewId: row.viewId,
-    viewName: row.viewName,
-    eventSelectionLabel: formatGroupingEventSelection(
-      normalizeCheckedEventIdsFromDb(row.checkedEventIds, row.createdAt, row.updatedAt),
-      eventNameById
-    ),
-  }));
+  return rows.map((row) => {
+    const dataViewId =
+      row.eventAndStudentDataView != null && row.eventAndStudentDataView !== row.viewId
+        ? row.eventAndStudentDataView
+        : null;
+    return {
+      id: row.id,
+      name: row.name,
+      viewId: row.viewId,
+      viewName: row.viewName,
+      eventAndStudentDataView: dataViewId,
+      eventAndStudentDataViewName: dataViewId != null ? row.eventAndStudentDataViewName : null,
+      eventSelectionLabel: formatGroupingEventSelection(
+        normalizeCheckedEventIdsFromDb(row.checkedEventIds, row.createdAt, row.updatedAt),
+        eventNameById
+      ),
+    };
+  });
 }
 
 export async function getGroupingById(id: number): Promise<GroupingDetail | null> {
@@ -135,13 +165,24 @@ export async function getGroupingById(id: number): Promise<GroupingDetail | null
       viewName: views.name,
       viewStart: views.startDate,
       viewEnd: views.endDate,
+      eventAndStudentDataViewName: eventAndStudentDataViews.name,
     })
     .from(groupings)
     .innerJoin(views, eq(groupings.viewId, views.id))
+    .leftJoin(
+      eventAndStudentDataViews,
+      eq(groupings.eventAndStudentDataView, eventAndStudentDataViews.id)
+    )
     .where(eq(groupings.id, id))
     .limit(1);
 
   if (!row) return null;
+
+  const dataViewId =
+    row.grouping.eventAndStudentDataView != null &&
+    row.grouping.eventAndStudentDataView !== row.grouping.viewId
+      ? row.grouping.eventAndStudentDataView
+      : null;
 
   return {
     id: row.grouping.id,
@@ -150,6 +191,8 @@ export async function getGroupingById(id: number): Promise<GroupingDetail | null
     viewName: row.viewName,
     viewFrom: formatDashboardDate(row.viewStart),
     viewTo: formatDashboardDate(row.viewEnd),
+    eventAndStudentDataView: dataViewId,
+    eventAndStudentDataViewName: dataViewId != null ? row.eventAndStudentDataViewName : null,
     checkedEventIds: normalizeCheckedEventIdsFromDb(
       row.grouping.checkedEventIds,
       row.grouping.createdAt,

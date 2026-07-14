@@ -4,10 +4,11 @@ import {
   getAllStaff,
   getFirstGrouping,
   getGroupingById,
+  getGroupingDataViewId,
   getStudentsForView,
   listGroupings,
 } from "@/server/groupings";
-import { getActiveDashboardView } from "@/server/dashboard-views";
+import { getActiveDashboardView, listDashboardViews } from "@/server/dashboard-views";
 import CreateGroupingCard from "./CreateGroupingCard";
 import GroupingEditor from "./GroupingEditor";
 import { GroupingExportProvider, GroupingsPageHeader } from "./GroupingExport";
@@ -22,6 +23,7 @@ export default async function GroupingsPage({
 }) {
   const sp = await searchParams;
   const activeView = await getActiveDashboardView();
+  const allViews = await listDashboardViews();
   const savedGroupings = activeView ? await listGroupings(activeView.id) : [];
 
   const groupingId = sp.grouping ? Number(sp.grouping) : null;
@@ -35,13 +37,19 @@ export default async function GroupingsPage({
   const activeGrouping =
     requestedGrouping ?? (activeView ? await getFirstGrouping(activeView.id) : null);
 
-  const [events, students, staffMembers] = activeGrouping
-    ? await Promise.all([
-        getEventsForView(activeGrouping.viewId),
-        getStudentsForView(activeGrouping.viewId),
-        getAllStaff(),
-      ])
-    : [[], [], []];
+  const dataViewId = activeGrouping ? getGroupingDataViewId(activeGrouping) : null;
+  const [events, students, staffMembers] =
+    dataViewId != null
+      ? await Promise.all([
+          getEventsForView(dataViewId),
+          getStudentsForView(dataViewId),
+          getAllStaff(),
+        ])
+      : [[], [], []];
+
+  const otherViews = allViews
+    .filter((view) => view.id !== activeView?.id)
+    .map((view) => ({ id: view.id, name: view.name }));
 
   return (
     <GroupingExportProvider>
@@ -60,6 +68,7 @@ export default async function GroupingsPage({
             <CreateGroupingCard
               viewId={activeView?.id ?? null}
               viewName={activeView?.name ?? null}
+              otherViews={otherViews}
             />
 
             {activeGrouping ? (
