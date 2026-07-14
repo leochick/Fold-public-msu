@@ -153,16 +153,6 @@ export const attendances = sqliteTable(
   })
 );
 
-export const feedback = sqliteTable("feedback", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  userId: text("user_id").references(() => users.id, { onDelete: "set null" }),
-  text: text("text").notNull(),
-  page: text("page"),
-  createdAt: integer("created_at", { mode: "timestamp" })
-    .notNull()
-    .default(sql`(unixepoch())`),
-});
-
 export const staff = sqliteTable("staff", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   firstName: text("first_name").notNull(),

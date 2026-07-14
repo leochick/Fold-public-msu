@@ -1,14 +1,22 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { attendances, events, students } from "../../../drizzle/schema";
-import { eq, sql } from "drizzle-orm";
+import { and, eq, gte, lte, sql } from "drizzle-orm";
 import { primaryEngagementLabel } from "@/lib/dashboard-engagement";
+import { resolveDashboardDateRange } from "@/lib/dashboard-date-range";
+import { getActiveDashboardView } from "@/server/dashboard-views";
 import QuickAddStudents from "./QuickAddStudents";
 import StudentsAllList from "./StudentsAllList";
 
 export const dynamic = "force-dynamic";
 
 export default async function StudentsPage() {
+  const activeView = await getActiveDashboardView();
+  const { from, to } = resolveDashboardDateRange(
+    activeView ? { from: activeView.from, to: activeView.to } : {}
+  );
+  const eventDateRange = and(gte(events.startDate, from), lte(events.startDate, to));
+
   const [allRows, countRows, typeRows] = await Promise.all([
     db.select().from(students).orderBy(students.firstName),
     db
@@ -17,6 +25,8 @@ export default async function StudentsPage() {
         count: sql<number>`count(*)`.as("c"),
       })
       .from(attendances)
+      .innerJoin(events, eq(attendances.eventId, events.id))
+      .where(eventDateRange)
       .groupBy(attendances.studentId),
     db
       .select({
@@ -24,7 +34,8 @@ export default async function StudentsPage() {
         eventType: events.type,
       })
       .from(attendances)
-      .innerJoin(events, eq(attendances.eventId, events.id)),
+      .innerJoin(events, eq(attendances.eventId, events.id))
+      .where(eventDateRange),
   ]);
 
   const countByStudent = new Map(countRows.map((row) => [row.studentId, Number(row.count)]));
@@ -53,6 +64,10 @@ export default async function StudentsPage() {
     phone: s.phone,
   }));
 
+  const engagementColumnLabel = activeView
+    ? `Engagement (${activeView.name})`
+    : "Engagement";
+
   return (
     <div className="max-w-6xl mx-auto px-4 py-8 space-y-6">
       <div className="flex items-center justify-between">
@@ -62,7 +77,7 @@ export default async function StudentsPage() {
 
       <QuickAddStudents />
 
-      <StudentsAllList students={listRows} />
+      <StudentsAllList students={listRows} engagementColumnLabel={engagementColumnLabel} />
     </div>
   );
 }

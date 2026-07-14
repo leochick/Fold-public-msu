@@ -9,30 +9,20 @@ import {
   buildEngagementFunnelData,
   type RangeEngagementStage,
 } from "@/lib/dashboard-engagement";
-import { getDefaultDashboardView, listDashboardViews } from "@/server/dashboard-views";
+import { getActiveDashboardView } from "@/server/dashboard-views";
 import DashboardCharts from "./DashboardCharts";
-import DashboardDateFilter from "./DashboardDateFilter";
-import SavedViewsSidebar from "./SavedViewsSidebar";
 import QuickAdd from "./events/QuickAdd";
 
 export const dynamic = "force-dynamic";
 
-export default async function DashboardPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ from?: string; to?: string }>;
-}) {
-  const sp = await searchParams;
-  const hasExplicitRange = Boolean(sp.from && sp.to);
-  const defaultView = hasExplicitRange ? null : await getDefaultDashboardView();
-  const rangeInput = hasExplicitRange
-    ? sp
-    : defaultView
-      ? { from: defaultView.from, to: defaultView.to }
-      : sp;
-  const { from, to, fromStr, toStr } = resolveDashboardDateRange(rangeInput);
-  const savedViews = await listDashboardViews();
-  const rangeLabel = dashboardDateRangeLabel(from, to);
+export default async function DashboardPage() {
+  const activeView = await getActiveDashboardView();
+  const { from, to } = resolveDashboardDateRange(
+    activeView ? { from: activeView.from, to: activeView.to } : {}
+  );
+  const rangeLabel = activeView
+    ? `${activeView.name} (${dashboardDateRangeLabel(from, to)})`
+    : dashboardDateRangeLabel(from, to);
   const eventDateRange = and(gte(events.startDate, from), lte(events.startDate, to));
 
   const [
@@ -299,77 +289,66 @@ export default async function DashboardPage({
     });
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-8">
-      <div className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-8 items-start">
-        <div className="row-start-1 col-start-1" aria-hidden />
-        <h1 className="row-start-1 col-start-2 text-2xl font-semibold">Dashboard</h1>
+    <div className="max-w-6xl mx-auto px-4 py-8 space-y-8">
+      <h1 className="text-2xl font-semibold">Dashboard</h1>
 
-        <div className="row-start-2 col-start-1 self-start">
-          <SavedViewsSidebar views={savedViews} activeFrom={fromStr} activeTo={toStr} />
+      <QuickAdd />
+
+      <section className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <Stat label="Events" value={snapshot.events} />
+        <Stat label="Total check-ins" value={snapshot.attendances} />
+        <Stat label="Unique people" value={snapshot.uniquePeople} />
+        <Stat label="New students" value={snapshot.newStudents} />
+      </section>
+
+      <DashboardCharts
+        overTime={overTimeData}
+        funnel={funnelData}
+        breakdowns={breakdowns}
+        completedC101={completedStudents}
+        pendingC101={pendingStudents}
+        notOnNewsletter={notOnNewsletter}
+        notOnGroupme={notOnGroupme}
+        rangeLabel={rangeLabel}
+      />
+
+      <section className="card overflow-x-auto">
+        <div className="flex items-center justify-between mb-3">
+          <div>
+            <h2 className="font-semibold">Active prospects</h2>
+            <p className="text-xs text-black/60">
+              Non-core members ranked by attendance from {rangeLabel}. Highest priority for follow-up.
+            </p>
+          </div>
+          <Link href="/students" className="text-xs text-black/60 hover:underline">all students →</Link>
         </div>
-
-        <div className="row-start-2 col-start-2 min-w-0 space-y-8">
-          <DashboardDateFilter key={`${fromStr}-${toStr}`} from={fromStr} to={toStr} />
-
-          <QuickAdd />
-
-          <section className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <Stat label="Events" value={snapshot.events} />
-            <Stat label="Total check-ins" value={snapshot.attendances} />
-            <Stat label="Unique people" value={snapshot.uniquePeople} />
-            <Stat label="New students" value={snapshot.newStudents} />
-          </section>
-
-          <DashboardCharts
-            overTime={overTimeData}
-            funnel={funnelData}
-            breakdowns={breakdowns}
-            completedC101={completedStudents}
-            pendingC101={pendingStudents}
-            notOnNewsletter={notOnNewsletter}
-            notOnGroupme={notOnGroupme}
-            rangeLabel={rangeLabel}
-          />
-
-          <section className="card overflow-x-auto">
-            <div className="flex items-center justify-between mb-3">
-              <div>
-                <h2 className="font-semibold">Active prospects</h2>
-                <p className="text-xs text-black/60">
-                  Non-core members ranked by attendance from {rangeLabel}. Highest priority for follow-up.
-                </p>
-              </div>
-              <Link href="/students" className="text-xs text-black/60 hover:underline">all students →</Link>
-            </div>
-            {hotProspects.length === 0 ? (
-              <p className="text-sm text-black/50">No attendance in this date range yet.</p>
-            ) : (
-              <table>
-                <thead>
-                  <tr>
-                    <th>Name</th><th>Year</th><th>Status</th><th>Visits</th><th>Primary contact</th><th>Last seen</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {hotProspects.map((s) => (
-                    <tr key={s.id} className="hover:bg-black/5 dark:hover:bg-white/5">
-                      <td>
-                        <Link href={`/students/${s.id}`} className="font-medium hover:underline">{s.name}</Link>
-                        <span className="ml-1 text-xs text-black/40">{s.gender === "M" ? "♂" : s.gender === "F" ? "♀" : ""}</span>
-                      </td>
-                      <td>{s.year ?? "—"}</td>
-                      <td>{s.status ? <span className="chip">{s.status}</span> : <span className="text-black/30">—</span>}</td>
-                      <td className="font-medium">{s.visits}</td>
-                      <td className="text-sm">{s.primaryContact ?? <span className="text-black/30">—</span>}</td>
-                      <td className="text-sm text-black/60">{s.lastSeen}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </section>
-        </div>
-      </div>
+        {hotProspects.length === 0 ? (
+          <p className="text-sm text-black/50">No attendance in this date range yet.</p>
+        ) : (
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th><th>Year</th><th>Status</th><th>Visits</th><th>Primary contact</th><th>Last seen</th>
+              </tr>
+            </thead>
+            <tbody>
+              {hotProspects.map((s) => (
+                <tr key={s.id} className="hover:bg-black/5 dark:hover:bg-white/5">
+                  <td>
+                    <Link href={`/students/${s.id}`} className="font-medium hover:underline">{s.name}</Link>
+                    <span className="ml-1 text-xs text-black/40">{s.gender === "M" ? "♂" : s.gender === "F" ? "♀" : ""}</span>
+                  </td>
+                  <td>{s.year ?? "—"}</td>
+                  <td>{s.status ? <span className="chip">{s.status}</span> : <span className="text-black/30">—</span>}</td>
+                  <td className="font-medium">{s.visits}</td>
+                  <td className="text-sm">{s.primaryContact ?? <span className="text-black/30">—</span>}</td>
+                  <td className="text-sm text-black/60">{s.lastSeen}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </section>
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { listDashboardViews } from "@/server/dashboard-views";
+import { redirect } from "next/navigation";
 import {
   getEventsForView,
   getAllStaff,
@@ -7,6 +7,7 @@ import {
   getStudentsForView,
   listGroupings,
 } from "@/server/groupings";
+import { getActiveDashboardView } from "@/server/dashboard-views";
 import CreateGroupingCard from "./CreateGroupingCard";
 import GroupingEditor from "./GroupingEditor";
 import { GroupingExportProvider, GroupingsPageHeader } from "./GroupingExport";
@@ -20,13 +21,19 @@ export default async function GroupingsPage({
   searchParams: Promise<{ grouping?: string }>;
 }) {
   const sp = await searchParams;
-  const [savedGroupings, savedViews] = await Promise.all([listGroupings(), listDashboardViews()]);
+  const activeView = await getActiveDashboardView();
+  const savedGroupings = activeView ? await listGroupings(activeView.id) : [];
 
   const groupingId = sp.grouping ? Number(sp.grouping) : null;
+  const requestedGrouping =
+    groupingId && Number.isFinite(groupingId) ? await getGroupingById(groupingId) : null;
+
+  if (requestedGrouping && activeView && requestedGrouping.viewId !== activeView.id) {
+    redirect("/groupings");
+  }
+
   const activeGrouping =
-    groupingId && Number.isFinite(groupingId)
-      ? await getGroupingById(groupingId)
-      : await getFirstGrouping();
+    requestedGrouping ?? (activeView ? await getFirstGrouping(activeView.id) : null);
 
   const [events, students, staffMembers] = activeGrouping
     ? await Promise.all([
@@ -50,7 +57,10 @@ export default async function GroupingsPage({
           </div>
 
           <div className="row-start-1 col-start-2 min-w-0 space-y-6">
-            <CreateGroupingCard views={savedViews} />
+            <CreateGroupingCard
+              viewId={activeView?.id ?? null}
+              viewName={activeView?.name ?? null}
+            />
 
             {activeGrouping ? (
               <GroupingEditor
@@ -63,7 +73,9 @@ export default async function GroupingsPage({
             ) : (
               <div className="card">
                 <p className="text-sm text-black/60 dark:text-white/60">
-                  No groupings yet. Select a saved view above and create your first grouping.
+                  {activeView
+                    ? `No groupings for ${activeView.name} yet. Create your first grouping above.`
+                    : "Create a view from the Views menu in the header, then create your first grouping."}
                 </p>
               </div>
             )}

@@ -35,7 +35,13 @@ function studentMatchesQuery(student: StudentListRow, query: string): boolean {
   return haystack.includes(query);
 }
 
-export default function StudentsAllList({ students }: { students: StudentListRow[] }) {
+export default function StudentsAllList({
+  students,
+  engagementColumnLabel = "Engagement",
+}: {
+  students: StudentListRow[];
+  engagementColumnLabel?: string;
+}) {
   const [query, setQuery] = useState("");
   const normalizedQuery = query.trim().toLowerCase();
 
@@ -74,7 +80,7 @@ export default function StudentsAllList({ students }: { students: StudentListRow
             <tr>
               <th>Name</th>
               <th>Year</th>
-              <th>Engagement</th>
+              <th>{engagementColumnLabel}</th>
               <th>IG</th>
               <th>Contact</th>
               <th></th>

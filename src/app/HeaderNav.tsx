@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import FeedbackLink from "./FeedbackLink";
+import ViewsMenu from "./ViewsMenu";
+import type { DashboardViewItem } from "@/server/dashboard-views";
 
 const links = [
   { href: "/", label: "Dashboard" },
@@ -17,9 +18,13 @@ const links = [
 export default function HeaderNav({
   displayName,
   signOutAction,
+  views,
+  activeView,
 }: {
   displayName: string;
   signOutAction: () => void;
+  views: DashboardViewItem[];
+  activeView: DashboardViewItem | null;
 }) {
   const [open, setOpen] = useState(false);
   const close = () => setOpen(false);
@@ -32,7 +37,7 @@ export default function HeaderNav({
         ))}
       </nav>
       <div className="ml-auto hidden md:flex items-center gap-3 text-sm">
-        <FeedbackLink />
+        <ViewsMenu views={views} activeView={activeView} />
         <span className="text-black/60 dark:text-white/60">{displayName}</span>
         <form action={signOutAction}>
           <button className="btn-ghost" type="submit">Sign out</button>
@@ -62,12 +67,14 @@ export default function HeaderNav({
                 {l.label}
               </Link>
             ))}
-            <div className="border-t border-black/5 dark:border-white/10 pt-3 flex items-center gap-3">
-              <FeedbackLink />
-              <span className="text-black/60 dark:text-white/60">{displayName}</span>
-              <form action={signOutAction} className="ml-auto">
-                <button className="btn-ghost" type="submit">Sign out</button>
-              </form>
+            <div className="border-t border-black/5 dark:border-white/10 pt-3 flex flex-col gap-3">
+              <ViewsMenu views={views} activeView={activeView} />
+              <div className="flex items-center gap-3">
+                <span className="text-black/60 dark:text-white/60">{displayName}</span>
+                <form action={signOutAction} className="ml-auto">
+                  <button className="btn-ghost" type="submit">Sign out</button>
+                </form>
+              </div>
             </div>
           </div>
         </div>

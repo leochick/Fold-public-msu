@@ -204,8 +204,7 @@ export default function HelpPage() {
 
         <Faq q="Can two advisors be logged in at the same time on the same account?">
           Yes — sessions are per cookie, not per device, and there&apos;s no exclusive lock. But
-          we recommend each advisor sign up with their own email so feedback
-          and edits are attributed correctly.
+          we recommend each advisor sign up with their own email so edits are attributed correctly.
         </Faq>
 
         <Faq q="Where does my data live?">
@@ -213,15 +212,6 @@ export default function HelpPage() {
           stored as a Vercel environment variable. Nothing is shared with any other Fold
           instance.
         </Faq>
-      </section>
-
-      <section className="card text-sm">
-        <p className="font-medium">Still stuck?</p>
-        <p className="mt-1">
-          Drop a note on the{" "}
-          <Link href="/feedback" className="underline">questions & feedback</Link> page — other
-          advisors can see and respond to it, and the maintainer reads everything.
-        </p>
       </section>
     </div>
   );

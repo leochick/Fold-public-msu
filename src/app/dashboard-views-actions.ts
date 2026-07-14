@@ -5,7 +5,9 @@ import { eq, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { views } from "../../drizzle/schema";
 import { requireUser } from "@/lib/auth";
+import { setActiveViewIdCookie } from "@/lib/active-view";
 import { parseDashboardDateEnd, parseDashboardDateStart } from "@/lib/dashboard-date-range";
+import { getDashboardViewById } from "@/server/dashboard-views";
 
 function assertValidDateRange(from: string, to: string) {
   const start = parseDashboardDateStart(from);
@@ -14,6 +16,10 @@ function assertValidDateRange(from: string, to: string) {
     throw new Error("Invalid date range");
   }
   return { start, end };
+}
+
+function revalidateViewConsumers() {
+  revalidatePath("/", "layout");
 }
 
 export async function saveDashboardViewAction(from: string, to: string, name: string) {
@@ -25,15 +31,30 @@ export async function saveDashboardViewAction(from: string, to: string, name: st
   const existing = await db.select({ id: views.id }).from(views);
   const isFirst = existing.length === 0;
 
-  await db.insert(views).values({
-    name: trimmed,
-    startDate: start,
-    endDate: end,
-    addedByUserId: user.id,
-    isDefault: isFirst,
-  });
+  const [created] = await db
+    .insert(views)
+    .values({
+      name: trimmed,
+      startDate: start,
+      endDate: end,
+      addedByUserId: user.id,
+      isDefault: isFirst,
+    })
+    .returning({ id: views.id });
 
-  revalidatePath("/");
+  await setActiveViewIdCookie(created.id);
+  revalidateViewConsumers();
+  return created.id;
+}
+
+export async function selectDashboardViewAction(id: number) {
+  await requireUser();
+  if (!Number.isFinite(id)) throw new Error("Invalid view");
+  const view = await getDashboardViewById(id);
+  if (!view) throw new Error("View not found");
+
+  await setActiveViewIdCookie(id);
+  revalidateViewConsumers();
 }
 
 export async function renameDashboardViewAction(id: number, name: string) {
@@ -47,7 +68,7 @@ export async function renameDashboardViewAction(id: number, name: string) {
     .set({ name: trimmed, updatedAt: sql`(unixepoch())` })
     .where(eq(views.id, id));
 
-  revalidatePath("/");
+  revalidateViewConsumers();
 }
 
 export async function setDefaultDashboardViewAction(id: number) {
@@ -60,5 +81,5 @@ export async function setDefaultDashboardViewAction(id: number) {
     .set({ isDefault: true, updatedAt: sql`(unixepoch())` })
     .where(eq(views.id, id));
 
-  revalidatePath("/");
+  revalidateViewConsumers();
 }

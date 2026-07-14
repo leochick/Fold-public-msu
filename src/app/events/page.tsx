@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { events, attendances, students } from "../../../drizzle/schema";
-import { desc, sql, eq } from "drizzle-orm";
+import { and, desc, gte, lte, sql, eq } from "drizzle-orm";
 import QuickAdd from "./QuickAdd";
 import RowActions from "../RowActions";
 import { deleteEventAction } from "./actions";
@@ -11,10 +11,18 @@ import { extractFeatures, aggregate, type FeaturedEvent } from "@/lib/event-feat
 import { perEventHealth, topInviters, type StudentLite, type AttendanceLite } from "@/lib/health-metrics";
 import { requireUser } from "@/lib/auth";
 import { logEventCreated } from "@/server/changelog";
+import { resolveDashboardDateRange } from "@/lib/dashboard-date-range";
+import { getActiveDashboardView } from "@/server/dashboard-views";
 
 export const dynamic = "force-dynamic";
 
 export default async function EventsPage() {
+  const activeView = await getActiveDashboardView();
+  const { from, to } = resolveDashboardDateRange(
+    activeView ? { from: activeView.from, to: activeView.to } : {}
+  );
+  const eventDateRange = and(gte(events.startDate, from), lte(events.startDate, to));
+
   const rows = await db
     .select({
       e: events,
@@ -22,17 +30,22 @@ export default async function EventsPage() {
     })
     .from(events)
     .leftJoin(attendances, eq(attendances.eventId, events.id))
+    .where(eventDateRange)
     .groupBy(events.id)
     .orderBy(desc(events.startDate));
 
-  // Pull all attendances + students once so we can attach health metrics per event.
-  const allAttendanceRows = await db
-    .select({
-      studentId: attendances.studentId,
-      eventId: attendances.eventId,
-      recordedAt: attendances.recordedAt,
-    })
-    .from(attendances);
+  // Pull attendances + students for health metrics on events in the active view.
+  const eventIds = rows.map(({ e }) => e.id);
+  const allAttendanceRows =
+    eventIds.length > 0
+      ? await db
+          .select({
+            studentId: attendances.studentId,
+            eventId: attendances.eventId,
+            recordedAt: attendances.recordedAt,
+          })
+          .from(attendances)
+      : [];
   const studentLiteRows = await db
     .select({
       id: students.id,
@@ -186,7 +199,13 @@ export default async function EventsPage() {
               </tr>
             );})}
             {rows.length === 0 && (
-              <tr><td colSpan={6} className="text-center text-black/50 py-8">No events yet. Create one above.</td></tr>
+              <tr>
+                <td colSpan={6} className="text-center text-black/50 py-8">
+                  {activeView
+                    ? `No events in ${activeView.name} yet. Create one above.`
+                    : "No events yet. Create one above."}
+                </td>
+              </tr>
             )}
           </tbody>
         </table>

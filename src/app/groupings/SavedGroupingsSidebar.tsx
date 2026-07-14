@@ -68,7 +68,7 @@ export default function SavedGroupingsSidebar({
             <div className="mt-3 space-y-2">
               {groupings.length === 0 ? (
                 <p className="text-xs text-black/50 dark:text-white/50">
-                  No saved groupings yet. Select a view and create one above.
+                  No saved groupings yet. Create one above.
                 </p>
               ) : (
                 groupings.map((grouping) => {

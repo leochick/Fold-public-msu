@@ -79,7 +79,7 @@ export type GroupingDetail = {
 
 export { emptyGroupingContainers } from "@/lib/grouping-containers";
 
-export async function listGroupings(): Promise<GroupingListItem[]> {
+export async function listGroupings(viewId?: number): Promise<GroupingListItem[]> {
   const rows = await db
     .select({
       id: groupings.id,
@@ -92,6 +92,7 @@ export async function listGroupings(): Promise<GroupingListItem[]> {
     })
     .from(groupings)
     .innerJoin(views, eq(groupings.viewId, views.id))
+    .where(viewId != null ? eq(groupings.viewId, viewId) : undefined)
     .orderBy(asc(groupings.name));
 
   const singleEventIds = [
@@ -159,8 +160,13 @@ export async function getGroupingById(id: number): Promise<GroupingDetail | null
   };
 }
 
-export async function getFirstGrouping(): Promise<GroupingDetail | null> {
-  const [row] = await db.select({ id: groupings.id }).from(groupings).orderBy(asc(groupings.id)).limit(1);
+export async function getFirstGrouping(viewId?: number): Promise<GroupingDetail | null> {
+  const [row] = await db
+    .select({ id: groupings.id })
+    .from(groupings)
+    .where(viewId != null ? eq(groupings.viewId, viewId) : undefined)
+    .orderBy(asc(groupings.id))
+    .limit(1);
   return row ? getGroupingById(row.id) : null;
 }
 
