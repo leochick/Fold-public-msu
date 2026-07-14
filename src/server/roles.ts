@@ -27,6 +27,7 @@ export type RoleBoardPersonOption = {
   id: number;
   firstName: string;
   lastName: string | null;
+  gender: "M" | "F" | null;
 };
 
 /** View id used for loading students for a role board. */
@@ -96,13 +97,14 @@ export async function ensureRoleBoardForView(
 
 function toPersonOption(
   entity: "student" | "staff",
-  person: Pick<GroupingStudentItem | GroupingStaffItem, "id" | "firstName" | "lastName">
+  person: Pick<GroupingStudentItem | GroupingStaffItem, "id" | "firstName" | "lastName" | "gender">
 ): RoleBoardPersonOption {
   return {
     entity,
     id: person.id,
     firstName: person.firstName,
     lastName: person.lastName,
+    gender: person.gender,
   };
 }
 

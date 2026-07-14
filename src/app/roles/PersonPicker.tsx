@@ -9,6 +9,16 @@ function displayName(person: Pick<RoleBoardPersonOption, "firstName" | "lastName
   return `${person.firstName} ${person.lastName ?? ""}`.trim();
 }
 
+function genderNameClass(gender: "M" | "F" | null | undefined, staffBold: boolean) {
+  const color =
+    gender === "M"
+      ? "text-blue-700 dark:text-blue-300"
+      : gender === "F"
+        ? "text-red-700 dark:text-red-300"
+        : undefined;
+  return [staffBold ? "font-bold" : "font-medium", color].filter(Boolean).join(" ");
+}
+
 export default function PersonPicker({
   value,
   options,
@@ -31,6 +41,7 @@ export default function PersonPicker({
         id: value.id,
         firstName: value.entity === "staff" ? "Staff" : "Student",
         lastName: `#${value.id}`,
+        gender: null,
       }
     );
   }, [options, value]);
@@ -84,7 +95,7 @@ export default function PersonPicker({
       >
         <span className="truncate">
           {selected ? (
-            <span className={selected.entity === "staff" ? "font-bold" : undefined}>
+            <span className={genderNameClass(selected.gender, selected.entity === "staff")}>
               {displayName(selected)}
             </span>
           ) : (
@@ -134,7 +145,7 @@ export default function PersonPicker({
                     aria-selected={
                       selected?.entity === option.entity && selected.id === option.id
                     }
-                    className="w-full text-left px-3 py-1.5 text-sm font-bold hover:bg-black/5 dark:hover:bg-white/5"
+                    className={`w-full text-left px-3 py-1.5 text-sm hover:bg-black/5 dark:hover:bg-white/5 ${genderNameClass(option.gender, true)}`}
                     onClick={() => selectPerson(option)}
                   >
                     {displayName(option)}
@@ -155,7 +166,7 @@ export default function PersonPicker({
                     aria-selected={
                       selected?.entity === option.entity && selected.id === option.id
                     }
-                    className="w-full text-left px-3 py-1.5 text-sm font-medium hover:bg-black/5 dark:hover:bg-white/5"
+                    className={`w-full text-left px-3 py-1.5 text-sm hover:bg-black/5 dark:hover:bg-white/5 ${genderNameClass(option.gender, false)}`}
                     onClick={() => selectPerson(option)}
                   >
                     {displayName(option)}
