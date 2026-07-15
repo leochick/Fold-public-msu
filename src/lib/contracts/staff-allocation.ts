@@ -14,7 +14,7 @@ export const staffAllocationInsightsBody = z.object({
         roles: z.array(
           z.object({
             roleName: z.string(),
-            color: z.string().optional(),
+            color: z.string(),
           })
         ),
         groupings: z.array(

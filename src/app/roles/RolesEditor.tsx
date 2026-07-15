@@ -4,9 +4,14 @@ import { useEffect, useRef, useState, useTransition, type DragEvent } from "reac
 import { useRouter } from "next/navigation";
 import type { RoleBoardPerson, RoleBoardRow } from "../../../drizzle/schema";
 import { DEFAULT_ROLE_COLOR } from "@/lib/role-boards";
+import {
+  resolveRoleBoardExportRows,
+  type RoleBoardExportSnapshot,
+} from "@/lib/role-boards-export";
 import { updateRoleBoardAction } from "../roles-actions";
 import type { RoleBoardDetail, RoleBoardPersonOption } from "@/server/roles";
 import PersonPicker from "./PersonPicker";
+import RolesHeader from "./RolesHeader";
 
 type ViewOption = {
   id: number;
@@ -18,11 +23,15 @@ type SaveStatus = "idle" | "saving" | "saved" | "error";
 export default function RolesEditor({
   board,
   viewName,
+  viewFrom,
+  viewTo,
   otherViews,
   personOptions,
 }: {
   board: RoleBoardDetail;
   viewName: string;
+  viewFrom: string;
+  viewTo: string;
   otherViews: ViewOption[];
   personOptions: RoleBoardPersonOption[];
 }) {
@@ -214,8 +223,18 @@ export default function RolesEditor({
 
   const emptyColSpan = personColumnCount + 4;
 
+  const exportSnapshot: RoleBoardExportSnapshot = {
+    viewName,
+    viewFrom,
+    viewTo,
+    personColumnCount,
+    rows: resolveRoleBoardExportRows(rows, personColumnCount, personOptions),
+  };
+
   return (
     <div className="space-y-6">
+      <RolesHeader snapshot={exportSnapshot} />
+
       <div className="card">
         <div className="flex flex-col sm:flex-row sm:items-end gap-3">
           <div className="flex-1">

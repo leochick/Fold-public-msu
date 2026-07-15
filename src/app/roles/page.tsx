@@ -6,6 +6,7 @@ import {
   getRoleBoardPersonOptions,
 } from "@/server/roles";
 import RolesEditor from "./RolesEditor";
+import RolesHeader from "./RolesHeader";
 
 export const dynamic = "force-dynamic";
 
@@ -17,7 +18,7 @@ export default async function RolesPage() {
   if (!activeView) {
     return (
       <div className="max-w-6xl mx-auto px-4 py-8 space-y-6">
-        <h1 className="text-2xl font-semibold">Roles</h1>
+        <RolesHeader snapshot={null} />
         <div className="card">
           <p className="text-sm text-black/60 dark:text-white/60">
             Create a view from the Views menu in the header first.
@@ -36,11 +37,12 @@ export default async function RolesPage() {
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-8 space-y-6">
-      <h1 className="text-2xl font-semibold">Roles</h1>
       <RolesEditor
         key={board.id}
         board={board}
         viewName={activeView.name}
+        viewFrom={activeView.from}
+        viewTo={activeView.to}
         otherViews={otherViews}
         personOptions={personOptions}
       />
