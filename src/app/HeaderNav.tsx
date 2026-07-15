@@ -16,7 +16,7 @@ function isDropdown(item: NavItem): item is NavDropdown {
 const navItems: NavItem[] = [
   { href: "/", label: "Dashboard" },
   {
-    label: "Events, Students, and Staff",
+    label: "Data",
     items: [
       { href: "/events", label: "Events" },
       { href: "/students", label: "Students" },
