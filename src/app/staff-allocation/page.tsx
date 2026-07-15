@@ -1,6 +1,7 @@
 import { getActiveDashboardView } from "@/server/dashboard-views";
 import { getStaffAllocationForView } from "@/server/staff-allocation";
 import StaffAllocationHeader from "./StaffAllocationHeader";
+import StaffAllocationInsightsSidebar from "./StaffAllocationInsightsSidebar";
 import StaffAllocationView from "./StaffAllocationView";
 
 export const dynamic = "force-dynamic";
@@ -30,9 +31,19 @@ export default async function StaffAllocationPage() {
   };
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-8 space-y-6">
+    <div className="max-w-7xl mx-auto px-4 py-8 space-y-6">
       <StaffAllocationHeader snapshot={snapshot} />
-      <StaffAllocationView staff={staff} viewName={activeView.name} />
+      <div className="flex flex-col gap-6 xl:grid xl:grid-cols-[auto_1fr] xl:items-start">
+        <StaffAllocationInsightsSidebar
+          staff={staff}
+          viewName={activeView.name}
+          viewFrom={activeView.from}
+          viewTo={activeView.to}
+        />
+        <div className="min-w-0">
+          <StaffAllocationView staff={staff} viewName={activeView.name} />
+        </div>
+      </div>
     </div>
   );
 }

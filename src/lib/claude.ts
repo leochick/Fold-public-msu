@@ -297,3 +297,36 @@ export const EVENT_INSIGHTS_TOOL: Anthropic.Tool = {
     required: ["insights"],
   },
 };
+
+export const STAFF_ALLOCATION_INSIGHTS_TOOL: Anthropic.Tool = {
+  name: "report_staff_allocation_insights",
+  description:
+    "Produce 3-5 short workload insights from staff roles and grouping placements. Name specific staff, cite student/role counts vs team averages, and flag overload or underuse. Do not invent data not present in the payload.",
+  input_schema: {
+    type: "object",
+    properties: {
+      insights: {
+        type: "array",
+        minItems: 3,
+        maxItems: 5,
+        items: {
+          type: "object",
+          properties: {
+            headline: {
+              type: "string",
+              description:
+                "Punchy one-line claim (e.g., 'Sam Leader carries 3× the average student load').",
+            },
+            evidence: {
+              type: "string",
+              description:
+                "One short sentence citing numbers (e.g., '12 unique students vs team avg 4 across 5 assigned staff; also holds 3 roles').",
+            },
+          },
+          required: ["headline", "evidence"],
+        },
+      },
+    },
+    required: ["insights"],
+  },
+};

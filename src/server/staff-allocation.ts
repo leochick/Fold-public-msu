@@ -4,6 +4,12 @@ import { asc, eq, inArray } from "drizzle-orm";
 import { normalizeGroupingContainers } from "@/lib/grouping-containers";
 import { getAllStaff } from "@/server/groupings";
 import { getRoleBoardByViewId } from "@/server/roles";
+import { anthropic, HAIKU, STAFF_ALLOCATION_INSIGHTS_TOOL } from "@/lib/claude";
+import { STAFF_ALLOCATION_INSIGHTS_SYSTEM } from "@/lib/prompts/staff-allocation-insights";
+import { buildStaffAllocationInsightPayload } from "@/lib/staff-allocation-insights";
+import { callClaudeOrThrow } from "@/server/attendance";
+import { httpErr } from "@/lib/http";
+import type { StaffAllocationInsightsBody } from "@/lib/contracts/staff-allocation";
 
 export type StaffAllocationPerson = {
   id: number;
@@ -149,4 +155,47 @@ export async function getStaffAllocationForView(viewId: number): Promise<StaffAl
     if (aAssigned !== bAssigned) return aAssigned - bAssigned;
     return byPersonName(a, b);
   });
+}
+
+export async function staffAllocationInsights(body: StaffAllocationInsightsBody) {
+  const assignedCount = body.staff.filter(
+    (member) => member.roles.length + member.groupings.length > 0
+  ).length;
+
+  if (body.staff.length === 0) {
+    throw httpErr.badRequest("Add staff before generating allocation insights");
+  }
+  if (assignedCount === 0) {
+    throw httpErr.badRequest(
+      "No roles or grouping placements yet — assign staff first, then regenerate insights"
+    );
+  }
+
+  const payload = buildStaffAllocationInsightPayload({
+    viewName: body.viewName,
+    viewFrom: body.viewFrom,
+    viewTo: body.viewTo,
+    staff: body.staff,
+  });
+
+  const resp = await callClaudeOrThrow(() =>
+    anthropic.messages.create({
+      model: HAIKU,
+      max_tokens: 700,
+      system: STAFF_ALLOCATION_INSIGHTS_SYSTEM,
+      tools: [STAFF_ALLOCATION_INSIGHTS_TOOL],
+      tool_choice: { type: "tool", name: STAFF_ALLOCATION_INSIGHTS_TOOL.name },
+      messages: [
+        {
+          role: "user",
+          content: `Staff allocation snapshot:\n${JSON.stringify(payload, null, 2)}`,
+        },
+      ],
+    })
+  );
+
+  const tu = resp.content.find((block) => block.type === "tool_use");
+  if (!tu || tu.type !== "tool_use") throw httpErr.upstream("claude returned no tool use");
+  const out = tu.input as { insights: { headline: string; evidence: string }[] };
+  return { insights: out.insights ?? [] };
 }
