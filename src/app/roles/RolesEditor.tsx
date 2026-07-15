@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition, type DragEvent } from "react";
 import { useRouter } from "next/navigation";
 import type { RoleBoardPerson, RoleBoardRow } from "../../../drizzle/schema";
+import { DEFAULT_ROLE_COLOR } from "@/lib/role-boards";
 import { updateRoleBoardAction } from "../roles-actions";
 import type { RoleBoardDetail, RoleBoardPersonOption } from "@/server/roles";
 import PersonPicker from "./PersonPicker";
@@ -33,6 +34,8 @@ export default function RolesEditor({
   const [rows, setRows] = useState<RoleBoardRow[]>(board.rows);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [dragFromIndex, setDragFromIndex] = useState<number | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const [isPending, startTransition] = useTransition();
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const skipNextAutosaveRef = useRef(true);
@@ -103,6 +106,18 @@ export default function RolesEditor({
     );
   }
 
+  function updateRowDescription(index: number, description: string) {
+    setRows((current) =>
+      current.map((row, rowIndex) => (rowIndex === index ? { ...row, description } : row))
+    );
+  }
+
+  function updateRowColor(index: number, color: string) {
+    setRows((current) =>
+      current.map((row, rowIndex) => (rowIndex === index ? { ...row, color } : row))
+    );
+  }
+
   function updatePerson(rowIndex: number, columnIndex: number, person: RoleBoardPerson | null) {
     setRows((current) =>
       current.map((row, index) => {
@@ -129,6 +144,8 @@ export default function RolesEditor({
       ...current,
       {
         name: "",
+        description: "",
+        color: DEFAULT_ROLE_COLOR,
         people: Array.from({ length: personColumnCount }, () => null),
       },
     ]);
@@ -136,6 +153,54 @@ export default function RolesEditor({
 
   function removeRoleRow(index: number) {
     setRows((current) => current.filter((_, rowIndex) => rowIndex !== index));
+  }
+
+  function reorderRows(fromIndex: number, toIndex: number) {
+    if (fromIndex === toIndex) return;
+    setRows((current) => {
+      if (
+        fromIndex < 0 ||
+        toIndex < 0 ||
+        fromIndex >= current.length ||
+        toIndex >= current.length
+      ) {
+        return current;
+      }
+      const next = [...current];
+      const [moved] = next.splice(fromIndex, 1);
+      next.splice(toIndex, 0, moved);
+      return next;
+    });
+  }
+
+  function handleHandleDragStart(event: DragEvent<HTMLSpanElement>, index: number) {
+    setDragFromIndex(index);
+    setDragOverIndex(index);
+    event.dataTransfer.effectAllowed = "move";
+    event.dataTransfer.setData("text/plain", String(index));
+  }
+
+  function handleRowDragOver(event: DragEvent<HTMLTableRowElement>, index: number) {
+    if (dragFromIndex == null) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "move";
+    if (dragOverIndex !== index) setDragOverIndex(index);
+  }
+
+  function handleRowDrop(event: DragEvent<HTMLTableRowElement>, toIndex: number) {
+    event.preventDefault();
+    const raw = event.dataTransfer.getData("text/plain");
+    const fromIndex = Number(raw);
+    if (Number.isFinite(fromIndex)) {
+      reorderRows(fromIndex, toIndex);
+    }
+    setDragFromIndex(null);
+    setDragOverIndex(null);
+  }
+
+  function handleRowDragEnd() {
+    setDragFromIndex(null);
+    setDragOverIndex(null);
   }
 
   const statusLabel =
@@ -146,6 +211,8 @@ export default function RolesEditor({
         : saveStatus === "error"
           ? "Save failed"
           : null;
+
+  const emptyColSpan = personColumnCount + 4;
 
   return (
     <div className="space-y-6">
@@ -186,7 +253,7 @@ export default function RolesEditor({
           <p className="text-xs text-red-600 dark:text-red-400 mt-2">{saveError}</p>
         )}
         <p className="text-xs text-black/60 dark:text-white/60 mt-2">
-          Role assignments for {viewName}. Changes save automatically.
+          Role assignments for {viewName}. Changes save automatically. Drag rows to reorder.
         </p>
       </div>
 
@@ -194,7 +261,9 @@ export default function RolesEditor({
         <table>
           <thead>
             <tr>
-              <th className="min-w-[12rem]">Role</th>
+              <th className="w-10" aria-label="Reorder" />
+              <th className="min-w-[14rem]">Role</th>
+              <th className="min-w-[14rem]">Description</th>
               {Array.from({ length: personColumnCount }, (_, index) => (
                 <th key={index} className="min-w-[12rem]">
                   Person {index + 1}
@@ -217,45 +286,92 @@ export default function RolesEditor({
             {rows.length === 0 ? (
               <tr>
                 <td
-                  colSpan={personColumnCount + 2}
+                  colSpan={emptyColSpan}
                   className="text-sm text-black/50 dark:text-white/50"
                 >
                   No roles yet. Add a role below.
                 </td>
               </tr>
             ) : (
-              rows.map((row, rowIndex) => (
-                <tr key={rowIndex}>
-                  <td>
-                    <input
-                      type="text"
-                      className="input"
-                      placeholder="Role name"
-                      value={row.name}
-                      onChange={(event) => updateRowName(rowIndex, event.target.value)}
-                    />
-                  </td>
-                  {Array.from({ length: personColumnCount }, (_, columnIndex) => (
-                    <td key={columnIndex}>
-                      <PersonPicker
-                        value={row.people[columnIndex] ?? null}
-                        options={personOptions}
-                        onChange={(person) => updatePerson(rowIndex, columnIndex, person)}
+              rows.map((row, rowIndex) => {
+                const isDragging = dragFromIndex === rowIndex;
+                const isDropTarget =
+                  dragOverIndex === rowIndex && dragFromIndex != null && dragFromIndex !== rowIndex;
+
+                return (
+                  <tr
+                    key={rowIndex}
+                    onDragOver={(event) => handleRowDragOver(event, rowIndex)}
+                    onDrop={(event) => handleRowDrop(event, rowIndex)}
+                    className={[
+                      isDragging ? "opacity-40" : "",
+                      isDropTarget ? "outline outline-2 outline-accent outline-offset-[-2px]" : "",
+                    ]
+                      .filter(Boolean)
+                      .join(" ")}
+                  >
+                    <td className="align-middle">
+                      <span
+                        draggable
+                        onDragStart={(event) => handleHandleDragStart(event, rowIndex)}
+                        onDragEnd={handleRowDragEnd}
+                        className="inline-flex cursor-grab active:cursor-grabbing select-none px-1 text-black/40 dark:text-white/40"
+                        title="Drag to reorder"
+                        aria-label={`Drag to reorder ${row.name || `role ${rowIndex + 1}`}`}
+                      >
+                        ⋮⋮
+                      </span>
+                    </td>
+                    <td>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="color"
+                          className="h-9 w-10 shrink-0 cursor-pointer rounded border border-black/10 bg-transparent p-0.5 dark:border-white/15"
+                          value={row.color || DEFAULT_ROLE_COLOR}
+                          aria-label={`Color for ${row.name || `role ${rowIndex + 1}`}`}
+                          title="Role color"
+                          onChange={(event) => updateRowColor(rowIndex, event.target.value)}
+                        />
+                        <input
+                          type="text"
+                          className="input min-w-0 flex-1"
+                          placeholder="Role name"
+                          value={row.name}
+                          onChange={(event) => updateRowName(rowIndex, event.target.value)}
+                        />
+                      </div>
+                    </td>
+                    <td>
+                      <input
+                        type="text"
+                        className="input"
+                        placeholder="Description"
+                        value={row.description}
+                        onChange={(event) => updateRowDescription(rowIndex, event.target.value)}
                       />
                     </td>
-                  ))}
-                  <td>
-                    <button
-                      type="button"
-                      className="btn-ghost px-2 py-1 text-xs"
-                      aria-label={`Remove role ${row.name || rowIndex + 1}`}
-                      onClick={() => removeRoleRow(rowIndex)}
-                    >
-                      ✕
-                    </button>
-                  </td>
-                </tr>
-              ))
+                    {Array.from({ length: personColumnCount }, (_, columnIndex) => (
+                      <td key={columnIndex}>
+                        <PersonPicker
+                          value={row.people[columnIndex] ?? null}
+                          options={personOptions}
+                          onChange={(person) => updatePerson(rowIndex, columnIndex, person)}
+                        />
+                      </td>
+                    ))}
+                    <td>
+                      <button
+                        type="button"
+                        className="btn-ghost px-2 py-1 text-xs"
+                        aria-label={`Remove role ${row.name || rowIndex + 1}`}
+                        onClick={() => removeRoleRow(rowIndex)}
+                      >
+                        ✕
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })
             )}
           </tbody>
         </table>

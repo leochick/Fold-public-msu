@@ -237,6 +237,9 @@ export type RoleBoardPerson = {
 
 export type RoleBoardRow = {
   name: string;
+  description: string;
+  /** Hex background color for role chips (e.g. #e5e7eb). */
+  color: string;
   people: Array<RoleBoardPerson | null>;
 };
 

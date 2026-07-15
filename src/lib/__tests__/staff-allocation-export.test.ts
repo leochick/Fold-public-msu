@@ -19,7 +19,10 @@ describe("staff allocation export", () => {
         firstName: "Sam",
         lastName: "Leader",
         gender: "M",
-        roles: [{ roleName: "Small Group Lead" }, { roleName: "Welcome Team" }],
+        roles: [
+          { roleName: "Small Group Lead", color: "#e5e7eb" },
+          { roleName: "Welcome Team", color: "#bfdbfe" },
+        ],
         groupings: [
           {
             groupingId: 10,

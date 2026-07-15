@@ -11,7 +11,12 @@ export const staffAllocationInsightsBody = z.object({
         firstName: z.string(),
         lastName: z.string().nullable(),
         gender: z.enum(["M", "F"]).nullable(),
-        roles: z.array(z.object({ roleName: z.string() })),
+        roles: z.array(
+          z.object({
+            roleName: z.string(),
+            color: z.string().optional(),
+          })
+        ),
         groupings: z.array(
           z.object({
             groupingId: z.number().int(),

@@ -57,4 +57,5 @@ export async function updateRoleBoardAction(
     .where(eq(roleBoards.id, id));
 
   revalidatePath("/roles");
+  revalidatePath("/staff-allocation");
 }

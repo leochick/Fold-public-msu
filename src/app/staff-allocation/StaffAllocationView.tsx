@@ -6,6 +6,7 @@ import {
   getPrimaryStatusBackground,
   GROUPING_STATUS_LABELS,
 } from "@/lib/grouping-status";
+import { contrastingTextColor } from "@/lib/role-boards";
 import type { StaffAllocationItem, StaffAllocationPerson } from "@/server/staff-allocation";
 import { loadStaffAllocationAction } from "../staff-allocation-actions";
 
@@ -230,7 +231,14 @@ export default function StaffAllocationView({
                     <ul className="flex flex-wrap gap-1.5">
                       {member.roles.map((role) => (
                         <li key={role.roleName}>
-                          <Link href="/roles" className="chip hover:bg-accent/10">
+                          <Link
+                            href="/roles"
+                            className="chip hover:opacity-90"
+                            style={{
+                              backgroundColor: role.color,
+                              color: contrastingTextColor(role.color),
+                            }}
+                          >
                             {role.roleName}
                           </Link>
                         </li>

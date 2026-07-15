@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { normalizeRoleBoardRows, parsePersonKey, personKey } from "@/lib/role-boards";
+import {
+  contrastingTextColor,
+  DEFAULT_ROLE_COLOR,
+  normalizeRoleBoardRows,
+  normalizeRoleColor,
+  parsePersonKey,
+  personKey,
+} from "@/lib/role-boards";
 
 describe("normalizeRoleBoardRows", () => {
   it("pads and trims people to personColumnCount", () => {
@@ -7,6 +14,8 @@ describe("normalizeRoleBoardRows", () => {
       [
         {
           name: "Emcee",
+          description: "Opens the night",
+          color: "#ff0000",
           people: [
             { entity: "staff", id: 1 },
             { entity: "student", id: 2 },
@@ -20,6 +29,8 @@ describe("normalizeRoleBoardRows", () => {
     expect(rows).toEqual([
       {
         name: "Emcee",
+        description: "Opens the night",
+        color: "#ff0000",
         people: [
           { entity: "staff", id: 1 },
           { entity: "student", id: 2 },
@@ -28,13 +39,37 @@ describe("normalizeRoleBoardRows", () => {
     ]);
   });
 
-  it("fills missing people with null", () => {
+  it("fills missing people with null and defaults description/color", () => {
     const rows = normalizeRoleBoardRows([{ name: "Host", people: [] }], 3);
-    expect(rows[0].people).toEqual([null, null, null]);
+    expect(rows[0]).toEqual({
+      name: "Host",
+      description: "",
+      color: DEFAULT_ROLE_COLOR,
+      people: [null, null, null],
+    });
   });
 
   it("returns empty for non-arrays", () => {
     expect(normalizeRoleBoardRows(null, 1)).toEqual([]);
+  });
+});
+
+describe("normalizeRoleColor", () => {
+  it("accepts 6-digit hex and expands 3-digit", () => {
+    expect(normalizeRoleColor("#AbCdEf")).toBe("#abcdef");
+    expect(normalizeRoleColor("#abc")).toBe("#aabbcc");
+  });
+
+  it("falls back for invalid values", () => {
+    expect(normalizeRoleColor("red")).toBe(DEFAULT_ROLE_COLOR);
+    expect(normalizeRoleColor(null)).toBe(DEFAULT_ROLE_COLOR);
+  });
+});
+
+describe("contrastingTextColor", () => {
+  it("uses dark text on light backgrounds and light text on dark", () => {
+    expect(contrastingTextColor("#ffffff")).toBe("#111827");
+    expect(contrastingTextColor("#000000")).toBe("#ffffff");
   });
 });
 
