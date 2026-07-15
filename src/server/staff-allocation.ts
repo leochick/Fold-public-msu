@@ -2,7 +2,8 @@ import { db } from "@/lib/db";
 import { groupings, students } from "../../drizzle/schema";
 import { asc, eq, inArray } from "drizzle-orm";
 import { normalizeGroupingContainers } from "@/lib/grouping-containers";
-import { getAllStaff } from "@/server/groupings";
+import type { GroupingStudentStatus } from "@/lib/grouping-status";
+import { getAllStaff, getStudentsForView } from "@/server/groupings";
 import { getRoleBoardByViewId } from "@/server/roles";
 import { anthropic, HAIKU, STAFF_ALLOCATION_INSIGHTS_TOOL } from "@/lib/claude";
 import { STAFF_ALLOCATION_INSIGHTS_SYSTEM } from "@/lib/prompts/staff-allocation-insights";
@@ -15,6 +16,7 @@ export type StaffAllocationPerson = {
   id: number;
   firstName: string;
   lastName: string | null;
+  statuses: GroupingStudentStatus[];
 };
 
 export type StaffAllocationRole = {
@@ -46,8 +48,18 @@ function byPersonName(a: { firstName: string; lastName: string | null }, b: type
   return personName(a).localeCompare(personName(b));
 }
 
-export async function getStaffAllocationForView(viewId: number): Promise<StaffAllocationItem[]> {
-  const [staffMembers, roleBoard, groupingRows] = await Promise.all([
+export async function getStaffAllocationForView(
+  viewId: number,
+  engagementViewId?: number | null
+): Promise<StaffAllocationItem[]> {
+  const engagementDataViewId =
+    engagementViewId != null &&
+    Number.isFinite(engagementViewId) &&
+    engagementViewId !== viewId
+      ? engagementViewId
+      : viewId;
+
+  const [staffMembers, roleBoard, groupingRows, engagementStudents] = await Promise.all([
     getAllStaff(),
     getRoleBoardByViewId(viewId),
     db
@@ -59,7 +71,12 @@ export async function getStaffAllocationForView(viewId: number): Promise<StaffAl
       .from(groupings)
       .where(eq(groupings.viewId, viewId))
       .orderBy(asc(groupings.name)),
+    getStudentsForView(engagementDataViewId),
   ]);
+
+  const statusByStudentId = new Map(
+    engagementStudents.map((student) => [student.id, student.statuses])
+  );
 
   const studentIds = new Set<number>();
   for (const grouping of groupingRows) {
@@ -89,6 +106,7 @@ export async function getStaffAllocationForView(viewId: number): Promise<StaffAl
         id: student.id,
         firstName: student.firstName,
         lastName: student.lastName,
+        statuses: statusByStudentId.get(student.id) ?? [],
       } satisfies StaffAllocationPerson,
     ])
   );

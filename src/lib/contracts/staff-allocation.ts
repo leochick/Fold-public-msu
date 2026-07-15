@@ -23,6 +23,9 @@ export const staffAllocationInsightsBody = z.object({
                 id: z.number().int(),
                 firstName: z.string(),
                 lastName: z.string().nullable(),
+                statuses: z
+                  .array(z.enum(["student_leader", "engaged", "active", "outreach"]))
+                  .default([]),
               })
             ),
           })

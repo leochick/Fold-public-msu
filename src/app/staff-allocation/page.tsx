@@ -1,4 +1,4 @@
-import { getActiveDashboardView } from "@/server/dashboard-views";
+import { getActiveDashboardView, listDashboardViews } from "@/server/dashboard-views";
 import { getStaffAllocationForView } from "@/server/staff-allocation";
 import StaffAllocationHeader from "./StaffAllocationHeader";
 import StaffAllocationInsightsSidebar from "./StaffAllocationInsightsSidebar";
@@ -7,7 +7,10 @@ import StaffAllocationView from "./StaffAllocationView";
 export const dynamic = "force-dynamic";
 
 export default async function StaffAllocationPage() {
-  const activeView = await getActiveDashboardView();
+  const [activeView, allViews] = await Promise.all([
+    getActiveDashboardView(),
+    listDashboardViews(),
+  ]);
 
   if (!activeView) {
     return (
@@ -23,6 +26,7 @@ export default async function StaffAllocationPage() {
   }
 
   const staff = await getStaffAllocationForView(activeView.id);
+  const otherViews = allViews.filter((view) => view.id !== activeView.id);
   const snapshot = {
     viewName: activeView.name,
     viewFrom: activeView.from,
@@ -41,7 +45,13 @@ export default async function StaffAllocationPage() {
           viewTo={activeView.to}
         />
         <div className="min-w-0">
-          <StaffAllocationView staff={staff} viewName={activeView.name} />
+          <StaffAllocationView
+            key={activeView.id}
+            staff={staff}
+            viewId={activeView.id}
+            viewName={activeView.name}
+            otherViews={otherViews}
+          />
         </div>
       </div>
     </div>

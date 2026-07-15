@@ -1,11 +1,22 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
-import type { StaffAllocationItem } from "@/server/staff-allocation";
+import { useMemo, useState, useTransition } from "react";
+import {
+  getPrimaryStatusBackground,
+  GROUPING_STATUS_LABELS,
+} from "@/lib/grouping-status";
+import type { StaffAllocationItem, StaffAllocationPerson } from "@/server/staff-allocation";
+import { loadStaffAllocationAction } from "../staff-allocation-actions";
 
 function personName(person: { firstName: string; lastName: string | null }) {
   return `${person.firstName} ${person.lastName ?? ""}`.trim();
+}
+
+function genderNameClass(gender: "M" | "F" | null | undefined) {
+  if (gender === "M") return "text-blue-700 dark:text-blue-300";
+  if (gender === "F") return "text-red-700 dark:text-red-300";
+  return "";
 }
 
 function staffMatchesQuery(member: StaffAllocationItem, query: string): boolean {
@@ -23,15 +34,46 @@ function staffMatchesQuery(member: StaffAllocationItem, query: string): boolean 
   return haystack.includes(query);
 }
 
+function StudentChip({ student }: { student: StaffAllocationPerson }) {
+  const backgroundClass = getPrimaryStatusBackground(student.statuses);
+  const statusTitle =
+    student.statuses.length > 0
+      ? student.statuses.map((status) => GROUPING_STATUS_LABELS[status]).join(", ")
+      : undefined;
+
+  return (
+    <Link
+      href={`/students/${student.id}`}
+      title={statusTitle}
+      className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs hover:opacity-90 ${backgroundClass}`}
+    >
+      {personName(student)}
+    </Link>
+  );
+}
+
+type ViewOption = {
+  id: number;
+  name: string;
+};
+
 export default function StaffAllocationView({
-  staff,
+  staff: initialStaff,
+  viewId,
   viewName,
+  otherViews,
 }: {
   staff: StaffAllocationItem[];
+  viewId: number;
   viewName: string;
+  otherViews: ViewOption[];
 }) {
+  const [staff, setStaff] = useState(initialStaff);
   const [query, setQuery] = useState("");
   const [hideUnassigned, setHideUnassigned] = useState(false);
+  const [engagementView, setEngagementView] = useState("");
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
   const normalizedQuery = query.trim().toLowerCase();
 
   const assignedCount = useMemo(
@@ -53,8 +95,55 @@ export default function StaffAllocationView({
       ? `${filtered.length} of ${staff.length}`
       : `${staff.length} total`;
 
+  function onEngagementViewChange(value: string) {
+    const previous = engagementView;
+    setEngagementView(value);
+    setLoadError(null);
+    const dataViewId = value ? Number(value) : null;
+    startTransition(async () => {
+      try {
+        const nextStaff = await loadStaffAllocationAction(
+          viewId,
+          dataViewId != null && Number.isFinite(dataViewId) ? dataViewId : null
+        );
+        setStaff(nextStaff);
+      } catch (error) {
+        setEngagementView(previous);
+        setLoadError(
+          error instanceof Error ? error.message : "Could not load engagement data"
+        );
+      }
+    });
+  }
+
   return (
     <div className="space-y-4">
+      <div className="card">
+        <label htmlFor="staff-allocation-engagement-view" className="label block mb-1">
+          View for student engagement data
+        </label>
+        <select
+          id="staff-allocation-engagement-view"
+          className="input"
+          value={engagementView}
+          onChange={(event) => onEngagementViewChange(event.target.value)}
+          disabled={otherViews.length === 0 || isPending}
+        >
+          <option value="">{viewName} (current view)</option>
+          {otherViews.map((view) => (
+            <option key={view.id} value={view.id}>
+              {view.name}
+            </option>
+          ))}
+        </select>
+        {loadError && (
+          <p className="text-xs text-red-600 dark:text-red-400 mt-2">{loadError}</p>
+        )}
+        <p className="text-xs text-black/60 dark:text-white/60 mt-2">
+          Engagement levels for students in groupings use this view&apos;s date range.
+        </p>
+      </div>
+
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
         <input
           type="search"
@@ -116,7 +205,10 @@ export default function StaffAllocationView({
                 <div className="flex flex-wrap items-start justify-between gap-2">
                   <div>
                     <h2 className="text-lg font-semibold leading-tight">
-                      <Link href={`/staff/${member.id}`} className="hover:underline">
+                      <Link
+                        href={`/staff/${member.id}`}
+                        className={`hover:underline ${genderNameClass(member.gender)}`}
+                      >
                         {personName(member)}
                       </Link>
                     </h2>
@@ -179,12 +271,7 @@ export default function StaffAllocationView({
                             <ul className="mt-2 flex flex-wrap gap-1.5">
                               {grouping.students.map((student) => (
                                 <li key={student.id}>
-                                  <Link
-                                    href={`/students/${student.id}`}
-                                    className="chip hover:bg-accent/10"
-                                  >
-                                    {personName(student)}
-                                  </Link>
+                                  <StudentChip student={student} />
                                 </li>
                               ))}
                             </ul>

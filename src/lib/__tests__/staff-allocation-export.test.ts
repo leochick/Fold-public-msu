@@ -27,8 +27,8 @@ describe("staff allocation export", () => {
             containerTitle: "Group A",
             containerIndex: 0,
             students: [
-              { id: 101, firstName: "Jane", lastName: "Doe" },
-              { id: 102, firstName: "Alex", lastName: "Kim" },
+              { id: 101, firstName: "Jane", lastName: "Doe", statuses: ["engaged"] },
+              { id: 102, firstName: "Alex", lastName: "Kim", statuses: ["active"] },
             ],
           },
         ],
