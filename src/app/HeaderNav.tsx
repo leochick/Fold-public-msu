@@ -12,6 +12,7 @@ const links = [
   { href: "/staff", label: "Staff" },
   { href: "/groupings", label: "Groupings" },
   { href: "/roles", label: "Roles" },
+  { href: "/staff-allocation", label: "Staff Allocation" },
   { href: "/changelog", label: "Changelog" },
   { href: "/help", label: "Help" },
 ];
