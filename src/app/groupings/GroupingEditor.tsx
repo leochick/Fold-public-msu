@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import type { GroupingContainerData, GroupingContainerItem } from "../../../drizzle/schema";
 import { updateGroupingAction } from "../groupings-actions";
 import type {
@@ -29,10 +28,13 @@ import {
 import { readGroupingDragData, type GroupingDragEntity } from "@/lib/grouping-drag";
 import type { GroupingExportMember, GroupingExportSnapshot } from "@/lib/grouping-export";
 import ContainerCard from "./ContainerCard";
+import DeleteContainerModal from "./DeleteContainerModal";
 import { useGroupingExport } from "./GroupingExport";
 import StudentDragCard, { type StudentCardData } from "./StudentDragCard";
 import StaffDragCard, { type StaffCardData } from "./StaffDragCard";
 import StudentFiltersCard from "./StudentFiltersCard";
+
+type SaveStatus = "idle" | "saving" | "saved" | "error";
 
 function isDragLeave(currentTarget: EventTarget & Element, relatedTarget: EventTarget | null) {
   if (!relatedTarget || !(relatedTarget instanceof Node)) return true;
@@ -60,7 +62,6 @@ export default function GroupingEditor({
   students: GroupingStudentItem[];
   staff: GroupingStaffItem[];
 }) {
-  const router = useRouter();
   const { setSnapshot } = useGroupingExport();
   const [checkedEventIds, setCheckedEventIds] = useState<number[] | null>(grouping.checkedEventIds);
   const [includeNewsletterContacts, setIncludeNewsletterContacts] = useState(
@@ -74,8 +75,60 @@ export default function GroupingEditor({
   const [staffSearch, setStaffSearch] = useState("");
   const [activeDragEntity, setActiveDragEntity] = useState<GroupingDragEntity | null>(null);
   const [dragOverZone, setDragOverZone] = useState<string | null>(null);
+  const [deleteContainerIndex, setDeleteContainerIndex] = useState<number | null>(null);
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
   const [saveError, setSaveError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const skipNextAutosaveRef = useRef(true);
+  const latestRef = useRef({
+    checkedEventIds,
+    includeNewsletterContacts,
+    containers,
+  });
+
+  latestRef.current = { checkedEventIds, includeNewsletterContacts, containers };
+
+  useEffect(() => {
+    skipNextAutosaveRef.current = true;
+    setCheckedEventIds(grouping.checkedEventIds);
+    setIncludeNewsletterContacts(grouping.includeNewsletterContacts);
+    setContainers(grouping.containers);
+    setDeleteContainerIndex(null);
+  }, [grouping.id]);
+
+  useEffect(() => {
+    if (skipNextAutosaveRef.current) {
+      skipNextAutosaveRef.current = false;
+      return;
+    }
+
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    setSaveStatus("saving");
+    setSaveError(null);
+
+    saveTimerRef.current = setTimeout(() => {
+      const snapshot = latestRef.current;
+      startTransition(async () => {
+        try {
+          await updateGroupingAction(
+            grouping.id,
+            snapshot.checkedEventIds,
+            snapshot.containers,
+            snapshot.includeNewsletterContacts
+          );
+          setSaveStatus("saved");
+        } catch (error) {
+          setSaveStatus("error");
+          setSaveError(error instanceof Error ? error.message : "Could not save grouping");
+        }
+      });
+    }, 450);
+
+    return () => {
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    };
+  }, [grouping.id, checkedEventIds, includeNewsletterContacts, containers]);
 
   const allNonTablingChecked = areAllNonTablingEventsChecked(checkedEventIds, events);
   const allTablingChecked = areAllTablingEventsChecked(checkedEventIds, events);
@@ -360,31 +413,50 @@ export default function GroupingEditor({
     );
   }
 
-  function saveGrouping() {
-    setSaveError(null);
-    startTransition(async () => {
-      try {
-        await updateGroupingAction(
-          grouping.id,
-          checkedEventIds,
-          containers,
-          includeNewsletterContacts
-        );
-        router.refresh();
-      } catch (error) {
-        setSaveError(error instanceof Error ? error.message : "Could not save grouping");
-      }
-    });
+  function removeContainer(index: number) {
+    setContainers((current) => current.filter((_, containerIndex) => containerIndex !== index));
+    setDeleteContainerIndex(null);
   }
+
+  const statusLabel =
+    saveStatus === "saving" || isPending
+      ? "Saving…"
+      : saveStatus === "saved"
+        ? "Saved"
+        : saveStatus === "error"
+          ? "Save failed"
+          : null;
+
+  const pendingDeleteContainer =
+    deleteContainerIndex != null ? containers[deleteContainerIndex] : null;
 
   return (
     <div className="space-y-6">
       <div className="card">
-        <h2 className="text-sm font-semibold mb-3">
-          {grouping.eventAndStudentDataViewName
-            ? `${grouping.viewName}: Event data from "${grouping.eventAndStudentDataViewName}"`
-            : `Events in ${grouping.viewName}`}
-        </h2>
+        <div className="flex items-start justify-between gap-3 mb-3">
+          <h2 className="text-sm font-semibold">
+            {grouping.eventAndStudentDataViewName
+              ? `${grouping.viewName}: Event data from "${grouping.eventAndStudentDataViewName}"`
+              : `Events in ${grouping.viewName}`}
+          </h2>
+          {statusLabel && (
+            <p
+              className={`text-xs shrink-0 ${
+                saveStatus === "error"
+                  ? "text-red-600 dark:text-red-400"
+                  : "text-black/50 dark:text-white/50"
+              }`}
+            >
+              {statusLabel}
+            </p>
+          )}
+        </div>
+        {saveError && (
+          <p className="text-xs text-red-600 dark:text-red-400 mb-3">{saveError}</p>
+        )}
+        <p className="text-xs text-black/60 dark:text-white/60 mb-3">
+          Changes save automatically.
+        </p>
         <div className="max-h-40 overflow-y-auto space-y-2 pr-1">
           <label className="flex items-center gap-2 text-sm cursor-pointer">
             <input
@@ -584,6 +656,7 @@ export default function GroupingEditor({
                 onDragLeave={() =>
                   setDragOverZone((zone) => (zone === `container-${index}` ? null : zone))
                 }
+                onRequestDelete={setDeleteContainerIndex}
               />
             ))}
             <button
@@ -598,17 +671,13 @@ export default function GroupingEditor({
         </div>
       </div>
 
-      <div className="flex items-center gap-3">
-        <button
-          type="button"
-          className="btn btn-primary"
-          onClick={saveGrouping}
-          disabled={isPending}
-        >
-          {isPending ? "Saving…" : "Save Grouping"}
-        </button>
-        {saveError && <p className="text-sm text-red-600 dark:text-red-400">{saveError}</p>}
-      </div>
+      {pendingDeleteContainer != null && deleteContainerIndex != null && (
+        <DeleteContainerModal
+          containerTitle={pendingDeleteContainer.title}
+          onConfirm={() => removeContainer(deleteContainerIndex)}
+          onClose={() => setDeleteContainerIndex(null)}
+        />
+      )}
     </div>
   );
 }

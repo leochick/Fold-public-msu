@@ -28,6 +28,7 @@ export default function ContainerCard({
   isDragOver,
   onDragEnter,
   onDragLeave,
+  onRequestDelete,
 }: {
   container: GroupingContainerData;
   containerIndex: number;
@@ -43,6 +44,7 @@ export default function ContainerCard({
   isDragOver: boolean;
   onDragEnter: () => void;
   onDragLeave: () => void;
+  onRequestDelete: (index: number) => void;
 }) {
   const [insertAtIndex, setInsertAtIndex] = useState<number | null>(null);
   const insertAtIndexRef = useRef<number | null>(null);
@@ -141,10 +143,18 @@ export default function ContainerCard({
   }
 
   return (
-    <div className="card min-h-[10rem] w-full self-start isolate">
+    <div className="card min-h-[10rem] w-full self-start isolate relative">
+      <button
+        type="button"
+        className="absolute top-2 right-2 btn-ghost px-2 py-1 text-xs leading-none z-20"
+        aria-label={`Delete container ${container.title.trim() || containerIndex + 1}`}
+        onClick={() => onRequestDelete(containerIndex)}
+      >
+        ✕
+      </button>
       <input
         type="text"
-        className="input mb-3"
+        className="input mb-3 pr-8"
         placeholder="Container title"
         value={container.title}
         onChange={(event) => onTitleChange(containerIndex, event.target.value)}
