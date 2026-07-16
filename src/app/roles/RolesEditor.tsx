@@ -419,19 +419,19 @@ export default function RolesEditor({
                       .filter(Boolean)
                       .join(" ")}
                   >
-                    <td className="align-middle">
+                    <td className="align-top">
                       <span
                         draggable
                         onDragStart={(event) => handleHandleDragStart(event, rowIndex)}
                         onDragEnd={handleRowDragEnd}
-                        className="inline-flex cursor-grab active:cursor-grabbing select-none px-1 text-black/40 dark:text-white/40"
+                        className="inline-flex cursor-grab active:cursor-grabbing select-none px-1 py-2 text-black/40 dark:text-white/40"
                         title="Drag to reorder"
                         aria-label={`Drag to reorder ${row.name || `role ${rowIndex + 1}`}`}
                       >
                         ⋮⋮
                       </span>
                     </td>
-                    <td>
+                    <td className="align-top">
                       <div className="flex items-center gap-2">
                         <RoleColorPicker
                           value={row.color || DEFAULT_ROLE_COLOR}
@@ -457,7 +457,7 @@ export default function RolesEditor({
                       />
                     </td>
                     {Array.from({ length: personColumnCount }, (_, columnIndex) => (
-                      <td key={columnIndex}>
+                      <td key={columnIndex} className="align-top">
                         <PersonPicker
                           value={row.people[columnIndex] ?? null}
                           options={personOptions}
@@ -465,7 +465,7 @@ export default function RolesEditor({
                         />
                       </td>
                     ))}
-                    <td>
+                    <td className="align-top">
                       <button
                         type="button"
                         className="btn-ghost px-2 py-1 text-xs"
