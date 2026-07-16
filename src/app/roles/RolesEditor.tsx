@@ -21,6 +21,13 @@ type ViewOption = {
 
 type SaveStatus = "idle" | "saving" | "saved" | "error";
 
+function createRowKey() {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    return crypto.randomUUID();
+  }
+  return `row-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+}
+
 export default function RolesEditor({
   board,
   viewName,
@@ -42,10 +49,11 @@ export default function RolesEditor({
   );
   const [personColumnCount, setPersonColumnCount] = useState(board.personColumnCount);
   const [rows, setRows] = useState<RoleBoardRow[]>(board.rows);
+  const [rowKeys, setRowKeys] = useState(() => board.rows.map(() => createRowKey()));
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
   const [saveError, setSaveError] = useState<string | null>(null);
   const [dragFromIndex, setDragFromIndex] = useState<number | null>(null);
-  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+  const [dropInsertIndex, setDropInsertIndex] = useState<number | null>(null);
   const [isPending, startTransition] = useTransition();
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const skipNextAutosaveRef = useRef(true);
@@ -65,6 +73,7 @@ export default function RolesEditor({
     setEventAndStudentDataView(nextDataView);
     setPersonColumnCount(board.personColumnCount);
     setRows(board.rows);
+    setRowKeys(board.rows.map(() => createRowKey()));
     savedDataViewRef.current = nextDataView;
   }, [board.id]);
 
@@ -159,10 +168,12 @@ export default function RolesEditor({
         people: Array.from({ length: personColumnCount }, () => null),
       },
     ]);
+    setRowKeys((current) => [...current, createRowKey()]);
   }
 
   function removeRoleRow(index: number) {
     setRows((current) => current.filter((_, rowIndex) => rowIndex !== index));
+    setRowKeys((current) => current.filter((_, rowIndex) => rowIndex !== index));
   }
 
   function reorderRows(fromIndex: number, toIndex: number) {
@@ -181,11 +192,30 @@ export default function RolesEditor({
       next.splice(toIndex, 0, moved);
       return next;
     });
+    setRowKeys((current) => {
+      if (
+        fromIndex < 0 ||
+        toIndex < 0 ||
+        fromIndex >= current.length ||
+        toIndex >= current.length
+      ) {
+        return current;
+      }
+      const next = [...current];
+      const [moved] = next.splice(fromIndex, 1);
+      next.splice(toIndex, 0, moved);
+      return next;
+    });
+  }
+
+  function clearDragState() {
+    setDragFromIndex(null);
+    setDropInsertIndex(null);
   }
 
   function handleHandleDragStart(event: DragEvent<HTMLSpanElement>, index: number) {
     setDragFromIndex(index);
-    setDragOverIndex(index);
+    setDropInsertIndex(index);
     event.dataTransfer.effectAllowed = "move";
     event.dataTransfer.setData("text/plain", String(index));
   }
@@ -194,23 +224,31 @@ export default function RolesEditor({
     if (dragFromIndex == null) return;
     event.preventDefault();
     event.dataTransfer.dropEffect = "move";
-    if (dragOverIndex !== index) setDragOverIndex(index);
+
+    const rect = event.currentTarget.getBoundingClientRect();
+    const insertBefore = event.clientY < rect.top + rect.height / 2;
+    const nextInsert = insertBefore ? index : index + 1;
+    if (dropInsertIndex !== nextInsert) setDropInsertIndex(nextInsert);
   }
 
-  function handleRowDrop(event: DragEvent<HTMLTableRowElement>, toIndex: number) {
-    event.preventDefault();
-    const raw = event.dataTransfer.getData("text/plain");
-    const fromIndex = Number(raw);
-    if (Number.isFinite(fromIndex)) {
-      reorderRows(fromIndex, toIndex);
+  function commitDrop() {
+    if (dragFromIndex == null || dropInsertIndex == null) {
+      clearDragState();
+      return;
     }
-    setDragFromIndex(null);
-    setDragOverIndex(null);
+    const toIndex =
+      dropInsertIndex > dragFromIndex ? dropInsertIndex - 1 : dropInsertIndex;
+    reorderRows(dragFromIndex, toIndex);
+    clearDragState();
+  }
+
+  function handleRowDrop(event: DragEvent<HTMLTableRowElement>) {
+    event.preventDefault();
+    commitDrop();
   }
 
   function handleRowDragEnd() {
-    setDragFromIndex(null);
-    setDragOverIndex(null);
+    clearDragState();
   }
 
   const statusLabel =
@@ -223,6 +261,11 @@ export default function RolesEditor({
           : null;
 
   const emptyColSpan = personColumnCount + 4;
+  const showInsertGap =
+    dragFromIndex != null &&
+    dropInsertIndex != null &&
+    dropInsertIndex !== dragFromIndex &&
+    dropInsertIndex !== dragFromIndex + 1;
 
   const exportSnapshot: RoleBoardExportSnapshot = {
     viewName,
@@ -277,7 +320,7 @@ export default function RolesEditor({
         </p>
       </div>
 
-      <div className="card overflow-x-auto">
+      <div className="card overflow-x-auto overflow-y-visible">
         <table>
           <thead>
             <tr>
@@ -314,18 +357,24 @@ export default function RolesEditor({
               </tr>
             ) : (
               rows.map((row, rowIndex) => {
+                const rowKey = rowKeys[rowIndex] ?? `fallback-${rowIndex}`;
                 const isDragging = dragFromIndex === rowIndex;
-                const isDropTarget =
-                  dragOverIndex === rowIndex && dragFromIndex != null && dragFromIndex !== rowIndex;
+                const showLineAbove = showInsertGap && dropInsertIndex === rowIndex;
+                const showLineBelow =
+                  showInsertGap &&
+                  dropInsertIndex === rows.length &&
+                  rowIndex === rows.length - 1;
 
                 return (
                   <tr
-                    key={rowIndex}
+                    key={rowKey}
                     onDragOver={(event) => handleRowDragOver(event, rowIndex)}
-                    onDrop={(event) => handleRowDrop(event, rowIndex)}
+                    onDrop={handleRowDrop}
                     className={[
-                      isDragging ? "opacity-40" : "",
-                      isDropTarget ? "outline outline-2 outline-accent outline-offset-[-2px]" : "",
+                      "transition-[box-shadow,opacity] duration-150",
+                      isDragging ? "opacity-45 bg-accent/5" : "",
+                      showLineAbove ? "shadow-[inset_0_3px_0_0_theme(colors.accent)]" : "",
+                      showLineBelow ? "shadow-[inset_0_-3px_0_0_theme(colors.accent)]" : "",
                     ]
                       .filter(Boolean)
                       .join(" ")}

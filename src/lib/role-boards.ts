@@ -3,11 +3,17 @@ import type { RoleBoardPerson, RoleBoardRow } from "../../drizzle/schema";
 /** Fixed palette for role chip backgrounds. */
 export const ROLE_COLOR_PALETTE = [
   "#e5e7eb", // gray
+  "#d4d4d8", // zinc
   "#93c5fd", // blue
-  "#86efac", // green
-  "#fcd34d", // amber
-  "#fda4af", // rose
+  "#7dd3fc", // sky
   "#67e8f9", // cyan
+  "#5eead4", // teal
+  "#86efac", // green
+  "#a3e635", // lime
+  "#fcd34d", // amber
+  "#fdba74", // orange
+  "#fda4af", // rose
+  "#f9a8d4", // pink
 ] as const;
 
 export type RolePaletteColor = (typeof ROLE_COLOR_PALETTE)[number];
