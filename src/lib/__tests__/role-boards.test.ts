@@ -6,6 +6,7 @@ import {
   normalizeRoleColor,
   parsePersonKey,
   personKey,
+  ROLE_COLOR_PALETTE,
 } from "@/lib/role-boards";
 
 describe("normalizeRoleBoardRows", () => {
@@ -15,7 +16,7 @@ describe("normalizeRoleBoardRows", () => {
         {
           name: "Emcee",
           description: "Opens the night",
-          color: "#ff0000",
+          color: "#93c5fd",
           people: [
             { entity: "staff", id: 1 },
             { entity: "student", id: 2 },
@@ -30,7 +31,7 @@ describe("normalizeRoleBoardRows", () => {
       {
         name: "Emcee",
         description: "Opens the night",
-        color: "#ff0000",
+        color: "#93c5fd",
         people: [
           { entity: "staff", id: 1 },
           { entity: "student", id: 2 },
@@ -55,21 +56,22 @@ describe("normalizeRoleBoardRows", () => {
 });
 
 describe("normalizeRoleColor", () => {
-  it("accepts 6-digit hex and expands 3-digit", () => {
-    expect(normalizeRoleColor("#AbCdEf")).toBe("#abcdef");
-    expect(normalizeRoleColor("#abc")).toBe("#aabbcc");
+  it("accepts palette colors and expands 3-digit matches", () => {
+    expect(normalizeRoleColor("#93C5FD")).toBe("#93c5fd");
+    expect(normalizeRoleColor(ROLE_COLOR_PALETTE[2])).toBe(ROLE_COLOR_PALETTE[2]);
   });
 
-  it("falls back for invalid values", () => {
+  it("falls back for invalid or off-palette values", () => {
     expect(normalizeRoleColor("red")).toBe(DEFAULT_ROLE_COLOR);
+    expect(normalizeRoleColor("#ff0000")).toBe(DEFAULT_ROLE_COLOR);
     expect(normalizeRoleColor(null)).toBe(DEFAULT_ROLE_COLOR);
   });
 });
 
 describe("contrastingTextColor", () => {
-  it("uses dark text on light backgrounds and light text on dark", () => {
-    expect(contrastingTextColor("#ffffff")).toBe("#111827");
-    expect(contrastingTextColor("#000000")).toBe("#ffffff");
+  it("uses dark text on light palette colors", () => {
+    expect(contrastingTextColor("#e5e7eb")).toBe("#111827");
+    expect(contrastingTextColor("#fcd34d")).toBe("#111827");
   });
 });
 

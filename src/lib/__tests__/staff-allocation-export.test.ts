@@ -21,7 +21,7 @@ describe("staff allocation export", () => {
         gender: "M",
         roles: [
           { roleName: "Small Group Lead", color: "#e5e7eb" },
-          { roleName: "Welcome Team", color: "#bfdbfe" },
+          { roleName: "Welcome Team", color: "#93c5fd" },
         ],
         groupings: [
           {

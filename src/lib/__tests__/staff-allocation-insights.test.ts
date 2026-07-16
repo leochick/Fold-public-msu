@@ -11,7 +11,7 @@ describe("buildStaffAllocationInsightPayload", () => {
       gender: "M",
       roles: [
         { roleName: "Small Group Lead", color: "#e5e7eb" },
-        { roleName: "Welcome", color: "#bfdbfe" },
+        { roleName: "Welcome", color: "#93c5fd" },
       ],
       groupings: [
         {

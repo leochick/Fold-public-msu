@@ -1,6 +1,20 @@
 import type { RoleBoardPerson, RoleBoardRow } from "../../drizzle/schema";
 
-export const DEFAULT_ROLE_COLOR = "#e5e7eb";
+/** Fixed palette for role chip backgrounds. */
+export const ROLE_COLOR_PALETTE = [
+  "#e5e7eb", // gray
+  "#93c5fd", // blue
+  "#86efac", // green
+  "#fcd34d", // amber
+  "#fda4af", // rose
+  "#67e8f9", // cyan
+] as const;
+
+export type RolePaletteColor = (typeof ROLE_COLOR_PALETTE)[number];
+
+export const DEFAULT_ROLE_COLOR: RolePaletteColor = ROLE_COLOR_PALETTE[0];
+
+const PALETTE_SET = new Set<string>(ROLE_COLOR_PALETTE);
 
 function isValidPerson(person: unknown): person is RoleBoardPerson {
   if (!person || typeof person !== "object") return false;
@@ -10,14 +24,15 @@ function isValidPerson(person: unknown): person is RoleBoardPerson {
   );
 }
 
-export function normalizeRoleColor(value: unknown): string {
+export function normalizeRoleColor(value: unknown): RolePaletteColor {
   if (typeof value !== "string") return DEFAULT_ROLE_COLOR;
-  const trimmed = value.trim();
-  if (/^#[0-9a-fA-F]{6}$/.test(trimmed)) return trimmed.toLowerCase();
-  if (/^#[0-9a-fA-F]{3}$/.test(trimmed)) {
+  const trimmed = value.trim().toLowerCase();
+  let hex = trimmed;
+  if (/^#[0-9a-f]{3}$/.test(trimmed)) {
     const [, r, g, b] = trimmed;
-    return `#${r}${r}${g}${g}${b}${b}`.toLowerCase();
+    hex = `#${r}${r}${g}${g}${b}${b}`;
   }
+  if (PALETTE_SET.has(hex)) return hex as RolePaletteColor;
   return DEFAULT_ROLE_COLOR;
 }
 

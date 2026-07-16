@@ -11,6 +11,7 @@ import {
 import { updateRoleBoardAction } from "../roles-actions";
 import type { RoleBoardDetail, RoleBoardPersonOption } from "@/server/roles";
 import PersonPicker from "./PersonPicker";
+import RoleColorPicker from "./RoleColorPicker";
 import RolesHeader from "./RolesHeader";
 
 type ViewOption = {
@@ -343,13 +344,10 @@ export default function RolesEditor({
                     </td>
                     <td>
                       <div className="flex items-center gap-2">
-                        <input
-                          type="color"
-                          className="h-9 w-10 shrink-0 cursor-pointer rounded border border-black/10 bg-transparent p-0.5 dark:border-white/15"
+                        <RoleColorPicker
                           value={row.color || DEFAULT_ROLE_COLOR}
-                          aria-label={`Color for ${row.name || `role ${rowIndex + 1}`}`}
-                          title="Role color"
-                          onChange={(event) => updateRowColor(rowIndex, event.target.value)}
+                          label={`Color for ${row.name || `role ${rowIndex + 1}`}`}
+                          onChange={(color) => updateRowColor(rowIndex, color)}
                         />
                         <input
                           type="text"

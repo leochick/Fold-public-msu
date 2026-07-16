@@ -18,7 +18,7 @@ describe("role board export", () => {
       {
         name: "Emcee",
         description: "Opens the night",
-        color: "#bfdbfe",
+        color: "#93c5fd",
         people: [
           { entity: "staff", id: 1, firstName: "Sam", lastName: "Leader" },
           { entity: "student", id: 2, firstName: "Jane", lastName: "Doe" },
@@ -38,7 +38,7 @@ describe("role board export", () => {
       {
         role: "Emcee",
         description: "Opens the night",
-        color: "#bfdbfe",
+        color: "#93c5fd",
         people: ["Sam Leader (Staff)", "Jane Doe (Student)"],
       },
       {
@@ -73,7 +73,7 @@ describe("role board export", () => {
         {
           name: "Host",
           description: "",
-          color: "#ffffff",
+          color: "#e5e7eb",
           people: [{ entity: "staff", id: 9 }, null],
         },
       ],
