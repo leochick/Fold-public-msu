@@ -8,6 +8,7 @@ import {
   normalizeRoleColor,
   parsePersonKey,
   personKey,
+  resolveRoleBoardRoleEntries,
   ROLE_COLOR_PALETTE,
 } from "@/lib/role-boards";
 
@@ -31,6 +32,7 @@ describe("normalizeRoleBoardRows", () => {
 
     expect(rows).toEqual([
       {
+        kind: "role",
         name: "Emcee",
         responsibilities: ["Opens the night", "Introduces speakers"],
         color: "#93c5fd",
@@ -45,6 +47,7 @@ describe("normalizeRoleBoardRows", () => {
   it("fills missing people with null and defaults responsibilities/color", () => {
     const rows = normalizeRoleBoardRows([{ name: "Host", people: [] }], 3);
     expect(rows[0]).toEqual({
+      kind: "role",
       name: "Host",
       responsibilities: [],
       color: DEFAULT_ROLE_COLOR,
@@ -63,11 +66,55 @@ describe("normalizeRoleBoardRows", () => {
       ],
       0
     );
-    expect(rows[0].responsibilities).toEqual(["Opens the night", "Greets guests"]);
+    expect(rows[0].kind).toBe("role");
+    if (rows[0].kind === "role") {
+      expect(rows[0].responsibilities).toEqual(["Opens the night", "Greets guests"]);
+    }
+  });
+
+  it("normalizes subheader rows", () => {
+    const rows = normalizeRoleBoardRows(
+      [
+        { kind: "subheader", name: "Tech", color: "#93c5fd" },
+        { name: "Sound", people: [] },
+      ],
+      0
+    );
+    expect(rows).toEqual([
+      { kind: "subheader", name: "Tech", color: "#93c5fd" },
+      {
+        kind: "role",
+        name: "Sound",
+        responsibilities: [],
+        color: DEFAULT_ROLE_COLOR,
+        people: [],
+      },
+    ]);
   });
 
   it("returns empty for non-arrays", () => {
     expect(normalizeRoleBoardRows(null, 1)).toEqual([]);
+  });
+});
+
+describe("resolveRoleBoardRoleEntries", () => {
+  it("hyphenates display names and inherits subheader color", () => {
+    const rows = normalizeRoleBoardRows(
+      [
+        { kind: "subheader", name: "Tech", color: "#93c5fd" },
+        { name: "Sound", people: [] },
+        { name: "Propre", people: [] },
+        { kind: "subheader", name: "Hospitality", color: "#86efac" },
+        { name: "Welcome", people: [] },
+      ],
+      0
+    );
+    const entries = resolveRoleBoardRoleEntries(rows);
+    expect(entries.map((entry) => ({ name: entry.displayName, color: entry.color }))).toEqual([
+      { name: "Tech - Sound", color: "#93c5fd" },
+      { name: "Tech - Propre", color: "#93c5fd" },
+      { name: "Hospitality - Welcome", color: "#86efac" },
+    ]);
   });
 });
 

@@ -1,4 +1,9 @@
-import type { RoleBoardPerson, RoleBoardRow } from "../../drizzle/schema";
+import type {
+  RoleBoardPerson,
+  RoleBoardRoleRow,
+  RoleBoardRow,
+  RoleBoardSubheaderRow,
+} from "../../drizzle/schema";
 
 /** Fixed palette for role chip backgrounds. */
 export const ROLE_COLOR_PALETTE = [
@@ -56,6 +61,14 @@ export function emptyRoleBoardRows(): RoleBoardRow[] {
   return [];
 }
 
+export function isRoleBoardSubheader(row: RoleBoardRow): row is RoleBoardSubheaderRow {
+  return row.kind === "subheader";
+}
+
+export function isRoleBoardRole(row: RoleBoardRow): row is RoleBoardRoleRow {
+  return row.kind !== "subheader";
+}
+
 /** Split a plain/legacy description string into responsibility bullets. */
 function responsibilitiesFromText(value: string): string[] {
   return value
@@ -99,6 +112,19 @@ export function formatResponsibilitiesTooltip(items: string[]): string | undefin
   return cleaned.map((item) => `• ${item}`).join("\n");
 }
 
+function normalizePeople(
+  rawPeople: unknown,
+  columnCount: number
+): Array<RoleBoardPerson | null> {
+  const people: Array<RoleBoardPerson | null> = [];
+  const list = Array.isArray(rawPeople) ? rawPeople : [];
+  for (let i = 0; i < columnCount; i += 1) {
+    const person = list[i];
+    people.push(isValidPerson(person) ? person : null);
+  }
+  return people;
+}
+
 export function normalizeRoleBoardRows(
   rows: unknown,
   personColumnCount: number
@@ -108,6 +134,7 @@ export function normalizeRoleBoardRows(
 
   return rows.map((raw) => {
     const row = (raw && typeof raw === "object" ? raw : {}) as {
+      kind?: unknown;
       name?: unknown;
       responsibilities?: unknown;
       description?: unknown;
@@ -115,19 +142,60 @@ export function normalizeRoleBoardRows(
       people?: unknown;
     };
     const name = typeof row.name === "string" ? row.name : "";
-    const responsibilities = normalizeResponsibilities(
-      row.responsibilities,
-      row.description
-    );
     const color = normalizeRoleColor(row.color);
-    const rawPeople = Array.isArray(row.people) ? row.people : [];
-    const people: Array<RoleBoardPerson | null> = [];
-    for (let i = 0; i < columnCount; i += 1) {
-      const person = rawPeople[i];
-      people.push(isValidPerson(person) ? person : null);
+
+    if (row.kind === "subheader") {
+      return { kind: "subheader", name, color } satisfies RoleBoardSubheaderRow;
     }
-    return { name, responsibilities, color, people };
+
+    return {
+      kind: "role",
+      name,
+      responsibilities: normalizeResponsibilities(row.responsibilities, row.description),
+      color,
+      people: normalizePeople(row.people, columnCount),
+    } satisfies RoleBoardRoleRow;
   });
+}
+
+/**
+ * Walk board rows top-to-bottom, tracking the active subheader grouping.
+ * Roles inherit the nearest preceding subheader's name and color.
+ */
+export function resolveRoleBoardRoleEntries(rows: RoleBoardRow[]): Array<{
+  row: RoleBoardRoleRow;
+  groupName: string | null;
+  color: string;
+  displayName: string;
+}> {
+  let groupName: string | null = null;
+  let groupColor: string | null = null;
+  const entries: Array<{
+    row: RoleBoardRoleRow;
+    groupName: string | null;
+    color: string;
+    displayName: string;
+  }> = [];
+
+  for (const row of rows) {
+    if (isRoleBoardSubheader(row)) {
+      const trimmed = row.name.trim();
+      groupName = trimmed || null;
+      groupColor = normalizeRoleColor(row.color);
+      continue;
+    }
+
+    const roleName = row.name.trim() || "Untitled role";
+    const displayName = groupName ? `${groupName} - ${roleName}` : roleName;
+    entries.push({
+      row,
+      groupName,
+      color: groupColor ?? normalizeRoleColor(row.color),
+      displayName,
+    });
+  }
+
+  return entries;
 }
 
 export function personKey(person: RoleBoardPerson) {

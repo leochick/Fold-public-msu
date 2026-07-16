@@ -71,7 +71,7 @@ export default function RoleColorPicker({
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-controls={listId}
-        title="Role color"
+        title={label}
         onClick={() => setOpen((current) => !current)}
       >
         <span

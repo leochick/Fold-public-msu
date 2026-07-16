@@ -2,8 +2,18 @@
 
 import { useEffect, useRef, useState, useTransition, type DragEvent } from "react";
 import { useRouter } from "next/navigation";
-import type { RoleBoardPerson, RoleBoardRow } from "../../../drizzle/schema";
-import { DEFAULT_ROLE_COLOR } from "@/lib/role-boards";
+import type {
+  RoleBoardPerson,
+  RoleBoardRoleRow,
+  RoleBoardRow,
+  RoleBoardSubheaderRow,
+} from "../../../drizzle/schema";
+import {
+  DEFAULT_ROLE_COLOR,
+  isRoleBoardRole,
+  isRoleBoardSubheader,
+  resolveRoleBoardRoleEntries,
+} from "@/lib/role-boards";
 import {
   resolveRoleBoardExportRows,
   type RoleBoardExportSnapshot,
@@ -27,6 +37,10 @@ function createRowKey() {
     return crypto.randomUUID();
   }
   return `row-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+}
+
+function emptyRolePeople(personColumnCount: number): Array<RoleBoardPerson | null> {
+  return Array.from({ length: personColumnCount }, () => null);
 }
 
 export default function RolesEditor({
@@ -129,7 +143,7 @@ export default function RolesEditor({
   function updateRowResponsibilities(index: number, responsibilities: string[]) {
     setRows((current) =>
       current.map((row, rowIndex) =>
-        rowIndex === index ? { ...row, responsibilities } : row
+        rowIndex === index && isRoleBoardRole(row) ? { ...row, responsibilities } : row
       )
     );
   }
@@ -143,7 +157,7 @@ export default function RolesEditor({
   function updatePerson(rowIndex: number, columnIndex: number, person: RoleBoardPerson | null) {
     setRows((current) =>
       current.map((row, index) => {
-        if (index !== rowIndex) return row;
+        if (index !== rowIndex || !isRoleBoardRole(row)) return row;
         const people = [...row.people];
         people[columnIndex] = person;
         return { ...row, people };
@@ -154,15 +168,16 @@ export default function RolesEditor({
   function addPersonColumn() {
     setPersonColumnCount((count) => count + 1);
     setRows((current) =>
-      current.map((row) => ({
-        ...row,
-        people: [...row.people, null],
-      }))
+      current.map((row) =>
+        isRoleBoardRole(row) ? { ...row, people: [...row.people, null] } : row
+      )
     );
   }
 
   function isPersonColumnEmpty(columnIndex: number) {
-    return rows.every((row) => (row.people[columnIndex] ?? null) == null);
+    return rows.every(
+      (row) => !isRoleBoardRole(row) || (row.people[columnIndex] ?? null) == null
+    );
   }
 
   function removePersonColumn(columnIndex: number) {
@@ -175,27 +190,40 @@ export default function RolesEditor({
     }
     setPersonColumnCount((count) => Math.max(0, count - 1));
     setRows((current) =>
-      current.map((row) => ({
-        ...row,
-        people: row.people.filter((_, index) => index !== columnIndex),
-      }))
+      current.map((row) =>
+        isRoleBoardRole(row)
+          ? {
+              ...row,
+              people: row.people.filter((_, index) => index !== columnIndex),
+            }
+          : row
+      )
     );
   }
 
   function addRoleRow() {
-    setRows((current) => [
-      ...current,
-      {
-        name: "",
-        responsibilities: [],
-        color: DEFAULT_ROLE_COLOR,
-        people: Array.from({ length: personColumnCount }, () => null),
-      },
-    ]);
+    const row: RoleBoardRoleRow = {
+      kind: "role",
+      name: "",
+      responsibilities: [],
+      color: DEFAULT_ROLE_COLOR,
+      people: emptyRolePeople(personColumnCount),
+    };
+    setRows((current) => [...current, row]);
     setRowKeys((current) => [...current, createRowKey()]);
   }
 
-  function removeRoleRow(index: number) {
+  function addSubheaderRow() {
+    const row: RoleBoardSubheaderRow = {
+      kind: "subheader",
+      name: "",
+      color: DEFAULT_ROLE_COLOR,
+    };
+    setRows((current) => [...current, row]);
+    setRowKeys((current) => [...current, createRowKey()]);
+  }
+
+  function removeRow(index: number) {
     setRows((current) => current.filter((_, rowIndex) => rowIndex !== index));
     setRowKeys((current) => current.filter((_, rowIndex) => rowIndex !== index));
   }
@@ -285,6 +313,7 @@ export default function RolesEditor({
           : null;
 
   const emptyColSpan = personColumnCount + 4;
+  const subheaderColSpan = emptyColSpan - 1;
   const showInsertGap =
     dragFromIndex != null &&
     dropInsertIndex != null &&
@@ -296,7 +325,16 @@ export default function RolesEditor({
     viewFrom,
     viewTo,
     personColumnCount,
-    rows: resolveRoleBoardExportRows(rows, personColumnCount, personOptions),
+    rows: resolveRoleBoardExportRows(
+      resolveRoleBoardRoleEntries(rows).map((entry) => ({
+        name: entry.displayName,
+        responsibilities: entry.row.responsibilities,
+        color: entry.color,
+        people: entry.row.people,
+      })),
+      personColumnCount,
+      personOptions
+    ),
   };
 
   return (
@@ -341,6 +379,7 @@ export default function RolesEditor({
         )}
         <p className="text-xs text-black/60 dark:text-white/60 mt-2">
           Role assignments for {viewName}. Changes save automatically. Drag rows to reorder.
+          Roles under a subheader inherit its color and grouping label.
         </p>
       </div>
 
@@ -392,7 +431,7 @@ export default function RolesEditor({
                   colSpan={emptyColSpan}
                   className="text-sm text-black/50 dark:text-white/50"
                 >
-                  No roles yet. Add a role below.
+                  No roles yet. Add a role or subheader below.
                 </td>
               </tr>
             ) : (
@@ -404,20 +443,70 @@ export default function RolesEditor({
                   showInsertGap &&
                   dropInsertIndex === rows.length &&
                   rowIndex === rows.length - 1;
+                const rowClassName = [
+                  "transition-[box-shadow,opacity] duration-150",
+                  isDragging ? "opacity-45 bg-accent/5" : "",
+                  showLineAbove ? "shadow-[inset_0_3px_0_0_theme(colors.accent)]" : "",
+                  showLineBelow ? "shadow-[inset_0_-3px_0_0_theme(colors.accent)]" : "",
+                ]
+                  .filter(Boolean)
+                  .join(" ");
+
+                if (isRoleBoardSubheader(row)) {
+                  return (
+                    <tr
+                      key={rowKey}
+                      onDragOver={(event) => handleRowDragOver(event, rowIndex)}
+                      onDrop={handleRowDrop}
+                      className={rowClassName}
+                      style={{ backgroundColor: `${row.color || DEFAULT_ROLE_COLOR}66` }}
+                    >
+                      <td className="align-middle">
+                        <span
+                          draggable
+                          onDragStart={(event) => handleHandleDragStart(event, rowIndex)}
+                          onDragEnd={handleRowDragEnd}
+                          className="inline-flex cursor-grab active:cursor-grabbing select-none px-1 py-2 text-black/40 dark:text-white/40"
+                          title="Drag to reorder"
+                          aria-label={`Drag to reorder ${row.name || `subheader ${rowIndex + 1}`}`}
+                        >
+                          ⋮⋮
+                        </span>
+                      </td>
+                      <td colSpan={subheaderColSpan} className="align-middle">
+                        <div className="flex items-center gap-2 py-1">
+                          <RoleColorPicker
+                            value={row.color || DEFAULT_ROLE_COLOR}
+                            label={`Color for ${row.name || `subheader ${rowIndex + 1}`}`}
+                            onChange={(color) => updateRowColor(rowIndex, color)}
+                          />
+                          <input
+                            type="text"
+                            className="input min-w-0 flex-1 font-semibold"
+                            placeholder="Subheader (e.g. Tech)"
+                            value={row.name}
+                            onChange={(event) => updateRowName(rowIndex, event.target.value)}
+                          />
+                          <button
+                            type="button"
+                            className="btn-ghost px-2 py-1 text-xs shrink-0"
+                            aria-label={`Remove subheader ${row.name || rowIndex + 1}`}
+                            onClick={() => removeRow(rowIndex)}
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                }
 
                 return (
                   <tr
                     key={rowKey}
                     onDragOver={(event) => handleRowDragOver(event, rowIndex)}
                     onDrop={handleRowDrop}
-                    className={[
-                      "transition-[box-shadow,opacity] duration-150",
-                      isDragging ? "opacity-45 bg-accent/5" : "",
-                      showLineAbove ? "shadow-[inset_0_3px_0_0_theme(colors.accent)]" : "",
-                      showLineBelow ? "shadow-[inset_0_-3px_0_0_theme(colors.accent)]" : "",
-                    ]
-                      .filter(Boolean)
-                      .join(" ")}
+                    className={rowClassName}
                   >
                     <td className="align-top">
                       <span
@@ -432,20 +521,13 @@ export default function RolesEditor({
                       </span>
                     </td>
                     <td className="align-top">
-                      <div className="flex items-center gap-2">
-                        <RoleColorPicker
-                          value={row.color || DEFAULT_ROLE_COLOR}
-                          label={`Color for ${row.name || `role ${rowIndex + 1}`}`}
-                          onChange={(color) => updateRowColor(rowIndex, color)}
-                        />
-                        <input
-                          type="text"
-                          className="input min-w-0 flex-1"
-                          placeholder="Role name"
-                          value={row.name}
-                          onChange={(event) => updateRowName(rowIndex, event.target.value)}
-                        />
-                      </div>
+                      <input
+                        type="text"
+                        className="input min-w-0 w-full"
+                        placeholder="Role name"
+                        value={row.name}
+                        onChange={(event) => updateRowName(rowIndex, event.target.value)}
+                      />
                     </td>
                     <td className="align-top">
                       <ResponsibilitiesListEditor
@@ -470,7 +552,7 @@ export default function RolesEditor({
                         type="button"
                         className="btn-ghost px-2 py-1 text-xs"
                         aria-label={`Remove role ${row.name || rowIndex + 1}`}
-                        onClick={() => removeRoleRow(rowIndex)}
+                        onClick={() => removeRow(rowIndex)}
                       >
                         ✕
                       </button>
@@ -482,9 +564,12 @@ export default function RolesEditor({
           </tbody>
         </table>
 
-        <div className="mt-4">
+        <div className="mt-4 flex flex-wrap gap-2">
           <button type="button" className="btn btn-ghost" onClick={addRoleRow}>
             + Add role
+          </button>
+          <button type="button" className="btn btn-ghost" onClick={addSubheaderRow}>
+            + Add subheader row
           </button>
         </div>
       </div>

@@ -8,6 +8,7 @@ import { getRoleBoardByViewId } from "@/server/roles";
 import { anthropic, HAIKU, STAFF_ALLOCATION_INSIGHTS_TOOL } from "@/lib/claude";
 import { STAFF_ALLOCATION_INSIGHTS_SYSTEM } from "@/lib/prompts/staff-allocation-insights";
 import { buildStaffAllocationInsightPayload } from "@/lib/staff-allocation-insights";
+import { resolveRoleBoardRoleEntries } from "@/lib/role-boards";
 import { callClaudeOrThrow } from "@/server/attendance";
 import { httpErr } from "@/lib/http";
 import type { StaffAllocationInsightsBody } from "@/lib/contracts/staff-allocation";
@@ -128,17 +129,16 @@ export async function getStaffAllocationForView(
   );
 
   if (roleBoard) {
-    for (const row of roleBoard.rows) {
-      const roleName = row.name.trim() || "Untitled role";
-      for (const person of row.people) {
+    for (const entry of resolveRoleBoardRoleEntries(roleBoard.rows)) {
+      for (const person of entry.row.people) {
         if (!person || person.entity !== "staff") continue;
         const staffItem = byStaffId.get(person.id);
         if (!staffItem) continue;
-        if (!staffItem.roles.some((role) => role.roleName === roleName)) {
+        if (!staffItem.roles.some((role) => role.roleName === entry.displayName)) {
           staffItem.roles.push({
-            roleName,
-            color: row.color,
-            responsibilities: row.responsibilities,
+            roleName: entry.displayName,
+            color: entry.color,
+            responsibilities: entry.row.responsibilities,
           });
         }
       }

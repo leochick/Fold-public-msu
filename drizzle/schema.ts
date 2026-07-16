@@ -235,14 +235,28 @@ export type RoleBoardPerson = {
   id: number;
 };
 
-export type RoleBoardRow = {
+/** A titled section that groups the role rows beneath it until the next subheader. */
+export type RoleBoardSubheaderRow = {
+  kind: "subheader";
+  name: string;
+  /** Hex background color inherited by roles under this subheader. */
+  color: string;
+};
+
+export type RoleBoardRoleRow = {
+  kind: "role";
   name: string;
   /** Bullet-list items describing what this role does. */
   responsibilities: string[];
-  /** Hex background color for role chips (e.g. #e5e7eb). */
+  /**
+   * Fallback chip color when the role is not under a subheader.
+   * Roles under a subheader inherit that subheader's color instead.
+   */
   color: string;
   people: Array<RoleBoardPerson | null>;
 };
+
+export type RoleBoardRow = RoleBoardRoleRow | RoleBoardSubheaderRow;
 
 export const roleBoards = sqliteTable(
   "role_boards",
