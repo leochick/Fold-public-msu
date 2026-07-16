@@ -143,22 +143,24 @@ export default function ContainerCard({
   }
 
   return (
-    <div className="card min-h-[10rem] w-full self-start isolate relative">
-      <button
-        type="button"
-        className="absolute top-2 right-2 btn-ghost px-2 py-1 text-xs leading-none z-20"
-        aria-label={`Delete container ${container.title.trim() || containerIndex + 1}`}
-        onClick={() => onRequestDelete(containerIndex)}
-      >
-        ✕
-      </button>
-      <input
-        type="text"
-        className="input mb-3 pr-8"
-        placeholder="Container title"
-        value={container.title}
-        onChange={(event) => onTitleChange(containerIndex, event.target.value)}
-      />
+    <div className="card min-h-[10rem] w-full self-start isolate">
+      <div className="flex items-center gap-1 mb-3">
+        <input
+          type="text"
+          className="input flex-1 min-w-0"
+          placeholder="Container title"
+          value={container.title}
+          onChange={(event) => onTitleChange(containerIndex, event.target.value)}
+        />
+        <button
+          type="button"
+          className="btn-ghost shrink-0 px-1 py-0.5 text-[10px] leading-none text-black/40 dark:text-white/40 hover:text-black/70 dark:hover:text-white/70"
+          aria-label={`Delete container ${container.title.trim() || containerIndex + 1}`}
+          onClick={() => onRequestDelete(containerIndex)}
+        >
+          ✕
+        </button>
+      </div>
       <div
         className={`rounded-lg border border-dashed p-2 min-h-[6rem] transition-colors ${
           isDragOver
