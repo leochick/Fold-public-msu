@@ -22,6 +22,7 @@ export type StaffAllocationPerson = {
 export type StaffAllocationRole = {
   roleName: string;
   color: string;
+  responsibilities: string[];
 };
 
 export type StaffAllocationGrouping = {
@@ -134,7 +135,11 @@ export async function getStaffAllocationForView(
         const staffItem = byStaffId.get(person.id);
         if (!staffItem) continue;
         if (!staffItem.roles.some((role) => role.roleName === roleName)) {
-          staffItem.roles.push({ roleName, color: row.color });
+          staffItem.roles.push({
+            roleName,
+            color: row.color,
+            responsibilities: row.responsibilities,
+          });
         }
       }
     }

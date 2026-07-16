@@ -11,6 +11,7 @@ import {
 import { updateRoleBoardAction } from "../roles-actions";
 import type { RoleBoardDetail, RoleBoardPersonOption } from "@/server/roles";
 import PersonPicker from "./PersonPicker";
+import ResponsibilitiesListEditor from "./ResponsibilitiesListEditor";
 import RoleColorPicker from "./RoleColorPicker";
 import RolesHeader from "./RolesHeader";
 
@@ -125,9 +126,11 @@ export default function RolesEditor({
     );
   }
 
-  function updateRowDescription(index: number, description: string) {
+  function updateRowResponsibilities(index: number, responsibilities: string[]) {
     setRows((current) =>
-      current.map((row, rowIndex) => (rowIndex === index ? { ...row, description } : row))
+      current.map((row, rowIndex) =>
+        rowIndex === index ? { ...row, responsibilities } : row
+      )
     );
   }
 
@@ -158,12 +161,33 @@ export default function RolesEditor({
     );
   }
 
+  function isPersonColumnEmpty(columnIndex: number) {
+    return rows.every((row) => (row.people[columnIndex] ?? null) == null);
+  }
+
+  function removePersonColumn(columnIndex: number) {
+    if (
+      columnIndex < 0 ||
+      columnIndex >= personColumnCount ||
+      !isPersonColumnEmpty(columnIndex)
+    ) {
+      return;
+    }
+    setPersonColumnCount((count) => Math.max(0, count - 1));
+    setRows((current) =>
+      current.map((row) => ({
+        ...row,
+        people: row.people.filter((_, index) => index !== columnIndex),
+      }))
+    );
+  }
+
   function addRoleRow() {
     setRows((current) => [
       ...current,
       {
         name: "",
-        description: "",
+        responsibilities: [],
         color: DEFAULT_ROLE_COLOR,
         people: Array.from({ length: personColumnCount }, () => null),
       },
@@ -326,12 +350,28 @@ export default function RolesEditor({
             <tr>
               <th className="w-10" aria-label="Reorder" />
               <th className="min-w-[14rem]">Role</th>
-              <th className="min-w-[14rem]">Description</th>
-              {Array.from({ length: personColumnCount }, (_, index) => (
-                <th key={index} className="min-w-[12rem]">
-                  Person {index + 1}
-                </th>
-              ))}
+              <th className="min-w-[16rem]">Responsibilities</th>
+              {Array.from({ length: personColumnCount }, (_, index) => {
+                const canRemove = isPersonColumnEmpty(index);
+                return (
+                  <th key={index} className="min-w-[12rem]">
+                    <span className="inline-flex items-center gap-1">
+                      Person {index + 1}
+                      {canRemove && (
+                        <button
+                          type="button"
+                          className="btn-ghost px-1.5 py-0.5 text-xs leading-none"
+                          aria-label={`Remove Person ${index + 1} column`}
+                          title={`Remove Person ${index + 1}`}
+                          onClick={() => removePersonColumn(index)}
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </span>
+                  </th>
+                );
+              })}
               <th className="w-12">
                 <button
                   type="button"
@@ -407,13 +447,13 @@ export default function RolesEditor({
                         />
                       </div>
                     </td>
-                    <td>
-                      <input
-                        type="text"
-                        className="input"
-                        placeholder="Description"
-                        value={row.description}
-                        onChange={(event) => updateRowDescription(rowIndex, event.target.value)}
+                    <td className="align-top">
+                      <ResponsibilitiesListEditor
+                        value={row.responsibilities}
+                        aria-label={`Responsibilities for ${row.name || `role ${rowIndex + 1}`}`}
+                        onChange={(responsibilities) =>
+                          updateRowResponsibilities(rowIndex, responsibilities)
+                        }
                       />
                     </td>
                     {Array.from({ length: personColumnCount }, (_, columnIndex) => (

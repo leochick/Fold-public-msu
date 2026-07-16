@@ -6,7 +6,10 @@ import {
   getPrimaryStatusBackground,
   GROUPING_STATUS_LABELS,
 } from "@/lib/grouping-status";
-import { contrastingTextColor } from "@/lib/role-boards";
+import {
+  contrastingTextColor,
+  formatResponsibilitiesTooltip,
+} from "@/lib/role-boards";
 import type { StaffAllocationItem, StaffAllocationPerson } from "@/server/staff-allocation";
 import { loadStaffAllocationAction } from "../staff-allocation-actions";
 
@@ -234,6 +237,7 @@ export default function StaffAllocationView({
                           <Link
                             href="/roles"
                             className="chip hover:opacity-90"
+                            title={formatResponsibilitiesTooltip(role.responsibilities)}
                             style={{
                               backgroundColor: role.color,
                               color: contrastingTextColor(role.color),

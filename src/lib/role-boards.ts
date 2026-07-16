@@ -56,6 +56,49 @@ export function emptyRoleBoardRows(): RoleBoardRow[] {
   return [];
 }
 
+/** Split a plain/legacy description string into responsibility bullets. */
+function responsibilitiesFromText(value: string): string[] {
+  return value
+    .split(/\r?\n/)
+    .map((line) => line.replace(/^\s*[•\-\*]\s*/, "").trim())
+    .filter(Boolean);
+}
+
+/**
+ * Normalize responsibilities from the current field, or migrate legacy
+ * `description` strings stored in older role board JSON.
+ */
+export function normalizeResponsibilities(
+  responsibilities: unknown,
+  legacyDescription?: unknown
+): string[] {
+  if (Array.isArray(responsibilities)) {
+    return responsibilities
+      .filter((item): item is string => typeof item === "string")
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+  if (typeof responsibilities === "string") {
+    return responsibilitiesFromText(responsibilities);
+  }
+  if (typeof legacyDescription === "string") {
+    return responsibilitiesFromText(legacyDescription);
+  }
+  return [];
+}
+
+/** Plain multiline text for export / tooltips without bullet markers. */
+export function formatResponsibilitiesText(items: string[]): string {
+  return items.map((item) => item.trim()).filter(Boolean).join("\n");
+}
+
+/** Bullet-prefixed multiline text for hover tooltips. */
+export function formatResponsibilitiesTooltip(items: string[]): string | undefined {
+  const cleaned = items.map((item) => item.trim()).filter(Boolean);
+  if (cleaned.length === 0) return undefined;
+  return cleaned.map((item) => `• ${item}`).join("\n");
+}
+
 export function normalizeRoleBoardRows(
   rows: unknown,
   personColumnCount: number
@@ -66,12 +109,16 @@ export function normalizeRoleBoardRows(
   return rows.map((raw) => {
     const row = (raw && typeof raw === "object" ? raw : {}) as {
       name?: unknown;
+      responsibilities?: unknown;
       description?: unknown;
       color?: unknown;
       people?: unknown;
     };
     const name = typeof row.name === "string" ? row.name : "";
-    const description = typeof row.description === "string" ? row.description : "";
+    const responsibilities = normalizeResponsibilities(
+      row.responsibilities,
+      row.description
+    );
     const color = normalizeRoleColor(row.color);
     const rawPeople = Array.isArray(row.people) ? row.people : [];
     const people: Array<RoleBoardPerson | null> = [];
@@ -79,7 +126,7 @@ export function normalizeRoleBoardRows(
       const person = rawPeople[i];
       people.push(isValidPerson(person) ? person : null);
     }
-    return { name, description, color, people };
+    return { name, responsibilities, color, people };
   });
 }
 

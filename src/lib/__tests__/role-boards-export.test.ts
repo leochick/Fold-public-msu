@@ -17,7 +17,7 @@ describe("role board export", () => {
     rows: [
       {
         name: "Emcee",
-        description: "Opens the night",
+        responsibilities: ["Opens the night"],
         color: "#93c5fd",
         people: [
           { entity: "staff", id: 1, firstName: "Sam", lastName: "Leader" },
@@ -26,7 +26,7 @@ describe("role board export", () => {
       },
       {
         name: "",
-        description: "",
+        responsibilities: [],
         color: "#e5e7eb",
         people: [null, null],
       },
@@ -37,13 +37,13 @@ describe("role board export", () => {
     expect(buildRoleBoardTableRows(snapshot)).toEqual([
       {
         role: "Emcee",
-        description: "Opens the night",
+        responsibilities: "Opens the night",
         color: "#93c5fd",
         people: "Sam Leader, Jane Doe",
       },
       {
         role: "Untitled role 2",
-        description: "",
+        responsibilities: "",
         color: "#e5e7eb",
         people: "",
       },
@@ -52,14 +52,14 @@ describe("role board export", () => {
     expect(buildRoleAssignmentRows(snapshot)).toEqual([
       {
         role: "Emcee",
-        description: "Opens the night",
+        responsibilities: "Opens the night",
         person: "Sam Leader",
         type: "Staff",
         column: 1,
       },
       {
         role: "Emcee",
-        description: "Opens the night",
+        responsibilities: "Opens the night",
         person: "Jane Doe",
         type: "Student",
         column: 2,
@@ -72,7 +72,7 @@ describe("role board export", () => {
       [
         {
           name: "Host",
-          description: "",
+          responsibilities: [],
           color: "#e5e7eb",
           people: [{ entity: "staff", id: 9 }, null],
         },
@@ -97,7 +97,7 @@ describe("role board export", () => {
     const rolesResp = workbook.getWorksheet("RolesResp");
     expect(rolesResp).toBeTruthy();
     expect(rolesResp!.getCell("A1").value).toBe("ROLES & RESPONSIBILITIES");
-    expect(rolesResp!.getCell("C1").value).toBe("DESCRIPTION");
+    expect(rolesResp!.getCell("C1").value).toBe("RESPONSIBILITIES");
     expect(rolesResp!.getCell("A2").value).toBe("Fall 2025");
     expect(rolesResp!.getCell("A3").value).toBe("Emcee");
     expect(rolesResp!.getCell("B3").value).toBe("Sam Leader, Jane Doe");
@@ -132,13 +132,13 @@ describe("role board export", () => {
     );
   });
 
-  it("turns description URLs into hyperlinks on RolesResp", async () => {
+  it("turns responsibility URLs into hyperlinks on RolesResp", async () => {
     const withLink: RoleBoardExportSnapshot = {
       ...snapshot,
       rows: [
         {
           name: "Venue",
-          description: "https://example.com/venues",
+          responsibilities: ["https://example.com/venues"],
           color: "#86efac",
           people: [{ entity: "staff", id: 3, firstName: "Chris", lastName: "Chen" }],
         },

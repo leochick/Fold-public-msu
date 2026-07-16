@@ -1,6 +1,10 @@
 import type ExcelJS from "exceljs";
 import type { RoleBoardPerson } from "../../drizzle/schema";
-import { contrastingTextColor, normalizeRoleColor } from "@/lib/role-boards";
+import {
+  contrastingTextColor,
+  formatResponsibilitiesText,
+  normalizeRoleColor,
+} from "@/lib/role-boards";
 
 async function loadExcelJS() {
   const mod = await import("exceljs");
@@ -16,7 +20,7 @@ export type RoleBoardExportPerson = {
 
 export type RoleBoardExportRow = {
   name: string;
-  description: string;
+  responsibilities: string[];
   color: string;
   people: Array<RoleBoardExportPerson | null>;
 };
@@ -87,6 +91,13 @@ function roleDisplayName(name: string, index: number): string {
   return trimmed || `Untitled role ${index + 1}`;
 }
 
+function formatResponsibilitiesForExport(items: string[]): string {
+  const cleaned = items.map((item) => item.trim()).filter(Boolean);
+  if (cleaned.length === 0) return "";
+  if (cleaned.length === 1) return cleaned[0];
+  return cleaned.map((item) => `• ${item}`).join("\n");
+}
+
 function applyTitleRow(row: ExcelJS.Row, columnCount: number) {
   for (let col = 1; col <= columnCount; col += 1) {
     const cell = row.getCell(col);
@@ -114,29 +125,30 @@ function styleBodyCell(cell: ExcelJS.Cell, options?: { bold?: boolean; link?: bo
   cell.alignment = { vertical: "bottom", horizontal: "left", wrapText: true };
 }
 
-function setDescriptionCell(cell: ExcelJS.Cell, description: string) {
-  const trimmed = description.trim();
-  if (!trimmed) {
+function setResponsibilitiesCell(cell: ExcelJS.Cell, responsibilities: string[]) {
+  const cleaned = responsibilities.map((item) => item.trim()).filter(Boolean);
+  if (cleaned.length === 0) {
     styleBodyCell(cell);
     cell.value = "";
     return;
   }
-  if (looksLikeUrl(trimmed)) {
+  if (cleaned.length === 1 && looksLikeUrl(cleaned[0])) {
+    const url = cleaned[0];
     cell.value = {
-      text: trimmed,
-      hyperlink: trimmed,
+      text: url,
+      hyperlink: url,
     };
     styleBodyCell(cell, { link: true });
     return;
   }
   styleBodyCell(cell);
-  cell.value = trimmed;
+  cell.value = formatResponsibilitiesForExport(cleaned);
 }
 
 export function buildRoleBoardTableRows(snapshot: RoleBoardExportSnapshot) {
   return snapshot.rows.map((row, index) => ({
     role: roleDisplayName(row.name, index),
-    description: row.description,
+    responsibilities: formatResponsibilitiesText(row.responsibilities),
     color: normalizeRoleColor(row.color),
     people: formatPeopleCell(row.people, snapshot.personColumnCount),
   }));
@@ -145,7 +157,7 @@ export function buildRoleBoardTableRows(snapshot: RoleBoardExportSnapshot) {
 export function buildRoleAssignmentRows(snapshot: RoleBoardExportSnapshot) {
   const rows: Array<{
     role: string;
-    description: string;
+    responsibilities: string;
     person: string;
     type: string;
     column: number;
@@ -157,7 +169,7 @@ export function buildRoleAssignmentRows(snapshot: RoleBoardExportSnapshot) {
       if (!person || personIndex >= snapshot.personColumnCount) return;
       rows.push({
         role,
-        description: row.description,
+        responsibilities: formatResponsibilitiesText(row.responsibilities),
         person: personName(person),
         type: person.entity === "staff" ? "Staff" : "Student",
         column: personIndex + 1,
@@ -171,7 +183,7 @@ export function buildRoleAssignmentRows(snapshot: RoleBoardExportSnapshot) {
 export function resolveRoleBoardExportRows(
   rows: Array<{
     name: string;
-    description: string;
+    responsibilities: string[];
     color: string;
     people: Array<RoleBoardPerson | null>;
   }>,
@@ -184,7 +196,7 @@ export function resolveRoleBoardExportRows(
 
   return rows.map((row) => ({
     name: row.name,
-    description: row.description,
+    responsibilities: row.responsibilities,
     color: row.color,
     people: Array.from({ length: personColumnCount }, (_, index) => {
       const person = row.people[index] ?? null;
@@ -209,12 +221,12 @@ function buildRolesRespSheet(
   sheet.columns = [
     { key: "role", width: 22 },
     { key: "people", width: 28 },
-    { key: "description", width: 36 },
+    { key: "responsibilities", width: 36 },
   ];
 
   const title = sheet.getRow(1);
   title.getCell(1).value = "ROLES & RESPONSIBILITIES";
-  title.getCell(3).value = "DESCRIPTION";
+  title.getCell(3).value = "RESPONSIBILITIES";
   applyTitleRow(title, 3);
 
   const meta = sheet.getRow(2);
@@ -240,11 +252,11 @@ function buildRolesRespSheet(
     const row = sheet.getRow(index + 3);
     const roleCell = row.getCell(1);
     const peopleCell = row.getCell(2);
-    const descriptionCell = row.getCell(3);
+    const responsibilitiesCell = row.getCell(3);
 
     roleCell.value = data.role;
     peopleCell.value = data.people;
-    setDescriptionCell(descriptionCell, data.description);
+    setResponsibilitiesCell(responsibilitiesCell, source?.responsibilities ?? []);
 
     styleBodyCell(roleCell, { bold: true });
     styleBodyCell(peopleCell);
@@ -260,7 +272,7 @@ function buildRolesRespSheet(
     }
     roleCell.border = THIN_BORDER;
     peopleCell.border = THIN_BORDER;
-    descriptionCell.border = THIN_BORDER;
+    responsibilitiesCell.border = THIN_BORDER;
     row.height = 18;
   });
 
