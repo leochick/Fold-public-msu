@@ -29,32 +29,36 @@ export type RoleBoardExportSnapshot = {
   rows: RoleBoardExportRow[];
 };
 
-const HEADER_FILL: ExcelJS.Fill = {
-  type: "pattern",
-  pattern: "solid",
-  fgColor: { argb: "FF1F2937" },
+/** Matches MSU Operations “RolesResp” / “Roles & Work Teams” styling. */
+const FONT_NAME = "Roboto Condensed";
+const TITLE_FILL = "FF93C47D";
+const SECTION_FILL = "FFD9EAD3";
+const WORK_TEAMS_HEADER_FILL = "FF38761D";
+const WORK_TEAMS_HEADER_FONT = "FFFFFFFF";
+const LINK_FONT = "FF0000FF";
+const THIN_BORDER: Partial<ExcelJS.Borders> = {
+  top: { style: "thin", color: { argb: "FFD0D0D0" } },
+  bottom: { style: "thin", color: { argb: "FFD0D0D0" } },
+  left: { style: "thin", color: { argb: "FFD0D0D0" } },
+  right: { style: "thin", color: { argb: "FFD0D0D0" } },
 };
 
-const HEADER_FONT: Partial<ExcelJS.Font> = {
-  bold: true,
-  color: { argb: "FFFFFFFF" },
-  size: 11,
-};
-
-const META_LABEL_FONT: Partial<ExcelJS.Font> = {
-  bold: true,
-  size: 11,
-};
+const WORK_TEAMS_BLOCKS_ACROSS = 3;
 
 function personName(person: { firstName: string; lastName: string | null }) {
   return `${person.firstName} ${person.lastName ?? ""}`.trim();
 }
 
-function formatPersonCell(person: RoleBoardExportPerson | null): string {
-  if (!person) return "";
-  const name = personName(person);
-  const type = person.entity === "staff" ? "Staff" : "Student";
-  return name ? `${name} (${type})` : type;
+function formatPeopleCell(
+  people: Array<RoleBoardExportPerson | null>,
+  personColumnCount: number
+): string {
+  return people
+    .slice(0, personColumnCount)
+    .filter((person): person is RoleBoardExportPerson => person != null)
+    .map(personName)
+    .filter(Boolean)
+    .join(", ");
 }
 
 function sanitizeFilename(name: string): string {
@@ -70,30 +74,12 @@ function hexToArgb(hex: string): string {
   return `FF${normalizeRoleColor(hex).slice(1).toUpperCase()}`;
 }
 
-function applyHeaderRow(row: ExcelJS.Row) {
-  row.eachCell((cell) => {
-    cell.fill = HEADER_FILL;
-    cell.font = HEADER_FONT;
-    cell.alignment = { vertical: "middle", horizontal: "left", wrapText: true };
-    cell.border = {
-      bottom: { style: "thin", color: { argb: "FF111827" } },
-    };
-  });
-  row.height = 22;
+function solidFill(argb: string): ExcelJS.Fill {
+  return { type: "pattern", pattern: "solid", fgColor: { argb } };
 }
 
-function styleDataCell(cell: ExcelJS.Cell, options?: { center?: boolean }) {
-  cell.alignment = {
-    vertical: "middle",
-    horizontal: options?.center ? "center" : "left",
-    wrapText: true,
-  };
-  cell.border = {
-    top: { style: "hair", color: { argb: "FFE5E7EB" } },
-    bottom: { style: "hair", color: { argb: "FFE5E7EB" } },
-    left: { style: "hair", color: { argb: "FFE5E7EB" } },
-    right: { style: "hair", color: { argb: "FFE5E7EB" } },
-  };
+function looksLikeUrl(value: string): boolean {
+  return /^https?:\/\//i.test(value.trim());
 }
 
 function roleDisplayName(name: string, index: number): string {
@@ -101,14 +87,58 @@ function roleDisplayName(name: string, index: number): string {
   return trimmed || `Untitled role ${index + 1}`;
 }
 
+function applyTitleRow(row: ExcelJS.Row, columnCount: number) {
+  for (let col = 1; col <= columnCount; col += 1) {
+    const cell = row.getCell(col);
+    cell.fill = solidFill(TITLE_FILL);
+    cell.font = { name: FONT_NAME, size: 10, bold: true, color: { argb: "FF000000" } };
+    cell.alignment = { vertical: "middle", horizontal: "left" };
+  }
+  row.height = 20;
+}
+
+function applySectionFill(row: ExcelJS.Row, columnCount: number) {
+  for (let col = 1; col <= columnCount; col += 1) {
+    const cell = row.getCell(col);
+    cell.fill = solidFill(SECTION_FILL);
+  }
+}
+
+function styleBodyCell(cell: ExcelJS.Cell, options?: { bold?: boolean; link?: boolean }) {
+  cell.font = {
+    name: FONT_NAME,
+    size: 10,
+    bold: options?.bold ?? false,
+    color: { argb: options?.link ? LINK_FONT : "FF000000" },
+  };
+  cell.alignment = { vertical: "bottom", horizontal: "left", wrapText: true };
+}
+
+function setDescriptionCell(cell: ExcelJS.Cell, description: string) {
+  const trimmed = description.trim();
+  if (!trimmed) {
+    styleBodyCell(cell);
+    cell.value = "";
+    return;
+  }
+  if (looksLikeUrl(trimmed)) {
+    cell.value = {
+      text: trimmed,
+      hyperlink: trimmed,
+    };
+    styleBodyCell(cell, { link: true });
+    return;
+  }
+  styleBodyCell(cell);
+  cell.value = trimmed;
+}
+
 export function buildRoleBoardTableRows(snapshot: RoleBoardExportSnapshot) {
   return snapshot.rows.map((row, index) => ({
     role: roleDisplayName(row.name, index),
     description: row.description,
     color: normalizeRoleColor(row.color),
-    people: Array.from({ length: snapshot.personColumnCount }, (_, personIndex) =>
-      formatPersonCell(row.people[personIndex] ?? null)
-    ),
+    people: formatPeopleCell(row.people, snapshot.personColumnCount),
   }));
 }
 
@@ -169,6 +199,169 @@ export function resolveRoleBoardExportRows(
   }));
 }
 
+function buildRolesRespSheet(
+  workbook: ExcelJS.Workbook,
+  snapshot: RoleBoardExportSnapshot
+) {
+  const sheet = workbook.addWorksheet("RolesResp", {
+    views: [{ showGridLines: true }],
+  });
+  sheet.columns = [
+    { key: "role", width: 22 },
+    { key: "people", width: 28 },
+    { key: "description", width: 36 },
+  ];
+
+  const title = sheet.getRow(1);
+  title.getCell(1).value = "ROLES & RESPONSIBILITIES";
+  title.getCell(3).value = "DESCRIPTION";
+  applyTitleRow(title, 3);
+
+  const meta = sheet.getRow(2);
+  meta.getCell(1).value = snapshot.viewName;
+  meta.getCell(2).value = `${snapshot.viewFrom} – ${snapshot.viewTo}`;
+  meta.getCell(1).font = { name: FONT_NAME, size: 10, bold: true };
+  meta.getCell(2).font = { name: FONT_NAME, size: 10 };
+  applySectionFill(meta, 3);
+  meta.height = 18;
+
+  const tableRows = buildRoleBoardTableRows(snapshot);
+  if (tableRows.length === 0) {
+    const row = sheet.getRow(3);
+    row.getCell(1).value = "No roles yet";
+    styleBodyCell(row.getCell(1));
+    styleBodyCell(row.getCell(2));
+    styleBodyCell(row.getCell(3));
+    return sheet;
+  }
+
+  tableRows.forEach((data, index) => {
+    const source = snapshot.rows[index];
+    const row = sheet.getRow(index + 3);
+    const roleCell = row.getCell(1);
+    const peopleCell = row.getCell(2);
+    const descriptionCell = row.getCell(3);
+
+    roleCell.value = data.role;
+    peopleCell.value = data.people;
+    setDescriptionCell(descriptionCell, data.description);
+
+    styleBodyCell(roleCell, { bold: true });
+    styleBodyCell(peopleCell);
+    if (source) {
+      const bg = hexToArgb(source.color);
+      roleCell.fill = solidFill(bg);
+      roleCell.font = {
+        name: FONT_NAME,
+        size: 10,
+        bold: true,
+        color: { argb: hexToArgb(contrastingTextColor(source.color)) },
+      };
+    }
+    roleCell.border = THIN_BORDER;
+    peopleCell.border = THIN_BORDER;
+    descriptionCell.border = THIN_BORDER;
+    row.height = 18;
+  });
+
+  return sheet;
+}
+
+function buildRolesAndWorkTeamsSheet(
+  workbook: ExcelJS.Workbook,
+  snapshot: RoleBoardExportSnapshot
+) {
+  const sheet = workbook.addWorksheet("Roles & Work Teams", {
+    views: [{ showGridLines: true }],
+  });
+
+  const tableRows = buildRoleBoardTableRows(snapshot);
+  const blockCount = Math.max(
+    1,
+    Math.min(WORK_TEAMS_BLOCKS_ACROSS, Math.max(tableRows.length, 1))
+  );
+  const rowsPerBlock = Math.max(1, Math.ceil(Math.max(tableRows.length, 1) / blockCount));
+
+  for (let block = 0; block < blockCount; block += 1) {
+    const roleCol = block * 2 + 1;
+    const peopleCol = block * 2 + 2;
+    sheet.getColumn(roleCol).width = 22;
+    sheet.getColumn(peopleCol).width = 24;
+  }
+
+  const header = sheet.getRow(1);
+  header.getCell(1).value = "ROLES & WORK TEAMS";
+  header.getCell(2).value = snapshot.viewName;
+  for (let col = 1; col <= blockCount * 2; col += 1) {
+    const cell = header.getCell(col);
+    cell.fill = solidFill(WORK_TEAMS_HEADER_FILL);
+    cell.font = {
+      name: FONT_NAME,
+      size: 10,
+      bold: true,
+      color: { argb: WORK_TEAMS_HEADER_FONT },
+    };
+    cell.alignment = { vertical: "middle", horizontal: "left" };
+  }
+  header.height = 20;
+
+  const columnHeaders = sheet.getRow(2);
+  for (let block = 0; block < blockCount; block += 1) {
+    const roleCol = block * 2 + 1;
+    const peopleCol = block * 2 + 2;
+    columnHeaders.getCell(roleCol).value = "Role";
+    columnHeaders.getCell(peopleCol).value = "People";
+    for (const col of [roleCol, peopleCol]) {
+      const cell = columnHeaders.getCell(col);
+      cell.fill = solidFill(SECTION_FILL);
+      cell.font = { name: FONT_NAME, size: 10, bold: true, color: { argb: "FF000000" } };
+      cell.alignment = { vertical: "middle", horizontal: "left" };
+    }
+  }
+  columnHeaders.height = 18;
+
+  if (tableRows.length === 0) {
+    const row = sheet.getRow(3);
+    row.getCell(1).value = "No roles yet";
+    styleBodyCell(row.getCell(1));
+    return sheet;
+  }
+
+  tableRows.forEach((data, index) => {
+    const source = snapshot.rows[index];
+    const block = Math.floor(index / rowsPerBlock);
+    const rowInBlock = index % rowsPerBlock;
+    const excelRow = sheet.getRow(rowInBlock + 3);
+    const roleCol = block * 2 + 1;
+    const peopleCol = block * 2 + 2;
+
+    const roleCell = excelRow.getCell(roleCol);
+    const peopleCell = excelRow.getCell(peopleCol);
+    roleCell.value = data.role;
+    peopleCell.value = data.people;
+
+    styleBodyCell(roleCell, { bold: true });
+    styleBodyCell(peopleCell);
+
+    if (source) {
+      const bg = hexToArgb(source.color);
+      roleCell.fill = solidFill(bg);
+      roleCell.font = {
+        name: FONT_NAME,
+        size: 10,
+        bold: true,
+        color: { argb: hexToArgb(contrastingTextColor(source.color)) },
+      };
+    }
+
+    roleCell.border = THIN_BORDER;
+    peopleCell.border = THIN_BORDER;
+    if (!excelRow.height || excelRow.height < 18) excelRow.height = 18;
+  });
+
+  return sheet;
+}
+
 export async function buildRoleBoardWorkbook(
   snapshot: RoleBoardExportSnapshot
 ): Promise<ExcelJS.Workbook> {
@@ -178,135 +371,8 @@ export async function buildRoleBoardWorkbook(
   workbook.created = new Date();
   workbook.modified = new Date();
 
-  const exportedAt = new Date().toLocaleString();
-  const assignmentCount = buildRoleAssignmentRows(snapshot).length;
-  const filledPeople = snapshot.rows.reduce(
-    (count, row) =>
-      count +
-      row.people
-        .slice(0, snapshot.personColumnCount)
-        .filter((person) => person != null).length,
-    0
-  );
-
-  const summary = workbook.addWorksheet("Summary", {
-    views: [{ showGridLines: false }],
-  });
-  summary.columns = [
-    { key: "label", width: 22 },
-    { key: "value", width: 56 },
-  ];
-
-  const summaryRows: Array<[string, string | number]> = [
-    ["View", snapshot.viewName],
-    ["Date range", `${snapshot.viewFrom} – ${snapshot.viewTo}`],
-    ["Roles", snapshot.rows.length],
-    ["Person columns", snapshot.personColumnCount],
-    ["People assigned", filledPeople],
-    ["Assignments", assignmentCount],
-    ["Exported at", exportedAt],
-  ];
-
-  summaryRows.forEach(([label, value], index) => {
-    const row = summary.getRow(index + 1);
-    row.getCell(1).value = label;
-    row.getCell(1).font = META_LABEL_FONT;
-    row.getCell(2).value = value;
-    row.getCell(2).alignment = { wrapText: true, vertical: "middle" };
-    row.height = 20;
-  });
-
-  const roleHeaders = [
-    "Role",
-    "Description",
-    "Color",
-    ...Array.from({ length: snapshot.personColumnCount }, (_, index) => `Person ${index + 1}`),
-  ];
-
-  const rolesSheet = workbook.addWorksheet("Roles");
-  rolesSheet.columns = [
-    { key: "role", width: 22 },
-    { key: "description", width: 32 },
-    { key: "color", width: 12 },
-    ...Array.from({ length: snapshot.personColumnCount }, (_, index) => ({
-      key: `person${index + 1}`,
-      width: 24,
-    })),
-  ];
-
-  const rolesHeader = rolesSheet.getRow(1);
-  roleHeaders.forEach((header, index) => {
-    rolesHeader.getCell(index + 1).value = header;
-  });
-  applyHeaderRow(rolesHeader);
-  rolesSheet.views = [{ state: "frozen", ySplit: 1 }];
-  rolesSheet.autoFilter = {
-    from: { row: 1, column: 1 },
-    to: { row: 1, column: Math.max(roleHeaders.length, 1) },
-  };
-
-  const tableRows = buildRoleBoardTableRows(snapshot);
-  if (tableRows.length === 0) {
-    const row = rolesSheet.getRow(2);
-    row.values = ["No roles yet", "", ""];
-    row.eachCell({ includeEmpty: true }, (cell) => styleDataCell(cell));
-  } else {
-    tableRows.forEach((data, index) => {
-      const source = snapshot.rows[index];
-      const row = rolesSheet.getRow(index + 2);
-      row.values = [data.role, data.description, data.color, ...data.people];
-      row.eachCell({ includeEmpty: true }, (cell, colNumber) => {
-        styleDataCell(cell, { center: colNumber === 3 });
-        if (colNumber === 1 && source) {
-          const bg = hexToArgb(source.color);
-          cell.fill = {
-            type: "pattern",
-            pattern: "solid",
-            fgColor: { argb: bg },
-          };
-          cell.font = {
-            color: { argb: hexToArgb(contrastingTextColor(source.color)) },
-          };
-        }
-      });
-    });
-  }
-
-  const assignmentHeaders = ["Role", "Description", "Person", "Type", "Column"] as const;
-  const assignmentsSheet = workbook.addWorksheet("Assignments");
-  assignmentsSheet.columns = [
-    { key: "role", width: 22 },
-    { key: "description", width: 32 },
-    { key: "person", width: 22 },
-    { key: "type", width: 10 },
-    { key: "column", width: 10 },
-  ];
-
-  const assignmentsHeader = assignmentsSheet.getRow(1);
-  assignmentHeaders.forEach((header, index) => {
-    assignmentsHeader.getCell(index + 1).value = header;
-  });
-  applyHeaderRow(assignmentsHeader);
-  assignmentsSheet.views = [{ state: "frozen", ySplit: 1 }];
-  assignmentsSheet.autoFilter = {
-    from: { row: 1, column: 1 },
-    to: { row: 1, column: assignmentHeaders.length },
-  };
-
-  const assignmentRows = buildRoleAssignmentRows(snapshot);
-  if (assignmentRows.length === 0) {
-    const row = assignmentsSheet.getRow(2);
-    row.values = ["—", "—", "No assignments", "—", ""];
-    row.eachCell({ includeEmpty: true }, (cell) => styleDataCell(cell));
-  } else {
-    assignmentRows.forEach((data, index) => {
-      const row = assignmentsSheet.getRow(index + 2);
-      row.values = [data.role, data.description, data.person, data.type, data.column];
-      row.eachCell({ includeEmpty: true }, (cell, colNumber) => {
-        styleDataCell(cell, { center: colNumber === 4 || colNumber === 5 });
-      });
-    });
-  }
+  buildRolesRespSheet(workbook, snapshot);
+  buildRolesAndWorkTeamsSheet(workbook, snapshot);
 
   return workbook;
 }

@@ -39,13 +39,13 @@ describe("role board export", () => {
         role: "Emcee",
         description: "Opens the night",
         color: "#93c5fd",
-        people: ["Sam Leader (Staff)", "Jane Doe (Student)"],
+        people: "Sam Leader, Jane Doe",
       },
       {
         role: "Untitled role 2",
         description: "",
         color: "#e5e7eb",
-        people: ["", ""],
+        people: "",
       },
     ]);
 
@@ -87,13 +87,69 @@ describe("role board export", () => {
     ]);
   });
 
-  it("builds a workbook and filename", async () => {
+  it("builds a workbook styled like the operations Roles sheets", async () => {
     const workbook = await buildRoleBoardWorkbook(snapshot);
     expect(workbook.worksheets.map((sheet) => sheet.name)).toEqual([
-      "Summary",
-      "Roles",
-      "Assignments",
+      "RolesResp",
+      "Roles & Work Teams",
     ]);
-    expect(roleBoardExportFilename(snapshot.viewName)).toMatch(/^Roles-Fall-2025-\d{4}-\d{2}-\d{2}\.xlsx$/);
+
+    const rolesResp = workbook.getWorksheet("RolesResp");
+    expect(rolesResp).toBeTruthy();
+    expect(rolesResp!.getCell("A1").value).toBe("ROLES & RESPONSIBILITIES");
+    expect(rolesResp!.getCell("C1").value).toBe("DESCRIPTION");
+    expect(rolesResp!.getCell("A2").value).toBe("Fall 2025");
+    expect(rolesResp!.getCell("A3").value).toBe("Emcee");
+    expect(rolesResp!.getCell("B3").value).toBe("Sam Leader, Jane Doe");
+    expect(rolesResp!.getCell("C3").value).toBe("Opens the night");
+    expect(rolesResp!.getCell("A1").fill).toMatchObject({
+      type: "pattern",
+      pattern: "solid",
+      fgColor: { argb: "FF93C47D" },
+    });
+    expect(rolesResp!.getCell("A3").fill).toMatchObject({
+      type: "pattern",
+      pattern: "solid",
+      fgColor: { argb: "FF93C5FD" },
+    });
+
+    const workTeams = workbook.getWorksheet("Roles & Work Teams");
+    expect(workTeams).toBeTruthy();
+    expect(workTeams!.getCell("A1").value).toBe("ROLES & WORK TEAMS");
+    expect(workTeams!.getCell("B1").value).toBe("Fall 2025");
+    expect(workTeams!.getCell("A2").value).toBe("Role");
+    expect(workTeams!.getCell("B2").value).toBe("People");
+    expect(workTeams!.getCell("A3").value).toBe("Emcee");
+    expect(workTeams!.getCell("B3").value).toBe("Sam Leader, Jane Doe");
+    expect(workTeams!.getCell("A1").fill).toMatchObject({
+      type: "pattern",
+      pattern: "solid",
+      fgColor: { argb: "FF38761D" },
+    });
+
+    expect(roleBoardExportFilename(snapshot.viewName)).toMatch(
+      /^Roles-Fall-2025-\d{4}-\d{2}-\d{2}\.xlsx$/
+    );
+  });
+
+  it("turns description URLs into hyperlinks on RolesResp", async () => {
+    const withLink: RoleBoardExportSnapshot = {
+      ...snapshot,
+      rows: [
+        {
+          name: "Venue",
+          description: "https://example.com/venues",
+          color: "#86efac",
+          people: [{ entity: "staff", id: 3, firstName: "Chris", lastName: "Chen" }],
+        },
+      ],
+    };
+
+    const workbook = await buildRoleBoardWorkbook(withLink);
+    const cell = workbook.getWorksheet("RolesResp")!.getCell("C3");
+    expect(cell.value).toEqual({
+      text: "https://example.com/venues",
+      hyperlink: "https://example.com/venues",
+    });
   });
 });
