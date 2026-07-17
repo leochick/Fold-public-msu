@@ -3,6 +3,8 @@ import {
   buildRoleAssignmentRows,
   buildRoleBoardTableRows,
   buildRoleBoardWorkbook,
+  buildWorkTeamGroups,
+  excelFillForRoleColor,
   resolveRoleBoardExportRows,
   roleBoardExportFilename,
   type RoleBoardExportSnapshot,
@@ -17,6 +19,7 @@ describe("role board export", () => {
     rows: [
       {
         name: "Emcee",
+        groupName: "Large Group",
         responsibilities: ["Opens the night"],
         color: "#93c5fd",
         people: [
@@ -25,9 +28,17 @@ describe("role board export", () => {
         ],
       },
       {
-        name: "",
+        name: "Sound",
+        groupName: "Tech",
         responsibilities: [],
-        color: "#e5e7eb",
+        color: "#f9a8d4",
+        people: [{ entity: "staff", id: 3, firstName: "Min", lastName: null }, null],
+      },
+      {
+        name: "",
+        groupName: "Tech",
+        responsibilities: [],
+        color: "#f9a8d4",
         people: [null, null],
       },
     ],
@@ -36,35 +47,76 @@ describe("role board export", () => {
   it("builds table and assignment rows", () => {
     expect(buildRoleBoardTableRows(snapshot)).toEqual([
       {
-        role: "Emcee",
+        role: "Large Group - Emcee",
+        groupName: "Large Group",
         responsibilities: "Opens the night",
         color: "#93c5fd",
         people: "Sam Leader, Jane Doe",
       },
       {
-        role: "Untitled role 2",
+        role: "Tech - Sound",
+        groupName: "Tech",
         responsibilities: "",
-        color: "#e5e7eb",
+        color: "#f9a8d4",
+        people: "Min",
+      },
+      {
+        role: "Tech - Untitled role 3",
+        groupName: "Tech",
+        responsibilities: "",
+        color: "#f9a8d4",
         people: "",
       },
     ]);
 
     expect(buildRoleAssignmentRows(snapshot)).toEqual([
       {
-        role: "Emcee",
+        role: "Large Group - Emcee",
         responsibilities: "Opens the night",
         person: "Sam Leader",
         type: "Staff",
         column: 1,
       },
       {
-        role: "Emcee",
+        role: "Large Group - Emcee",
         responsibilities: "Opens the night",
         person: "Jane Doe",
         type: "Student",
         column: 2,
       },
+      {
+        role: "Tech - Sound",
+        responsibilities: "",
+        person: "Min",
+        type: "Staff",
+        column: 1,
+      },
     ]);
+  });
+
+  it("groups contiguous subheaders for work teams layout", () => {
+    expect(buildWorkTeamGroups(snapshot)).toEqual([
+      {
+        name: "Large Group",
+        color: "#93c5fd",
+        roles: [{ role: "Emcee", people: "Sam Leader, Jane Doe" }],
+      },
+      {
+        name: "Tech",
+        color: "#f9a8d4",
+        roles: [
+          { role: "Sound", people: "Min" },
+          { role: "Untitled role 3", people: "" },
+        ],
+      },
+    ]);
+  });
+
+  it("maps pastel UI colors to saturated Excel fills", () => {
+    expect(excelFillForRoleColor("#93c5fd")).toBe("FF6FA8DC");
+    expect(excelFillForRoleColor("#f9a8d4")).toBe("FFC27BA0");
+    expect(excelFillForRoleColor("#fdba74")).toBe("FFB45F06");
+    expect(excelFillForRoleColor("#38761d")).toBe("FF666666");
   });
 
   it("resolves people from options", () => {
@@ -72,6 +124,7 @@ describe("role board export", () => {
       [
         {
           name: "Host",
+          groupName: "Events",
           responsibilities: [],
           color: "#e5e7eb",
           people: [{ entity: "staff", id: 9 }, null],
@@ -81,10 +134,14 @@ describe("role board export", () => {
       [{ entity: "staff", id: 9, firstName: "Pat", lastName: "Helper" }]
     );
 
-    expect(rows[0].people).toEqual([
-      { entity: "staff", id: 9, firstName: "Pat", lastName: "Helper" },
-      null,
-    ]);
+    expect(rows[0]).toMatchObject({
+      name: "Host",
+      groupName: "Events",
+      people: [
+        { entity: "staff", id: 9, firstName: "Pat", lastName: "Helper" },
+        null,
+      ],
+    });
   });
 
   it("builds a workbook styled like the operations Roles sheets", async () => {
@@ -99,33 +156,52 @@ describe("role board export", () => {
     expect(rolesResp!.getCell("A1").value).toBe("ROLES & RESPONSIBILITIES");
     expect(rolesResp!.getCell("C1").value).toBe("RESPONSIBILITIES");
     expect(rolesResp!.getCell("A2").value).toBe("Fall 2025");
-    expect(rolesResp!.getCell("A3").value).toBe("Emcee");
-    expect(rolesResp!.getCell("B3").value).toBe("Sam Leader, Jane Doe");
-    expect(rolesResp!.getCell("C3").value).toBe("Opens the night");
+    expect(rolesResp!.getCell("A3").value).toBe("LARGE GROUP");
+    expect(rolesResp!.getCell("A3").fill).toMatchObject({
+      type: "pattern",
+      pattern: "solid",
+      fgColor: { argb: "FFD9EAD3" },
+    });
+    expect(rolesResp!.getCell("A4").value).toBe("Emcee");
+    expect(rolesResp!.getCell("B4").value).toBe("Sam Leader, Jane Doe");
+    expect(rolesResp!.getCell("C4").value).toBe("Opens the night");
     expect(rolesResp!.getCell("A1").fill).toMatchObject({
       type: "pattern",
       pattern: "solid",
       fgColor: { argb: "FF93C47D" },
     });
-    expect(rolesResp!.getCell("A3").fill).toMatchObject({
-      type: "pattern",
-      pattern: "solid",
-      fgColor: { argb: "FF93C5FD" },
-    });
+    // Role body cells stay unfilled — pastels are not used on xlsx body rows.
+    expect(rolesResp!.getCell("A4").fill).toBeUndefined();
 
     const workTeams = workbook.getWorksheet("Roles & Work Teams");
     expect(workTeams).toBeTruthy();
-    expect(workTeams!.getCell("A1").value).toBe("ROLES & WORK TEAMS");
-    expect(workTeams!.getCell("B1").value).toBe("Fall 2025");
-    expect(workTeams!.getCell("A2").value).toBe("Role");
-    expect(workTeams!.getCell("B2").value).toBe("People");
-    expect(workTeams!.getCell("A3").value).toBe("Emcee");
-    expect(workTeams!.getCell("B3").value).toBe("Sam Leader, Jane Doe");
+    // Category band uses saturated ops colors (not UI pastels).
+    expect(workTeams!.getCell("A1").value).toBe("LARGE GROUP");
     expect(workTeams!.getCell("A1").fill).toMatchObject({
+      type: "pattern",
+      pattern: "solid",
+      fgColor: { argb: "FF6FA8DC" },
+    });
+    expect(workTeams!.getCell("C1").value).toBe("TECH");
+    expect(workTeams!.getCell("C1").fill).toMatchObject({
+      type: "pattern",
+      pattern: "solid",
+      fgColor: { argb: "FFC27BA0" },
+    });
+    // Dark green team headers.
+    expect(workTeams!.getCell("A2").value).toBe("Large Group");
+    expect(workTeams!.getCell("A2").fill).toMatchObject({
       type: "pattern",
       pattern: "solid",
       fgColor: { argb: "FF38761D" },
     });
+    expect(workTeams!.getCell("C2").value).toBe("Tech");
+    expect(workTeams!.getCell("A3").value).toBe("Emcee");
+    expect(workTeams!.getCell("B3").value).toBe("Sam Leader, Jane Doe");
+    expect(workTeams!.getCell("C3").value).toBe("Sound");
+    expect(workTeams!.getCell("D3").value).toBe("Min");
+    expect(workTeams!.getCell("C4").value).toBe("Untitled role 3");
+    expect(workTeams!.getCell("A3").fill).toBeUndefined();
 
     expect(roleBoardExportFilename(snapshot.viewName)).toMatch(
       /^Roles-Fall-2025-\d{4}-\d{2}-\d{2}\.xlsx$/
@@ -138,6 +214,7 @@ describe("role board export", () => {
       rows: [
         {
           name: "Venue",
+          groupName: null,
           responsibilities: ["https://example.com/venues"],
           color: "#86efac",
           people: [{ entity: "staff", id: 3, firstName: "Chris", lastName: "Chen" }],

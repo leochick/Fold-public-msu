@@ -327,7 +327,8 @@ export default function RolesEditor({
     personColumnCount,
     rows: resolveRoleBoardExportRows(
       resolveRoleBoardRoleEntries(rows).map((entry) => ({
-        name: entry.displayName,
+        name: entry.row.name,
+        groupName: entry.groupName,
         responsibilities: entry.row.responsibilities,
         color: entry.color,
         people: entry.row.people,
