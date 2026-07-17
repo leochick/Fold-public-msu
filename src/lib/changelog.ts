@@ -15,7 +15,13 @@ export const STUDENT_FIELD_LABELS: Record<string, string> = {
   goals: "Goals",
   notes: "Notes",
   courseMaterial: "Course material",
-  invitedByStudentId: "Invited by",
+  invitedByStudentId: "Invited by (student)",
+  invitedByStaffId: "Invited by (staff)",
+  eventInvitedToId: "Event invited to",
+  ledToChristByStudentId: "Led to Christ by (student)",
+  ledToChristByStaffId: "Led to Christ by (staff)",
+  salvationDecisionAt: "Salvation decision date",
+  salvationDecisionNotes: "Salvation decision notes",
 };
 
 export const EVENT_FIELD_LABELS: Record<string, string> = {

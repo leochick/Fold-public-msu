@@ -1,8 +1,8 @@
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { db } from "@/lib/db";
-import { students, attendances, events } from "../../../../drizzle/schema";
-import { eq, desc, asc, notInArray } from "drizzle-orm";
+import { students, attendances, events, staff } from "../../../../drizzle/schema";
+import { eq, desc, asc, notInArray, and, gte, lte } from "drizzle-orm";
 import StudentForm from "./StudentForm";
 import { parseStudent } from "@/lib/parse-student";
 import {
@@ -15,6 +15,8 @@ import StudentMergeModal from "./StudentMergeModal";
 import { requireUser } from "@/lib/auth";
 import { pickStudentFields } from "@/lib/changelog";
 import { logStudentDeleted, logStudentUpdated } from "@/server/changelog";
+import { resolveDashboardDateRange } from "@/lib/dashboard-date-range";
+import { getActiveDashboardView } from "@/server/dashboard-views";
 
 export const dynamic = "force-dynamic";
 
@@ -48,12 +50,56 @@ export default async function StudentPage({ params }: { params: Promise<{ id: st
     })
     .from(students)
     .orderBy(asc(students.firstName));
-  const roster = rosterRows
-    .filter((r) => r.id !== id)
-    .map((r) => ({
+  const staffRows = await db
+    .select({
+      id: staff.id,
+      firstName: staff.firstName,
+      lastName: staff.lastName,
+    })
+    .from(staff)
+    .orderBy(asc(staff.firstName));
+
+  const people = [
+    ...staffRows.map((r) => ({
+      entity: "staff" as const,
       id: r.id,
       name: `${r.firstName}${r.lastName ? " " + r.lastName : ""}`,
-    }));
+    })),
+    ...rosterRows
+      .filter((r) => r.id !== id)
+      .map((r) => ({
+        entity: "student" as const,
+        id: r.id,
+        name: `${r.firstName}${r.lastName ? " " + r.lastName : ""}`,
+      })),
+  ];
+
+  const activeView = await getActiveDashboardView();
+  const { from, to } = resolveDashboardDateRange(
+    activeView ? { from: activeView.from, to: activeView.to } : {}
+  );
+  const viewEvents = await db
+    .select({
+      id: events.id,
+      name: events.name,
+      startDate: events.startDate,
+    })
+    .from(events)
+    .where(and(gte(events.startDate, from), lte(events.startDate, to)))
+    .orderBy(desc(events.startDate));
+  const selectedEventOutsideView =
+    s.eventInvitedToId != null && !viewEvents.some((e) => e.id === s.eventInvitedToId)
+      ? await db
+          .select({ id: events.id, name: events.name, startDate: events.startDate })
+          .from(events)
+          .where(eq(events.id, s.eventInvitedToId))
+          .limit(1)
+      : [];
+  const eventOptions = [...selectedEventOutsideView, ...viewEvents].map((e) => ({
+    id: e.id,
+    name: e.name,
+    dateLabel: new Date(e.startDate).toLocaleDateString("en-US", { timeZone: "UTC" }),
+  }));
 
   const studentsForHealth: StudentLite[] = rosterRows.map((r) => ({
     id: r.id,
@@ -75,8 +121,11 @@ export default async function StudentPage({ params }: { params: Promise<{ id: st
   }));
   const healthMap = perStudentHealth(studentsForHealth, attendancesForHealth);
   const myHealth = healthMap.get(id) ?? null;
-  const inviter = s.invitedByStudentId
+  const inviterStudent = s.invitedByStudentId
     ? rosterRows.find((r) => r.id === s.invitedByStudentId)
+    : null;
+  const inviterStaff = s.invitedByStaffId
+    ? staffRows.find((r) => r.id === s.invitedByStaffId)
     : null;
   const friends = (myHealth?.friendIds ?? [])
     .map((fid) => rosterRows.find((r) => r.id === fid))
@@ -139,7 +188,7 @@ export default async function StudentPage({ params }: { params: Promise<{ id: st
         </div>
       </div>
 
-      <StudentForm action={update} student={s} roster={roster} />
+      <StudentForm action={update} student={s} people={people} events={eventOptions} />
 
       {myHealth && (
         <section className="card space-y-2 border-accent/20">
@@ -165,13 +214,21 @@ export default async function StudentPage({ params }: { params: Promise<{ id: st
               <div className="text-2xl font-semibold tabular-nums">{myHealth.totalAttendance}</div>
             </div>
           </div>
-          {inviter && (
+          {inviterStudent && (
             <p className="text-sm">
               <span className="text-black/60">Invited by:</span>{" "}
-              <Link href={`/students/${inviter.id}`} className="hover:underline">
-                {inviter.firstName}
-                {inviter.lastName ? " " + inviter.lastName : ""}
+              <Link href={`/students/${inviterStudent.id}`} className="hover:underline">
+                {inviterStudent.firstName}
+                {inviterStudent.lastName ? " " + inviterStudent.lastName : ""}
               </Link>
+            </p>
+          )}
+          {inviterStaff && (
+            <p className="text-sm">
+              <span className="text-black/60">Invited by:</span>{" "}
+              {inviterStaff.firstName}
+              {inviterStaff.lastName ? " " + inviterStaff.lastName : ""}{" "}
+              <span className="text-black/40">(staff)</span>
             </p>
           )}
           {friends.length > 0 && (

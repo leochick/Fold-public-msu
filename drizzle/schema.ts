@@ -82,6 +82,33 @@ export const demoSpend = sqliteTable("demo_spend", {
 });
 // --- /DEMO SPEND CAP ---
 
+export const events = sqliteTable("events", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  name: text("name").notNull(),
+  type: text("type"),
+  startDate: integer("start_date", { mode: "timestamp" }).notNull(),
+  endDate: integer("end_date", { mode: "timestamp" }),
+  location: text("location"),
+  notes: text("notes"),
+  totalStudents: integer("total_students"),
+  createdAt: integer("created_at", { mode: "timestamp" })
+    .notNull()
+    .default(sql`(unixepoch())`),
+});
+
+export const staff = sqliteTable("staff", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  firstName: text("first_name").notNull(),
+  lastName: text("last_name"),
+  gender: text("gender", { enum: ["M", "F"] }),
+  createdAt: integer("created_at", { mode: "timestamp" })
+    .notNull()
+    .default(sql`(unixepoch())`),
+  updatedAt: integer("updated_at", { mode: "timestamp" })
+    .notNull()
+    .default(sql`(unixepoch())`),
+});
+
 export const students = sqliteTable("students", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   firstName: text("first_name").notNull(),
@@ -109,25 +136,26 @@ export const students = sqliteTable("students", {
   invitedByStudentId: integer("invited_by_student_id").references((): AnySQLiteColumn => students.id, {
     onDelete: "set null",
   }),
+  invitedByStaffId: integer("invited_by_staff_id").references(() => staff.id, {
+    onDelete: "set null",
+  }),
+  eventInvitedToId: integer("event_invited_to_id").references(() => events.id, {
+    onDelete: "set null",
+  }),
+  ledToChristByStudentId: integer("led_to_christ_by_student_id").references(
+    (): AnySQLiteColumn => students.id,
+    { onDelete: "set null" }
+  ),
+  ledToChristByStaffId: integer("led_to_christ_by_staff_id").references(() => staff.id, {
+    onDelete: "set null",
+  }),
+  salvationDecisionAt: integer("salvation_decision_at", { mode: "timestamp" }),
+  salvationDecisionNotes: text("salvation_decision_notes"),
   // --- /HEALTH METRICS ---
   createdAt: integer("created_at", { mode: "timestamp" })
     .notNull()
     .default(sql`(unixepoch())`),
   updatedAt: integer("updated_at", { mode: "timestamp" })
-    .notNull()
-    .default(sql`(unixepoch())`),
-});
-
-export const events = sqliteTable("events", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  name: text("name").notNull(),
-  type: text("type"),
-  startDate: integer("start_date", { mode: "timestamp" }).notNull(),
-  endDate: integer("end_date", { mode: "timestamp" }),
-  location: text("location"),
-  notes: text("notes"),
-  totalStudents: integer("total_students"),
-  createdAt: integer("created_at", { mode: "timestamp" })
     .notNull()
     .default(sql`(unixepoch())`),
 });
@@ -152,19 +180,6 @@ export const attendances = sqliteTable(
     uniqStudentEvent: uniqueIndex("uniq_student_event").on(t.studentId, t.eventId),
   })
 );
-
-export const staff = sqliteTable("staff", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  firstName: text("first_name").notNull(),
-  lastName: text("last_name"),
-  gender: text("gender", { enum: ["M", "F"] }),
-  createdAt: integer("created_at", { mode: "timestamp" })
-    .notNull()
-    .default(sql`(unixepoch())`),
-  updatedAt: integer("updated_at", { mode: "timestamp" })
-    .notNull()
-    .default(sql`(unixepoch())`),
-});
 
 export type Student = typeof students.$inferSelect;
 export type NewStudent = typeof students.$inferInsert;
