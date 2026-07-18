@@ -1,9 +1,11 @@
 import { requireUser } from "@/lib/auth";
+import { resolveDashboardDateRange } from "@/lib/dashboard-date-range";
 import { getActiveDashboardView, listDashboardViews } from "@/server/dashboard-views";
 import {
   ensureRoleBoardForView,
   getRoleBoardDataViewId,
   getRoleBoardPersonOptions,
+  staffIdsOnRoleBoard,
 } from "@/server/roles";
 import RolesEditor from "./RolesEditor";
 import RolesHeader from "./RolesHeader";
@@ -30,7 +32,12 @@ export default async function RolesPage() {
 
   const board = await ensureRoleBoardForView(activeView.id, user.id);
   const dataViewId = getRoleBoardDataViewId(board);
-  const personOptions = await getRoleBoardPersonOptions(dataViewId);
+  const { from, to } = resolveDashboardDateRange({ from: activeView.from, to: activeView.to });
+  const personOptions = await getRoleBoardPersonOptions(
+    dataViewId,
+    { from, to },
+    staffIdsOnRoleBoard(board.rows)
+  );
   const otherViews = allViews
     .filter((view) => view.id !== activeView.id)
     .map((view) => ({ id: view.id, name: view.name }));

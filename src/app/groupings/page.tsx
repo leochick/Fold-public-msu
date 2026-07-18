@@ -7,8 +7,11 @@ import {
   getGroupingDataViewId,
   getStudentsForView,
   listGroupings,
+  type GroupingStaffItem,
 } from "@/server/groupings";
 import { getActiveDashboardView, listDashboardViews } from "@/server/dashboard-views";
+import { resolveDashboardDateRange } from "@/lib/dashboard-date-range";
+import { isStaffActiveInRange } from "@/lib/staff-active";
 import CreateGroupingCard from "./CreateGroupingCard";
 import GroupingEditor from "./GroupingEditor";
 import { GroupingExportProvider, GroupingsPageHeader } from "./GroupingExport";
@@ -38,14 +41,33 @@ export default async function GroupingsPage({
     requestedGrouping ?? (activeView ? await getFirstGrouping(activeView.id) : null);
 
   const dataViewId = activeGrouping ? getGroupingDataViewId(activeGrouping) : null;
-  const [events, students, staffMembers] =
+  const { from, to } = resolveDashboardDateRange(
+    activeView ? { from: activeView.from, to: activeView.to } : {}
+  );
+  const [events, students, allStaff] =
     dataViewId != null
       ? await Promise.all([
           getEventsForView(dataViewId),
           getStudentsForView(dataViewId),
           getAllStaff(),
         ])
-      : [[], [], []];
+      : [[], [], [] as Awaited<ReturnType<typeof getAllStaff>>];
+
+  const assignedStaffIds = new Set<number>();
+  if (activeGrouping) {
+    for (const container of activeGrouping.containers) {
+      for (const item of container.items) {
+        if (item.entity === "staff") assignedStaffIds.add(item.id);
+      }
+    }
+  }
+
+  const staffMembers: GroupingStaffItem[] = allStaff
+    .map((member) => ({
+      ...member,
+      activeInView: isStaffActiveInRange(member, from, to),
+    }))
+    .filter((member) => member.activeInView || assignedStaffIds.has(member.id));
 
   const otherViews = allViews
     .filter((view) => view.id !== activeView?.id)

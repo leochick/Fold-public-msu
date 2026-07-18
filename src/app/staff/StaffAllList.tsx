@@ -21,22 +21,54 @@ function staffMatchesQuery(member: StaffListRow, query: string): boolean {
   return haystack.includes(query);
 }
 
-export default function StaffAllList({ staff }: { staff: StaffListRow[] }) {
+function StaffRows({ rows }: { rows: StaffListRow[] }) {
+  return (
+    <>
+      {rows.map((s) => (
+        <tr key={s.id} className="hover:bg-black/5 dark:hover:bg-white/5">
+          <td>
+            <Link href={`/staff/${s.id}`} className="font-medium hover:underline">
+              {s.firstName} {s.lastName ?? ""}
+            </Link>
+          </td>
+          <td>
+            {s.gender === "M" ? "Male" : s.gender === "F" ? "Female" : <span className="text-black/30">—</span>}
+          </td>
+        </tr>
+      ))}
+    </>
+  );
+}
+
+export default function StaffAllList({
+  activeStaff,
+  inactiveStaff,
+}: {
+  activeStaff: StaffListRow[];
+  inactiveStaff: StaffListRow[];
+}) {
   const [query, setQuery] = useState("");
   const normalizedQuery = query.trim().toLowerCase();
+  const total = activeStaff.length + inactiveStaff.length;
 
-  const filtered = useMemo(
+  const filteredActive = useMemo(
     () =>
       normalizedQuery
-        ? staff.filter((member) => staffMatchesQuery(member, normalizedQuery))
-        : staff,
-    [staff, normalizedQuery]
+        ? activeStaff.filter((member) => staffMatchesQuery(member, normalizedQuery))
+        : activeStaff,
+    [activeStaff, normalizedQuery]
+  );
+  const filteredInactive = useMemo(
+    () =>
+      normalizedQuery
+        ? inactiveStaff.filter((member) => staffMatchesQuery(member, normalizedQuery))
+        : inactiveStaff,
+    [inactiveStaff, normalizedQuery]
   );
 
+  const filteredTotal = filteredActive.length + filteredInactive.length;
   const countLabel =
-    normalizedQuery && staff.length > 0
-      ? `${filtered.length} of ${staff.length}`
-      : `${staff.length} total`;
+    normalizedQuery && total > 0 ? `${filteredTotal} of ${total}` : `${total} total`;
 
   return (
     <>
@@ -49,7 +81,7 @@ export default function StaffAllList({ staff }: { staff: StaffListRow[] }) {
           className="input flex-1"
           aria-label="Search staff"
         />
-        {staff.length > 0 && (
+        {total > 0 && (
           <span className="text-sm text-black/60 whitespace-nowrap shrink-0">{countLabel}</span>
         )}
       </div>
@@ -63,31 +95,47 @@ export default function StaffAllList({ staff }: { staff: StaffListRow[] }) {
             </tr>
           </thead>
           <tbody>
-            {staff.length === 0 ? (
+            {total === 0 ? (
               <tr>
                 <td colSpan={2} className="text-center text-black/50 py-8">
                   No staff yet. <Link className="underline" href="/staff/new">Add one</Link>.
                 </td>
               </tr>
-            ) : filtered.length === 0 ? (
+            ) : filteredTotal === 0 ? (
               <tr>
                 <td colSpan={2} className="text-center text-black/50 py-8">
                   No matches for &ldquo;{query.trim()}&rdquo;.
                 </td>
               </tr>
             ) : (
-              filtered.map((s) => (
-                <tr key={s.id} className="hover:bg-black/5 dark:hover:bg-white/5">
-                  <td>
-                    <Link href={`/staff/${s.id}`} className="font-medium hover:underline">
-                      {s.firstName} {s.lastName ?? ""}
-                    </Link>
-                  </td>
-                  <td>
-                    {s.gender === "M" ? "Male" : s.gender === "F" ? "Female" : <span className="text-black/30">—</span>}
-                  </td>
-                </tr>
-              ))
+              <>
+                {filteredActive.length > 0 && (
+                  <>
+                    <tr>
+                      <td
+                        colSpan={2}
+                        className="bg-black/[0.04] dark:bg-white/[0.06] text-xs font-semibold uppercase tracking-wide text-black/60 dark:text-white/60 pt-3 pb-2"
+                      >
+                        Active (within current view)
+                      </td>
+                    </tr>
+                    <StaffRows rows={filteredActive} />
+                  </>
+                )}
+                {filteredInactive.length > 0 && (
+                  <>
+                    <tr>
+                      <td
+                        colSpan={2}
+                        className="bg-black/[0.04] dark:bg-white/[0.06] text-xs font-semibold uppercase tracking-wide text-black/60 dark:text-white/60 pt-3 pb-2"
+                      >
+                        Inactive (outside of current view)
+                      </td>
+                    </tr>
+                    <StaffRows rows={filteredInactive} />
+                  </>
+                )}
+              </>
             )}
           </tbody>
         </table>

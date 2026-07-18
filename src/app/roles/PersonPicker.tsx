@@ -47,9 +47,10 @@ export default function PersonPicker({
   }, [options, value]);
 
   const filtered = useMemo(() => {
+    const selectable = options.filter((option) => option.selectable !== false);
     const normalized = query.trim().toLowerCase();
-    if (!normalized) return options;
-    return options.filter((option) => displayName(option).toLowerCase().includes(normalized));
+    if (!normalized) return selectable;
+    return selectable.filter((option) => displayName(option).toLowerCase().includes(normalized));
   }, [options, query]);
 
   const staffOptions = filtered.filter((option) => option.entity === "staff");

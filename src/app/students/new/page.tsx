@@ -7,6 +7,7 @@ import { requireUser } from "@/lib/auth";
 import { logStudentCreated } from "@/server/changelog";
 import { asc, desc, and, gte, lte } from "drizzle-orm";
 import { resolveDashboardDateRange } from "@/lib/dashboard-date-range";
+import { formatStaffActiveLabel } from "@/lib/staff-active";
 import { getActiveDashboardView } from "@/server/dashboard-views";
 
 export default async function NewStudentPage() {
@@ -34,6 +35,8 @@ export default async function NewStudentPage() {
         id: staff.id,
         firstName: staff.firstName,
         lastName: staff.lastName,
+        startingDate: staff.startingDate,
+        endingDate: staff.endingDate,
       })
       .from(staff)
       .orderBy(asc(staff.firstName)),
@@ -57,7 +60,12 @@ export default async function NewStudentPage() {
     ...staffRows.map((r) => ({
       entity: "staff" as const,
       id: r.id,
-      name: `${r.firstName}${r.lastName ? " " + r.lastName : ""}`,
+      name: formatStaffActiveLabel(
+        `${r.firstName}${r.lastName ? " " + r.lastName : ""}`,
+        r,
+        from,
+        to
+      ),
     })),
     ...rosterRows.map((r) => ({
       entity: "student" as const,

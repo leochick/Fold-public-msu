@@ -52,6 +52,10 @@ export type GroupingStaffItem = {
   firstName: string;
   lastName: string | null;
   gender: "M" | "F" | null;
+  startingDate: Date | null;
+  endingDate: Date | null;
+  /** True when staff dates overlap the current view (for unassigned pool filtering). */
+  activeInView: boolean;
 };
 
 export type GroupingStudentItem = {
@@ -342,16 +346,16 @@ export async function getStudentsForView(viewId: number): Promise<GroupingStuden
   });
 }
 
-export async function getAllStaff(): Promise<GroupingStaffItem[]> {
-  const rows = await db
+export async function getAllStaff(): Promise<Omit<GroupingStaffItem, "activeInView">[]> {
+  return db
     .select({
       id: staff.id,
       firstName: staff.firstName,
       lastName: staff.lastName,
       gender: staff.gender,
+      startingDate: staff.startingDate,
+      endingDate: staff.endingDate,
     })
     .from(staff)
     .orderBy(staff.firstName);
-
-  return rows;
 }

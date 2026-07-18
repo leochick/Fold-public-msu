@@ -16,6 +16,7 @@ import { requireUser } from "@/lib/auth";
 import { pickStudentFields } from "@/lib/changelog";
 import { logStudentDeleted, logStudentUpdated } from "@/server/changelog";
 import { resolveDashboardDateRange } from "@/lib/dashboard-date-range";
+import { formatStaffActiveLabel } from "@/lib/staff-active";
 import { getActiveDashboardView } from "@/server/dashboard-views";
 
 export const dynamic = "force-dynamic";
@@ -50,20 +51,34 @@ export default async function StudentPage({ params }: { params: Promise<{ id: st
     })
     .from(students)
     .orderBy(asc(students.firstName));
-  const staffRows = await db
-    .select({
-      id: staff.id,
-      firstName: staff.firstName,
-      lastName: staff.lastName,
-    })
-    .from(staff)
-    .orderBy(asc(staff.firstName));
+  const [staffRows, activeView] = await Promise.all([
+    db
+      .select({
+        id: staff.id,
+        firstName: staff.firstName,
+        lastName: staff.lastName,
+        startingDate: staff.startingDate,
+        endingDate: staff.endingDate,
+      })
+      .from(staff)
+      .orderBy(asc(staff.firstName)),
+    getActiveDashboardView(),
+  ]);
+
+  const { from, to } = resolveDashboardDateRange(
+    activeView ? { from: activeView.from, to: activeView.to } : {}
+  );
 
   const people = [
     ...staffRows.map((r) => ({
       entity: "staff" as const,
       id: r.id,
-      name: `${r.firstName}${r.lastName ? " " + r.lastName : ""}`,
+      name: formatStaffActiveLabel(
+        `${r.firstName}${r.lastName ? " " + r.lastName : ""}`,
+        r,
+        from,
+        to
+      ),
     })),
     ...rosterRows
       .filter((r) => r.id !== id)
@@ -73,11 +88,6 @@ export default async function StudentPage({ params }: { params: Promise<{ id: st
         name: `${r.firstName}${r.lastName ? " " + r.lastName : ""}`,
       })),
   ];
-
-  const activeView = await getActiveDashboardView();
-  const { from, to } = resolveDashboardDateRange(
-    activeView ? { from: activeView.from, to: activeView.to } : {}
-  );
   const viewEvents = await db
     .select({
       id: events.id,

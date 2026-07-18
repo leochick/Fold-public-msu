@@ -2,7 +2,8 @@ import { db } from "@/lib/db";
 import { roleBoards, views, type RoleBoardRow } from "../../drizzle/schema";
 import { eq } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
-import { emptyRoleBoardRows, normalizeRoleBoardRows } from "@/lib/role-boards";
+import { emptyRoleBoardRows, normalizeRoleBoardRows, isRoleBoardRole } from "@/lib/role-boards";
+import { isStaffActiveInRange } from "@/lib/staff-active";
 import {
   getAllStaff,
   getStudentsForView,
@@ -28,6 +29,8 @@ export type RoleBoardPersonOption = {
   firstName: string;
   lastName: string | null;
   gender: "M" | "F" | null;
+  /** When false, option resolves a selected value but is hidden from the picker list. */
+  selectable?: boolean;
 };
 
 /** View id used for loading students for a role board. */
@@ -109,14 +112,25 @@ function toPersonOption(
 }
 
 export async function getRoleBoardPersonOptions(
-  dataViewId: number
+  dataViewId: number,
+  range: { from: Date; to: Date },
+  includeStaffIds: Iterable<number> = []
 ): Promise<RoleBoardPersonOption[]> {
+  const includeIds = new Set(includeStaffIds);
   const [students, staffMembers] = await Promise.all([
     getStudentsForView(dataViewId),
     getAllStaff(),
   ]);
 
-  const staffOptions = staffMembers.map((member) => toPersonOption("staff", member));
+  const staffOptions = staffMembers
+    .filter(
+      (member) =>
+        isStaffActiveInRange(member, range.from, range.to) || includeIds.has(member.id)
+    )
+    .map((member) => ({
+      ...toPersonOption("staff", member),
+      selectable: isStaffActiveInRange(member, range.from, range.to),
+    }));
   const studentOptions = students.map((student) => toPersonOption("student", student));
 
   const byName = (a: RoleBoardPersonOption, b: RoleBoardPersonOption) => {
@@ -126,4 +140,16 @@ export async function getRoleBoardPersonOptions(
   };
 
   return [...staffOptions.sort(byName), ...studentOptions.sort(byName)];
+}
+
+/** Staff ids already placed on a role board (kept for name resolution even if inactive). */
+export function staffIdsOnRoleBoard(rows: RoleBoardRow[]): number[] {
+  const ids: number[] = [];
+  for (const row of rows) {
+    if (!isRoleBoardRole(row)) continue;
+    for (const person of row.people) {
+      if (person?.entity === "staff") ids.push(person.id);
+    }
+  }
+  return ids;
 }

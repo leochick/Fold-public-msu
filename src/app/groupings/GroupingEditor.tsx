@@ -313,7 +313,7 @@ export default function GroupingEditor({
   const unassignedStaff = useMemo(
     () =>
       staff
-        .filter((member) => !assignedStaffIds.has(member.id))
+        .filter((member) => member.activeInView && !assignedStaffIds.has(member.id))
         .map((member) => staffById.get(member.id)!)
         .filter(Boolean),
     [staff, assignedStaffIds, staffById]

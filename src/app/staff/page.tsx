@@ -2,11 +2,21 @@ import Link from "next/link";
 import { db } from "@/lib/db";
 import { staff } from "../../../drizzle/schema";
 import StaffAllList from "./StaffAllList";
+import { resolveDashboardDateRange } from "@/lib/dashboard-date-range";
+import { partitionStaffByActiveInRange } from "@/lib/staff-active";
+import { getActiveDashboardView } from "@/server/dashboard-views";
 
 export const dynamic = "force-dynamic";
 
 export default async function StaffPage() {
-  const rows = await db.select().from(staff).orderBy(staff.firstName);
+  const [rows, activeView] = await Promise.all([
+    db.select().from(staff).orderBy(staff.firstName),
+    getActiveDashboardView(),
+  ]);
+  const { from, to } = resolveDashboardDateRange(
+    activeView ? { from: activeView.from, to: activeView.to } : {}
+  );
+  const { active, inactive } = partitionStaffByActiveInRange(rows, from, to);
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-8 space-y-6">
@@ -15,7 +25,7 @@ export default async function StaffPage() {
         <Link href="/staff/new" className="btn-primary">+ New staff</Link>
       </div>
 
-      <StaffAllList staff={rows} />
+      <StaffAllList activeStaff={active} inactiveStaff={inactive} />
     </div>
   );
 }
