@@ -204,6 +204,13 @@
       "when": 1781200000000,
       "tag": "0028_staff_dates_spouse",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "6",
+      "when": 1781300000000,
+      "tag": "0029_salvation_decision_type",
+      "breakpoints": true
     }
   ]
 }

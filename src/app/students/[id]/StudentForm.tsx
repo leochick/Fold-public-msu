@@ -62,7 +62,6 @@ export default function StudentForm({
         <Checkbox label="Newsletter" name="newsletter" defaultChecked={s.newsletter ?? false} />
         <Checkbox label="Groupme" name="groupme" defaultChecked={s.groupme ?? false} />
       </div>
-      <Field label="Primary contact (leader/friend)" name="primaryContact" defaultValue={s.primaryContact ?? ""} />
       <div className="grid grid-cols-2 gap-3">
         <label className="block space-y-1">
           <span className="label">Invited By</span>
@@ -100,36 +99,46 @@ export default function StudentForm({
           </select>
         </label>
       </div>
+      <label className="block space-y-1">
+        <span className="label">Led to Christ By</span>
+        <select name="ledToChristBy" defaultValue={ledToChristDefault} className="input">
+          <option value="">—</option>
+          {staffPeople.length > 0 && (
+            <optgroup label="Staff">
+              {staffPeople.map((p) => (
+                <option key={`led-staff-${p.id}`} value={formatPersonRef("staff", p.id)}>
+                  {p.name}
+                </option>
+              ))}
+            </optgroup>
+          )}
+          {studentPeople.length > 0 && (
+            <optgroup label="Students">
+              {studentPeople.map((p) => (
+                <option key={`led-student-${p.id}`} value={formatPersonRef("student", p.id)}>
+                  {p.name}
+                </option>
+              ))}
+            </optgroup>
+          )}
+        </select>
+      </label>
       <div className="grid grid-cols-3 gap-3">
-        <label className="block space-y-1">
-          <span className="label">Led to Christ By</span>
-          <select name="ledToChristBy" defaultValue={ledToChristDefault} className="input">
-            <option value="">—</option>
-            {staffPeople.length > 0 && (
-              <optgroup label="Staff">
-                {staffPeople.map((p) => (
-                  <option key={`led-staff-${p.id}`} value={formatPersonRef("staff", p.id)}>
-                    {p.name}
-                  </option>
-                ))}
-              </optgroup>
-            )}
-            {studentPeople.length > 0 && (
-              <optgroup label="Students">
-                {studentPeople.map((p) => (
-                  <option key={`led-student-${p.id}`} value={formatPersonRef("student", p.id)}>
-                    {p.name}
-                  </option>
-                ))}
-              </optgroup>
-            )}
-          </select>
-        </label>
         <Field
           label="Salvation Decision Date"
           name="salvationDecisionAt"
           type="date"
           defaultValue={formatDateInput(s.salvationDecisionAt)}
+        />
+        <Select
+          label="Salvation Decision Type"
+          name="salvationDecisionType"
+          defaultValue={s.salvationDecisionType ?? ""}
+          options={[
+            ["", "—"],
+            ["salvation", "Salvation"],
+            ["lordship", "Lordship"],
+          ]}
         />
         <Field
           label="Salvation Decision Notes"

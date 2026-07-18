@@ -55,7 +55,6 @@ export function parseStudent(f: FormData) {
     igHandle: v("igHandle")?.replace(/^@/, "") ?? null,
     newsletter: b("newsletter"),
     groupme: b("groupme"),
-    primaryContact: v("primaryContact"),
     goals: v("goals"),
     notes: v("notes"),
     courseMaterial: f.getAll("courseMaterial").map(String).filter(Boolean),
@@ -66,6 +65,7 @@ export function parseStudent(f: FormData) {
     ledToChristByStudentId: ledToChrist.studentId,
     ledToChristByStaffId: ledToChrist.staffId,
     salvationDecisionAt: parseDate(v("salvationDecisionAt")),
+    salvationDecisionType: (v("salvationDecisionType") as "salvation" | "lordship" | null) ?? null,
     salvationDecisionNotes: v("salvationDecisionNotes"),
   };
 }

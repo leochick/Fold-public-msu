@@ -155,6 +155,7 @@ export const students = sqliteTable("students", {
     onDelete: "set null",
   }),
   salvationDecisionAt: integer("salvation_decision_at", { mode: "timestamp" }),
+  salvationDecisionType: text("salvation_decision_type", { enum: ["salvation", "lordship"] }),
   salvationDecisionNotes: text("salvation_decision_notes"),
   // --- /HEALTH METRICS ---
   createdAt: integer("created_at", { mode: "timestamp" })

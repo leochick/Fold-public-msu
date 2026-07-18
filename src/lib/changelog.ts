@@ -21,6 +21,7 @@ export const STUDENT_FIELD_LABELS: Record<string, string> = {
   ledToChristByStudentId: "Led to Christ by (student)",
   ledToChristByStaffId: "Led to Christ by (staff)",
   salvationDecisionAt: "Salvation decision date",
+  salvationDecisionType: "Salvation decision type",
   salvationDecisionNotes: "Salvation decision notes",
 };
 

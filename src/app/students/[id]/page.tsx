@@ -18,6 +18,7 @@ import { logStudentDeleted, logStudentUpdated } from "@/server/changelog";
 import { resolveDashboardDateRange } from "@/lib/dashboard-date-range";
 import { formatStaffActiveLabel } from "@/lib/staff-active";
 import { getActiveDashboardView } from "@/server/dashboard-views";
+import { toMergeStudentRecord } from "@/lib/student-merge";
 
 export const dynamic = "force-dynamic";
 
@@ -172,25 +173,22 @@ export default async function StudentPage({ params }: { params: Promise<{ id: st
         <div className="flex items-center gap-2">
           <StudentMergeModal
             studentId={id}
-            keepStudent={{
-              id: s.id,
-              firstName: s.firstName,
-              lastName: s.lastName,
-              studentId: s.studentId,
-              gender: s.gender,
-              year: s.year,
-              phone: s.phone,
-              email: s.email,
-              igHandle: s.igHandle,
-              memberStatus: s.memberStatus,
-              newsletter: s.newsletter,
-              groupme: s.groupme,
-              contactedViaIg: s.contactedViaIg,
-              primaryContact: s.primaryContact,
-              goals: s.goals,
-              notes: s.notes,
-              courseMaterial: s.courseMaterial,
-            }}
+            keepStudent={toMergeStudentRecord(
+              s,
+              new Map(
+                rosterRows.map((r) => [
+                  r.id,
+                  `${r.firstName}${r.lastName ? ` ${r.lastName}` : ""}`.trim(),
+                ])
+              ),
+              new Map(
+                staffRows.map((r) => [
+                  r.id,
+                  `${r.firstName}${r.lastName ? ` ${r.lastName}` : ""} (staff)`.trim(),
+                ])
+              ),
+              new Map(eventOptions.map((e) => [e.id, `${e.name} (${e.dateLabel})`]))
+            )}
           />
           <form action={del}>
             <button className="btn-ghost text-red-600" type="submit">Delete</button>
