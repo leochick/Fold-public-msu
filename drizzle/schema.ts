@@ -101,6 +101,11 @@ export const staff = sqliteTable("staff", {
   firstName: text("first_name").notNull(),
   lastName: text("last_name"),
   gender: text("gender", { enum: ["M", "F"] }),
+  startingDate: integer("starting_date", { mode: "timestamp" }),
+  endingDate: integer("ending_date", { mode: "timestamp" }),
+  spouseId: integer("spouse_id").references((): AnySQLiteColumn => staff.id, {
+    onDelete: "set null",
+  }),
   createdAt: integer("created_at", { mode: "timestamp" })
     .notNull()
     .default(sql`(unixepoch())`),

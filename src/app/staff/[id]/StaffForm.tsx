@@ -1,13 +1,24 @@
 import type { Staff } from "../../../../drizzle/schema";
+import { formatDateInput } from "@/lib/parse-student";
+
+export type StaffOption = { id: number; name: string };
 
 export default function StaffForm({
   action,
   staff,
+  staffOptions = [],
 }: {
   action: (fd: FormData) => Promise<void>;
   staff?: Staff;
+  staffOptions?: StaffOption[];
 }) {
   const s = staff ?? ({} as Partial<Staff>);
+  const spouseOptions: [string, string][] = [
+    ["", "—"],
+    ...staffOptions
+      .filter((o) => o.id !== s.id)
+      .map((o) => [String(o.id), o.name] as [string, string]),
+  ];
   return (
     <form action={action} className="card space-y-5">
       <div className="grid grid-cols-2 gap-3">
@@ -19,6 +30,26 @@ export default function StaffForm({
         name="gender"
         defaultValue={s.gender ?? ""}
         options={[["", "—"], ["M", "Male"], ["F", "Female"]]}
+      />
+      <div className="grid grid-cols-2 gap-3">
+        <Field
+          label="Starting Date"
+          name="startingDate"
+          type="date"
+          defaultValue={formatDateInput(s.startingDate)}
+        />
+        <Field
+          label="Ending Date"
+          name="endingDate"
+          type="date"
+          defaultValue={formatDateInput(s.endingDate)}
+        />
+      </div>
+      <Select
+        label="Spouse"
+        name="spouseId"
+        defaultValue={s.spouseId != null ? String(s.spouseId) : ""}
+        options={spouseOptions}
       />
       <div className="flex justify-end">
         <button className="btn-primary" type="submit">Save</button>
@@ -53,7 +84,7 @@ function Select({
       <span className="label">{label}</span>
       <select name={name} defaultValue={defaultValue} className="input">
         {options.map(([v, l]) => (
-          <option key={v} value={v}>{l}</option>
+          <option key={v || "__empty"} value={v}>{l}</option>
         ))}
       </select>
     </label>

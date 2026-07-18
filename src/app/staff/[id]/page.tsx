@@ -2,7 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { staff } from "../../../../drizzle/schema";
-import { eq } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 import StaffForm from "./StaffForm";
 import { parseStaff } from "@/lib/parse-staff";
 import { requireUser } from "@/lib/auth";
@@ -15,6 +15,19 @@ export default async function StaffMemberPage({ params }: { params: Promise<{ id
   if (!Number.isFinite(id)) notFound();
   const [s] = await db.select().from(staff).where(eq(staff.id, id)).limit(1);
   if (!s) notFound();
+
+  const staffRows = await db
+    .select({
+      id: staff.id,
+      firstName: staff.firstName,
+      lastName: staff.lastName,
+    })
+    .from(staff)
+    .orderBy(asc(staff.firstName));
+  const staffOptions = staffRows.map((r) => ({
+    id: r.id,
+    name: `${r.firstName}${r.lastName ? " " + r.lastName : ""}`,
+  }));
 
   async function update(formData: FormData) {
     "use server";
@@ -45,7 +58,7 @@ export default async function StaffMemberPage({ params }: { params: Promise<{ id
         </form>
       </div>
 
-      <StaffForm action={update} staff={s} />
+      <StaffForm action={update} staff={s} staffOptions={staffOptions} />
     </div>
   );
 }
