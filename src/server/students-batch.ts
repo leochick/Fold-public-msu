@@ -19,6 +19,13 @@ function mergeCourseMaterial(existing: string[] | null | undefined, toAdd?: stri
   return [...new Set([...(existing ?? []), ...toAdd])];
 }
 
+function isoDateToUtcNoon(iso: string): Date | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
+  if (!m) return null;
+  const d = new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]), 12, 0, 0, 0));
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
 function buildCreateValues(userId: string, incoming: CommitStudentRosterBatchBody["items"][number]["incoming"]) {
   return {
     firstName: incoming.firstName,
@@ -35,6 +42,11 @@ function buildCreateValues(userId: string, incoming: CommitStudentRosterBatchBod
     primaryContact: incoming.primaryContact ?? null,
     goals: incoming.goals ?? null,
     courseMaterial: mergeCourseMaterial(null, incoming.courseMaterialAdd),
+    salvationDecisionAt: incoming.salvationDecisionAt
+      ? isoDateToUtcNoon(incoming.salvationDecisionAt)
+      : null,
+    salvationDecisionType: incoming.salvationDecisionType ?? null,
+    salvationDecisionNotes: incoming.salvationDecisionNotes ?? null,
     notes: incoming.notes ?? null,
     addedByUserId: userId,
   } as const;
@@ -64,6 +76,17 @@ function buildMergePatch(
 
   if (incoming.courseMaterialAdd?.length) {
     patch.courseMaterial = mergeCourseMaterial(old.courseMaterial ?? null, incoming.courseMaterialAdd);
+  }
+
+  if (incoming.salvationDecisionAt) {
+    const at = isoDateToUtcNoon(incoming.salvationDecisionAt);
+    if (at) patch.salvationDecisionAt = at;
+  }
+  if (incoming.salvationDecisionType) {
+    patch.salvationDecisionType = incoming.salvationDecisionType;
+  }
+  if (incoming.salvationDecisionNotes != null && incoming.salvationDecisionNotes !== "") {
+    patch.salvationDecisionNotes = incoming.salvationDecisionNotes;
   }
 
   if (incoming.notes) {

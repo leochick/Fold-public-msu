@@ -14,6 +14,29 @@ function fmt(value: unknown): string {
   return String(value);
 }
 
+function fmtDate(value: unknown): string {
+  if (value == null || value === "") return "—";
+  if (value instanceof Date) {
+    return value.toLocaleDateString("en-US", { timeZone: "UTC" });
+  }
+  if (typeof value === "string") {
+    const iso = /^(\d{4})-(\d{2})-(\d{2})/.exec(value);
+    if (iso) {
+      const d = new Date(Date.UTC(Number(iso[1]), Number(iso[2]) - 1, Number(iso[3]), 12, 0, 0, 0));
+      if (!Number.isNaN(d.getTime())) {
+        return d.toLocaleDateString("en-US", { timeZone: "UTC" });
+      }
+    }
+  }
+  return String(value);
+}
+
+function fmtSalvationType(value: unknown): string {
+  if (value === "salvation") return "Salvation";
+  if (value === "lordship") return "Lordship";
+  return fmt(value);
+}
+
 function courseList(value: unknown): string[] {
   return Array.isArray(value) ? value.map(String) : [];
 }
@@ -68,6 +91,30 @@ export function getIncomingFieldChanges(
       label: "Course material",
       before: existingRecord ? fmt(beforeCourses) : undefined,
       after: afterCourses.join(", "),
+    });
+  }
+
+  if (incoming.salvationDecisionAt) {
+    changes.push({
+      label: "Salvation decision date",
+      before: existingRecord ? fmtDate(existingRecord.salvationDecisionAt) : undefined,
+      after: fmtDate(incoming.salvationDecisionAt),
+    });
+  }
+
+  if (incoming.salvationDecisionType) {
+    changes.push({
+      label: "Salvation decision type",
+      before: existingRecord ? fmtSalvationType(existingRecord.salvationDecisionType) : undefined,
+      after: fmtSalvationType(incoming.salvationDecisionType),
+    });
+  }
+
+  if (incoming.salvationDecisionNotes != null && incoming.salvationDecisionNotes !== "") {
+    changes.push({
+      label: "Salvation decision notes",
+      before: existingRecord ? fmt(existingRecord.salvationDecisionNotes) : undefined,
+      after: fmt(incoming.salvationDecisionNotes),
     });
   }
 

@@ -38,11 +38,129 @@ function isBulkInstructionLine(line: string): boolean {
   const lower = line.toLowerCase();
   if (
     /^(mark|add|set|subscribe|update)\b/i.test(line) &&
-    /\b(groupme|newsletter|course|active|inactive|subscribed)\b/i.test(lower)
+    /\b(groupme|newsletter|course|active|inactive|subscribed|salvation)\b/i.test(lower)
   ) {
     return true;
   }
-  return /following students/i.test(lower);
+  if (/\bsalvation\s+decision\b/i.test(lower)) return true;
+  return /following (?:students|people)/i.test(lower);
+}
+
+/** Parse M/D/YY, M/D/YYYY, or already-ISO dates into YYYY-MM-DD. */
+export function parseFlexibleIsoDate(raw: string): string | null {
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
+
+  const slash = /^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/.exec(trimmed);
+  if (!slash) return null;
+
+  const month = Number(slash[1]);
+  const day = Number(slash[2]);
+  let year = Number(slash[3]);
+  if (year < 100) year += 2000;
+  if (month < 1 || month > 12 || day < 1 || day > 31) return null;
+
+  const iso = `${String(year).padStart(4, "0")}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+  const check = new Date(Date.UTC(year, month - 1, day, 12, 0, 0, 0));
+  if (
+    Number.isNaN(check.getTime()) ||
+    check.getUTCFullYear() !== year ||
+    check.getUTCMonth() !== month - 1 ||
+    check.getUTCDate() !== day
+  ) {
+    return null;
+  }
+  return iso;
+}
+
+export function parseSalvationDecisionType(raw: string): "salvation" | "lordship" | null {
+  const normalized = raw.trim().toLowerCase();
+  if (normalized === "salvation") return "salvation";
+  if (normalized === "lordship") return "lordship";
+  return null;
+}
+
+function splitSalvationDecisionColumns(line: string): string[] | null {
+  const tabParts = line.split("\t").map((part) => part.trim()).filter(Boolean);
+  if (tabParts.length >= 3) return tabParts;
+
+  // Fallback: name … date … type … notes (date + Salvation/Lordship anchors)
+  const match = line.match(
+    /^(.+?)\s+(\d{1,2}\/\d{1,2}\/\d{2,4}|\d{4}-\d{2}-\d{2})\s+(Salvation|Lordship)\s*(.*)$/i
+  );
+  if (!match) return null;
+  const notes = match[4]?.trim();
+  return notes
+    ? [match[1].trim(), match[2].trim(), match[3].trim(), notes]
+    : [match[1].trim(), match[2].trim(), match[3].trim()];
+}
+
+function parseSalvationDecisionLine(
+  line: string,
+  roster: RosterRow[]
+): BatchRosterIncoming | null {
+  const cols = splitSalvationDecisionColumns(line);
+  if (!cols || cols.length < 3) return null;
+
+  const namePart = cols[0];
+  const datePart = cols[1];
+  const typePart = cols[2];
+  const notesPart = cols.slice(3).join(" ").trim();
+
+  const date = parseFlexibleIsoDate(datePart);
+  const decisionType = parseSalvationDecisionType(typePart);
+  if (!date || !decisionType) return null;
+
+  const resolved = resolveNameFromLine(namePart, roster);
+  if (!resolved) return null;
+
+  return {
+    firstName: resolved.firstName,
+    lastName: resolved.lastName ?? null,
+    salvationDecisionAt: date,
+    salvationDecisionType: decisionType,
+    salvationDecisionNotes: notesPart || null,
+    rawText: line.trim(),
+  };
+}
+
+export function extractSalvationDecisionEntriesFromText(
+  text: string,
+  roster: RosterRow[] = []
+): BatchRosterIncoming[] {
+  const entries: BatchRosterIncoming[] = [];
+  const seen = new Set<string>();
+
+  for (const line of text.split(/\n+/).map((part) => part.trim()).filter(Boolean)) {
+    if (isBulkInstructionLine(line)) continue;
+    const entry = parseSalvationDecisionLine(line, roster);
+    if (!entry) continue;
+
+    const key = `${entry.firstName.toLowerCase()}|${(entry.lastName ?? "").toLowerCase()}|${entry.salvationDecisionAt}|${entry.rawText}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    entries.push(entry);
+  }
+
+  return entries;
+}
+
+export function countSalvationDecisionLines(text: string): number {
+  return text
+    .split(/\n+/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .filter((line) => !isBulkInstructionLine(line))
+    .filter((line) => {
+      const cols = splitSalvationDecisionColumns(line);
+      if (!cols || cols.length < 3) return false;
+      return !!(parseFlexibleIsoDate(cols[1]) && parseSalvationDecisionType(cols[2]));
+    }).length;
+}
+
+export function shouldParseSalvationDecisionLocally(text: string): boolean {
+  return countSalvationDecisionLines(text) >= 2;
 }
 
 export function extractNameListBodyLines(text: string): string[] {
@@ -173,6 +291,7 @@ export function extractNameListEntriesFromText(
 
 export function shouldParseBulkListLocally(text: string): boolean {
   if (shouldParseEmailRosterLocally(text)) return true;
+  if (shouldParseSalvationDecisionLocally(text)) return true;
   if (Object.keys(detectBulkFlags(text)).length === 0) return false;
   return extractNameListBodyLines(text).length >= 2;
 }
@@ -441,6 +560,27 @@ export function extractNamesFromBulkText(text: string, roster: RosterRow[] = [])
   return matched;
 }
 
+function coerceSalvationFields(row: Record<string, unknown>): Partial<BatchRosterIncoming> {
+  const patch: Partial<BatchRosterIncoming> = {};
+
+  if (typeof row.salvationDecisionAt === "string") {
+    const iso = parseFlexibleIsoDate(row.salvationDecisionAt);
+    if (iso) patch.salvationDecisionAt = iso;
+  }
+
+  if (typeof row.salvationDecisionType === "string") {
+    const decisionType = parseSalvationDecisionType(row.salvationDecisionType);
+    if (decisionType) patch.salvationDecisionType = decisionType;
+  }
+
+  if (typeof row.salvationDecisionNotes === "string") {
+    const notes = row.salvationDecisionNotes.trim();
+    patch.salvationDecisionNotes = notes || null;
+  }
+
+  return patch;
+}
+
 function asStudentRecord(value: unknown): BatchRosterIncoming | null {
   if (!value || typeof value !== "object") return null;
   const row = value as Record<string, unknown>;
@@ -452,7 +592,12 @@ function asStudentRecord(value: unknown): BatchRosterIncoming | null {
       ? row.rawText.trim()
       : `${firstName}${typeof row.lastName === "string" && row.lastName ? ` ${row.lastName}` : ""}`.trim();
 
-  return { ...(row as BatchRosterIncoming), firstName, rawText };
+  return {
+    ...(row as BatchRosterIncoming),
+    firstName,
+    rawText,
+    ...coerceSalvationFields(row),
+  };
 }
 
 function applyMissingBulkFlags(
@@ -476,9 +621,14 @@ export function normalizeBatchStudentsInput(
 ): BatchRosterIncoming[] {
   const bulkFlags = detectBulkFlags(text);
   const emailRoster = extractEmailRosterEntriesFromText(text, roster);
+  const salvationRoster = extractSalvationDecisionEntriesFromText(text, roster);
 
   if (shouldParseEmailRosterLocally(text)) {
     return emailRoster.map((entry) => applyMissingBulkFlags(entry, bulkFlags));
+  }
+
+  if (shouldParseSalvationDecisionLocally(text)) {
+    return salvationRoster.map((entry) => applyMissingBulkFlags(entry, bulkFlags));
   }
 
   const nameListEntries = extractNameListEntriesFromText(text, roster);
@@ -513,6 +663,10 @@ export function normalizeBatchStudentsInput(
 
   if (students.length === 0 && emailRoster.length > 0) {
     students = emailRoster;
+  }
+
+  if (students.length === 0 && salvationRoster.length > 0) {
+    students = salvationRoster;
   }
 
   if (students.length === 0 && nameListEntries.length > 0) {

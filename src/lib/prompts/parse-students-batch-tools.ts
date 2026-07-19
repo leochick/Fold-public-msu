@@ -4,16 +4,16 @@ export const PARSE_STUDENTS_BATCH_TOOL: Anthropic.Tool = {
   name: "parse_students_batch",
   description:
     "Parse a free-text stream or roster dump containing information about multiple students, " +
-    "including bulk update requests that apply the same field changes to every listed student. " +
-    "Extract names, profile fields, course completions, and any miscellaneous notes cleanly into structured array fields.",
+    "including bulk update requests and per-person salvation decision rosters. " +
+    "Extract names, profile fields, course completions, salvation decisions, and any miscellaneous notes cleanly into structured array fields.",
   input_schema: {
     type: "object",
     properties: {
       students: {
         type: "array",
         description:
-          "One entry per person in the input. For bulk updates (newsletter, Groupme, course completions, etc.) " +
-          "or contact-info updates (phone, email), emit one entry per named student with the parsed field changes — never return an empty array when names are listed.",
+          "One entry per person in the input. For bulk updates (newsletter, Groupme, course completions, etc.), " +
+          "contact-info updates (phone, email), or salvation decision rows (date/type/notes), emit one entry per named student with the parsed field changes — never return an empty array when names are listed.",
         items: {
           type: "object",
           properties: {
@@ -44,6 +44,21 @@ export const PARSE_STUDENTS_BATCH_TOOL: Anthropic.Tool = {
               type: "array",
               items: { type: "string", enum: ["Course 101", "ERT", "Sixth Hour", "Connection Team", "Student Leader"] },
               description: "Course materials to mark completed or in progress. Use for bulk 'mark Course 101 completed' style requests.",
+            },
+            salvationDecisionAt: {
+              type: "string",
+              description:
+                "Salvation decision date as ISO YYYY-MM-DD. Accept M/D/YY or M/D/YYYY from input and convert (e.g. 9/27/25 → 2025-09-27).",
+            },
+            salvationDecisionType: {
+              type: "string",
+              enum: ["salvation", "lordship"],
+              description: "Decision type. Map 'Salvation' → salvation, 'Lordship' → lordship.",
+            },
+            salvationDecisionNotes: {
+              type: "string",
+              description:
+                "Salvation decision notes / context (e.g. Fall Retreat, Course 101, Conversation). Do not put these in notes.",
             },
             notes: { type: "string", description: "Any other parsed metadata, context notes, or description lines." },
             rawText: { type: "string", description: "The verbatim snippet string from the prompt that targets this person." },

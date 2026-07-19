@@ -8,6 +8,8 @@ import {
 import { COURSE_MATERIAL_OPTIONS } from "@/lib/courses";
 
 const courseMaterialSchema = z.array(z.enum(COURSE_MATERIAL_OPTIONS));
+const isoDateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "date must be YYYY-MM-DD");
+const salvationDecisionTypeSchema = z.enum(["salvation", "lordship"]);
 
 export const batchRosterIncomingSchema = z.object({
   firstName: z.string().min(1),
@@ -24,6 +26,9 @@ export const batchRosterIncomingSchema = z.object({
   primaryContact: z.string().nullable().optional(),
   goals: z.string().nullable().optional(),
   courseMaterialAdd: courseMaterialSchema.optional(),
+  salvationDecisionAt: isoDateSchema.nullable().optional(),
+  salvationDecisionType: salvationDecisionTypeSchema.nullable().optional(),
+  salvationDecisionNotes: z.string().nullable().optional(),
   notes: z.string().nullable().optional(),
   rawText: z.string().optional(),
 });
