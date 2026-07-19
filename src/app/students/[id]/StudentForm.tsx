@@ -1,6 +1,10 @@
+"use client";
+
+import { useEffect, useRef, useState, useTransition } from "react";
 import type { Student } from "../../../../drizzle/schema";
 import { COURSE_MATERIAL_OPTIONS } from "@/lib/courses";
 import { formatDateInput, formatPersonRef } from "@/lib/parse-student";
+import { updateStudentAction } from "../actions";
 
 export type PersonOption = {
   entity: "student" | "staff";
@@ -14,18 +18,57 @@ export type EventOption = {
   dateLabel: string;
 };
 
+type SaveStatus = "idle" | "saving" | "saved" | "error";
+
 export default function StudentForm({
   action,
   student,
   people = [],
   events = [],
 }: {
-  action: (fd: FormData) => Promise<void>;
+  action?: (fd: FormData) => Promise<void>;
   student?: Student;
   people?: PersonOption[];
   events?: EventOption[];
 }) {
   const s = student ?? ({} as Partial<Student>);
+  const studentId = student?.id;
+  const autosave = studentId != null;
+  const formRef = useRef<HTMLFormElement>(null);
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
+
+  useEffect(() => {
+    return () => {
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    };
+  }, []);
+
+  function scheduleAutosave() {
+    if (!autosave || studentId == null) return;
+
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    setSaveStatus("saving");
+    setSaveError(null);
+
+    saveTimerRef.current = setTimeout(() => {
+      const form = formRef.current;
+      if (!form) return;
+      const formData = new FormData(form);
+      startTransition(async () => {
+        try {
+          await updateStudentAction(studentId, formData);
+          setSaveStatus("saved");
+        } catch (error) {
+          setSaveStatus("error");
+          setSaveError(error instanceof Error ? error.message : "Could not save student");
+        }
+      });
+    }, 450);
+  }
+
   const invitedByDefault = s.invitedByStaffId
     ? formatPersonRef("staff", s.invitedByStaffId)
     : formatPersonRef("student", s.invitedByStudentId ?? null);
@@ -35,8 +78,42 @@ export default function StudentForm({
   const staffPeople = people.filter((p) => p.entity === "staff");
   const studentPeople = people.filter((p) => p.entity === "student" && p.id !== s.id);
 
+  const statusLabel =
+    saveStatus === "saving" || isPending
+      ? "Saving…"
+      : saveStatus === "saved"
+        ? "Saved"
+        : saveStatus === "error"
+          ? "Save failed"
+          : null;
+
   return (
-    <form action={action} className="card space-y-5">
+    <form
+      ref={formRef}
+      action={autosave ? undefined : action}
+      onChange={autosave ? scheduleAutosave : undefined}
+      onSubmit={autosave ? (e) => e.preventDefault() : undefined}
+      className="card space-y-5"
+    >
+      {autosave && (
+        <div className="flex items-start justify-between gap-3">
+          <p className="text-xs text-black/60 dark:text-white/60">Changes save automatically.</p>
+          {statusLabel && (
+            <p
+              className={`text-xs shrink-0 ${
+                saveStatus === "error"
+                  ? "text-red-600 dark:text-red-400"
+                  : "text-black/50 dark:text-white/50"
+              }`}
+            >
+              {statusLabel}
+            </p>
+          )}
+        </div>
+      )}
+      {saveError && (
+        <p className="text-xs text-red-600 dark:text-red-400">{saveError}</p>
+      )}
       <div className="grid grid-cols-2 gap-3">
         <Field label="First name" name="firstName" defaultValue={s.firstName ?? ""} required />
         <Field label="Last name" name="lastName" defaultValue={s.lastName ?? ""} />
@@ -149,9 +226,11 @@ export default function StudentForm({
       <Textarea label="Goals" name="goals" defaultValue={s.goals ?? ""} />
       <Textarea label="Notes" name="notes" defaultValue={s.notes ?? ""} />
       <CourseChecks defaultValues={(s.courseMaterial as string[] | undefined) ?? []} />
-      <div className="flex justify-end">
-        <button className="btn-primary" type="submit">Save</button>
-      </div>
+      {!autosave && (
+        <div className="flex justify-end">
+          <button className="btn-primary" type="submit">Save</button>
+        </div>
+      )}
     </form>
   );
 }

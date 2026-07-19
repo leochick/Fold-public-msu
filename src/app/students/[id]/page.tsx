@@ -4,7 +4,6 @@ import { db } from "@/lib/db";
 import { students, attendances, events, staff } from "../../../../drizzle/schema";
 import { eq, desc, asc, notInArray, and, gte, lte } from "drizzle-orm";
 import StudentForm from "./StudentForm";
-import { parseStudent } from "@/lib/parse-student";
 import {
   perStudentHealth,
   type StudentLite,
@@ -13,8 +12,7 @@ import {
 import AddEventCardClient from "./AddEventCardClient";
 import StudentMergeModal from "./StudentMergeModal";
 import { requireUser } from "@/lib/auth";
-import { pickStudentFields } from "@/lib/changelog";
-import { logStudentDeleted, logStudentUpdated } from "@/server/changelog";
+import { logStudentDeleted } from "@/server/changelog";
 import { resolveDashboardDateRange } from "@/lib/dashboard-date-range";
 import { formatStaffActiveLabel } from "@/lib/staff-active";
 import { getActiveDashboardView } from "@/server/dashboard-views";
@@ -142,17 +140,6 @@ export default async function StudentPage({ params }: { params: Promise<{ id: st
     .map((fid) => rosterRows.find((r) => r.id === fid))
     .filter((r): r is (typeof rosterRows)[number] => !!r);
 
-  async function update(formData: FormData) {
-    "use server";
-    const user = await requireUser();
-    const data = parseStudent(formData);
-    const before = pickStudentFields(s as Record<string, unknown>);
-    const after = pickStudentFields({ ...s, ...data, updatedAt: new Date() });
-    await db.update(students).set({ ...data, updatedAt: new Date() }).where(eq(students.id, id));
-    await logStudentUpdated(user.id, id, before, after);
-    redirect(`/students/${id}`);
-  }
-
   async function del() {
     "use server";
     const user = await requireUser();
@@ -196,7 +183,7 @@ export default async function StudentPage({ params }: { params: Promise<{ id: st
         </div>
       </div>
 
-      <StudentForm action={update} student={s} people={people} events={eventOptions} />
+      <StudentForm student={s} people={people} events={eventOptions} />
 
       {myHealth && (
         <section className="card space-y-2 border-accent/20">

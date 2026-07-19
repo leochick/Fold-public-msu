@@ -29,8 +29,9 @@ export function formatPersonRef(
   return `${entity}:${id}`;
 }
 
-export function formatDateInput(d: Date | null | undefined): string {
+export function formatDateInput(d: Date | string | null | undefined): string {
   if (!d) return "";
+  if (typeof d === "string") return d.slice(0, 10);
   return d.toISOString().slice(0, 10);
 }
 
