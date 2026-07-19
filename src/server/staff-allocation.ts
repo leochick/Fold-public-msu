@@ -1,9 +1,12 @@
 import { db } from "@/lib/db";
 import { groupings, students } from "../../drizzle/schema";
 import { asc, eq, inArray } from "drizzle-orm";
+import { resolveDashboardDateRange } from "@/lib/dashboard-date-range";
 import { normalizeGroupingContainers } from "@/lib/grouping-containers";
 import type { GroupingStudentStatus } from "@/lib/grouping-status";
+import { isStaffActiveInRange } from "@/lib/staff-active";
 import { getAllStaff, getStudentsForView } from "@/server/groupings";
+import { getDashboardViewById } from "@/server/dashboard-views";
 import { getRoleBoardByViewId } from "@/server/roles";
 import { anthropic, HAIKU, STAFF_ALLOCATION_INSIGHTS_TOOL } from "@/lib/claude";
 import { STAFF_ALLOCATION_INSIGHTS_SYSTEM } from "@/lib/prompts/staff-allocation-insights";
@@ -62,7 +65,8 @@ export async function getStaffAllocationForView(
       ? engagementViewId
       : viewId;
 
-  const [staffMembers, roleBoard, groupingRows, engagementStudents] = await Promise.all([
+  const [view, staffMembers, roleBoard, groupingRows, engagementStudents] = await Promise.all([
+    getDashboardViewById(viewId),
     getAllStaff(),
     getRoleBoardByViewId(viewId),
     db
@@ -76,6 +80,13 @@ export async function getStaffAllocationForView(
       .orderBy(asc(groupings.name)),
     getStudentsForView(engagementDataViewId),
   ]);
+
+  const { from, to } = resolveDashboardDateRange(
+    view ? { from: view.from, to: view.to } : {}
+  );
+  const activeStaffMembers = staffMembers.filter((member) =>
+    isStaffActiveInRange(member, from, to)
+  );
 
   const statusByStudentId = new Map(
     engagementStudents.map((student) => [student.id, student.statuses])
@@ -115,7 +126,7 @@ export async function getStaffAllocationForView(
   );
 
   const byStaffId = new Map<number, StaffAllocationItem>(
-    staffMembers.map((member) => [
+    activeStaffMembers.map((member) => [
       member.id,
       {
         id: member.id,
