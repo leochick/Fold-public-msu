@@ -16,6 +16,17 @@ function isValidItem(item: unknown): item is GroupingContainerItem {
   );
 }
 
+function normalizeItem(item: GroupingContainerItem): GroupingContainerItem {
+  if (item.entity !== "staff") {
+    return { entity: item.entity, id: item.id };
+  }
+  const roleName =
+    typeof item.associatedRoleName === "string" ? item.associatedRoleName.trim() : "";
+  return roleName
+    ? { entity: "staff", id: item.id, associatedRoleName: roleName }
+    : { entity: "staff", id: item.id };
+}
+
 function dedupeItems(items: GroupingContainerItem[]): GroupingContainerItem[] {
   const seen = new Set<string>();
   const result: GroupingContainerItem[] = [];
@@ -23,7 +34,7 @@ function dedupeItems(items: GroupingContainerItem[]): GroupingContainerItem[] {
     const key = `${item.entity}:${item.id}`;
     if (seen.has(key)) continue;
     seen.add(key);
-    result.push(item);
+    result.push(normalizeItem(item));
   }
   return result;
 }

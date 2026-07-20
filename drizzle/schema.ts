@@ -217,6 +217,8 @@ export type NewView = typeof views.$inferInsert;
 export type GroupingContainerItem = {
   entity: "student" | "staff";
   id: number;
+  /** Display name of the role this staff placement is associated with (staff only). */
+  associatedRoleName?: string;
 };
 
 export type GroupingContainerData = {

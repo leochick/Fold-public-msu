@@ -27,6 +27,7 @@ import {
 } from "@/lib/grouping-events";
 import { readGroupingDragData, type GroupingDragEntity } from "@/lib/grouping-drag";
 import type { GroupingExportMember, GroupingExportSnapshot } from "@/lib/grouping-export";
+import AssociateRoleModal, { type StaffRoleOption } from "./AssociateRoleModal";
 import ContainerCard from "./ContainerCard";
 import DeleteContainerModal from "./DeleteContainerModal";
 import { useGroupingExport } from "./GroupingExport";
@@ -51,16 +52,23 @@ function matchesNameSearch(
   return fullName.includes(normalized);
 }
 
+export type StaffRoleEntry = StaffRoleOption & {
+  staffId: number;
+};
+
 export default function GroupingEditor({
   grouping,
   events,
   students,
   staff,
+  staffRoles,
 }: {
   grouping: GroupingDetail;
   events: GroupingEventItem[];
   students: GroupingStudentItem[];
   staff: GroupingStaffItem[];
+  /** Roles from the view's role board, keyed for each staff member who appears on it. */
+  staffRoles: StaffRoleEntry[];
 }) {
   const { setSnapshot } = useGroupingExport();
   const [checkedEventIds, setCheckedEventIds] = useState<number[] | null>(grouping.checkedEventIds);
@@ -76,6 +84,10 @@ export default function GroupingEditor({
   const [activeDragEntity, setActiveDragEntity] = useState<GroupingDragEntity | null>(null);
   const [dragOverZone, setDragOverZone] = useState<string | null>(null);
   const [deleteContainerIndex, setDeleteContainerIndex] = useState<number | null>(null);
+  const [associateRoleTarget, setAssociateRoleTarget] = useState<{
+    containerIndex: number;
+    staffId: number;
+  } | null>(null);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
   const [saveError, setSaveError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -95,6 +107,7 @@ export default function GroupingEditor({
     setIncludeNewsletterContacts(grouping.includeNewsletterContacts);
     setContainers(grouping.containers);
     setDeleteContainerIndex(null);
+    setAssociateRoleTarget(null);
   }, [grouping.id]);
 
   useEffect(() => {
@@ -350,11 +363,36 @@ export default function GroupingEditor({
   }
 
   function insertItemAt(containerIndex: number, item: GroupingContainerItem, insertAt: number) {
-    setContainers((current) =>
-      current.map((container, index) => {
-        const fromIndex = container.items.findIndex(
+    setContainers((current) => {
+      let fromContainerIndex = -1;
+      let fromIndex = -1;
+      let existing: GroupingContainerItem | undefined;
+      for (let index = 0; index < current.length; index += 1) {
+        const foundIndex = current[index].items.findIndex(
           (row) => row.entity === item.entity && row.id === item.id
         );
+        if (foundIndex >= 0) {
+          fromContainerIndex = index;
+          fromIndex = foundIndex;
+          existing = current[index].items[foundIndex];
+          break;
+        }
+      }
+
+      // Keep role association only when reordering within the same container.
+      // Leaving a container (unassigned or another container) clears it.
+      const nextItem: GroupingContainerItem =
+        item.entity === "staff" &&
+        fromContainerIndex === containerIndex &&
+        existing?.associatedRoleName
+          ? {
+              entity: "staff",
+              id: item.id,
+              associatedRoleName: existing.associatedRoleName,
+            }
+          : { entity: item.entity, id: item.id };
+
+      return current.map((container, index) => {
         const items = container.items.filter(
           (row) => !(row.entity === item.entity && row.id === item.id)
         );
@@ -364,15 +402,34 @@ export default function GroupingEditor({
         }
 
         let adjustedInsert = insertAt;
-        if (fromIndex >= 0 && fromIndex < insertAt) {
+        if (fromContainerIndex === containerIndex && fromIndex >= 0 && fromIndex < insertAt) {
           adjustedInsert -= 1;
         }
 
         const clamped = Math.min(Math.max(adjustedInsert, 0), items.length);
-        items.splice(clamped, 0, item);
+        items.splice(clamped, 0, nextItem);
         return { ...container, items };
+      });
+    });
+  }
+
+  function associateStaffRole(containerIndex: number, staffId: number, roleName: string) {
+    const trimmed = roleName.trim();
+    if (!trimmed) return;
+    setContainers((current) =>
+      current.map((container, index) => {
+        if (index !== containerIndex) return container;
+        return {
+          ...container,
+          items: container.items.map((item) =>
+            item.entity === "staff" && item.id === staffId
+              ? { entity: "staff", id: staffId, associatedRoleName: trimmed }
+              : item
+          ),
+        };
       })
     );
+    setAssociateRoleTarget(null);
   }
 
   function moveStudentToUnassigned(studentId: number) {
@@ -395,6 +452,9 @@ export default function GroupingEditor({
         ),
       }))
     );
+    setAssociateRoleTarget((current) =>
+      current?.staffId === staffId ? null : current
+    );
   }
 
   function handleDragStart() {
@@ -416,6 +476,14 @@ export default function GroupingEditor({
   function removeContainer(index: number) {
     setContainers((current) => current.filter((_, containerIndex) => containerIndex !== index));
     setDeleteContainerIndex(null);
+    setAssociateRoleTarget((current) => {
+      if (!current) return null;
+      if (current.containerIndex === index) return null;
+      if (current.containerIndex > index) {
+        return { ...current, containerIndex: current.containerIndex - 1 };
+      }
+      return current;
+    });
   }
 
   const statusLabel =
@@ -429,6 +497,22 @@ export default function GroupingEditor({
 
   const pendingDeleteContainer =
     deleteContainerIndex != null ? containers[deleteContainerIndex] : null;
+
+  const associateStaff = associateRoleTarget
+    ? staffById.get(associateRoleTarget.staffId) ?? null
+    : null;
+  const associateStaffName = associateStaff
+    ? `${associateStaff.firstName} ${associateStaff.lastName ?? ""}`.trim()
+    : "";
+  const associateRoles = associateRoleTarget
+    ? staffRoles.filter((role) => role.staffId === associateRoleTarget.staffId)
+    : [];
+  const currentAssociatedRole =
+    associateRoleTarget != null
+      ? containers[associateRoleTarget.containerIndex]?.items.find(
+          (item) => item.entity === "staff" && item.id === associateRoleTarget.staffId
+        )?.associatedRoleName
+      : undefined;
 
   return (
     <div className="space-y-6">
@@ -657,6 +741,9 @@ export default function GroupingEditor({
                   setDragOverZone((zone) => (zone === `container-${index}` ? null : zone))
                 }
                 onRequestDelete={setDeleteContainerIndex}
+                onAssociateStaffRole={(containerIndex, staffId) =>
+                  setAssociateRoleTarget({ containerIndex, staffId })
+                }
               />
             ))}
             <button
@@ -676,6 +763,22 @@ export default function GroupingEditor({
           containerTitle={pendingDeleteContainer.title}
           onConfirm={() => removeContainer(deleteContainerIndex)}
           onClose={() => setDeleteContainerIndex(null)}
+        />
+      )}
+
+      {associateRoleTarget != null && associateStaff && (
+        <AssociateRoleModal
+          staffName={associateStaffName}
+          roles={associateRoles}
+          currentRoleName={currentAssociatedRole}
+          onConfirm={(roleName) =>
+            associateStaffRole(
+              associateRoleTarget.containerIndex,
+              associateRoleTarget.staffId,
+              roleName
+            )
+          }
+          onClose={() => setAssociateRoleTarget(null)}
         />
       )}
     </div>

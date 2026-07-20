@@ -11,9 +11,11 @@ import {
 } from "@/server/groupings";
 import { getActiveDashboardView, listDashboardViews } from "@/server/dashboard-views";
 import { resolveDashboardDateRange } from "@/lib/dashboard-date-range";
+import { resolveRoleBoardRoleEntries } from "@/lib/role-boards";
 import { isStaffActiveInRange } from "@/lib/staff-active";
+import { getRoleBoardByViewId } from "@/server/roles";
 import CreateGroupingCard from "./CreateGroupingCard";
-import GroupingEditor from "./GroupingEditor";
+import GroupingEditor, { type StaffRoleEntry } from "./GroupingEditor";
 import { GroupingExportProvider, GroupingsPageHeader } from "./GroupingExport";
 import SavedGroupingsSidebar from "./SavedGroupingsSidebar";
 
@@ -44,14 +46,15 @@ export default async function GroupingsPage({
   const { from, to } = resolveDashboardDateRange(
     activeView ? { from: activeView.from, to: activeView.to } : {}
   );
-  const [events, students, allStaff] =
-    dataViewId != null
+  const [events, students, allStaff, roleBoard] =
+    dataViewId != null && activeView
       ? await Promise.all([
           getEventsForView(dataViewId),
           getStudentsForView(dataViewId),
           getAllStaff(),
+          getRoleBoardByViewId(activeView.id),
         ])
-      : [[], [], [] as Awaited<ReturnType<typeof getAllStaff>>];
+      : [[], [], [] as Awaited<ReturnType<typeof getAllStaff>>, null];
 
   const assignedStaffIds = new Set<number>();
   if (activeGrouping) {
@@ -68,6 +71,21 @@ export default async function GroupingsPage({
       activeInView: isStaffActiveInRange(member, from, to),
     }))
     .filter((member) => member.activeInView || assignedStaffIds.has(member.id));
+
+  const staffRoles: StaffRoleEntry[] = [];
+  if (roleBoard) {
+    for (const entry of resolveRoleBoardRoleEntries(roleBoard.rows)) {
+      for (const person of entry.row.people) {
+        if (person?.entity !== "staff") continue;
+        staffRoles.push({
+          staffId: person.id,
+          displayName: entry.displayName,
+          color: entry.color,
+          responsibilities: entry.row.responsibilities,
+        });
+      }
+    }
+  }
 
   const otherViews = allViews
     .filter((view) => view.id !== activeView?.id)
@@ -100,6 +118,7 @@ export default async function GroupingsPage({
                 events={events}
                 students={students}
                 staff={staffMembers}
+                staffRoles={staffRoles}
               />
             ) : (
               <div className="card">

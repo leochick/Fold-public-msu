@@ -29,6 +29,7 @@ export default function ContainerCard({
   onDragEnter,
   onDragLeave,
   onRequestDelete,
+  onAssociateStaffRole,
 }: {
   container: GroupingContainerData;
   containerIndex: number;
@@ -45,6 +46,7 @@ export default function ContainerCard({
   onDragEnter: () => void;
   onDragLeave: () => void;
   onRequestDelete: (index: number) => void;
+  onAssociateStaffRole: (containerIndex: number, staffId: number) => void;
 }) {
   const [insertAtIndex, setInsertAtIndex] = useState<number | null>(null);
   const insertAtIndexRef = useRef<number | null>(null);
@@ -112,6 +114,8 @@ export default function ContainerCard({
             onDragStart={() => handleContainerDragStart("staff")}
             onDragEnd={onDragEntityEnd}
             onDragEnterCard={(insertBefore) => handleCardHover(index, insertBefore)}
+            associatedRoleName={item.associatedRoleName}
+            onAssociateWithRole={() => onAssociateStaffRole(containerIndex, item.id)}
           />
         </div>
       );
