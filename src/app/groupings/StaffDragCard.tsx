@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { readGroupingDragData, setGroupingDragData, type GroupingDragMeta } from "@/lib/grouping-drag";
 
 export type StaffCardData = {
@@ -35,6 +36,7 @@ export default function StaffDragCard({
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuPos, setMenuPos] = useState<{ top: number; right: number }>({ top: 0, right: 0 });
+  const [mounted, setMounted] = useState(false);
   const btnRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -46,6 +48,10 @@ export default function StaffDragCard({
         : "text-black dark:text-white";
   const fullName = `${staff.firstName} ${staff.lastName ?? ""}`.trim();
   const showActions = Boolean(onAssociateWithRole);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   function toggleMenu(event: React.MouseEvent) {
     event.preventDefault();
@@ -81,6 +87,33 @@ export default function StaffDragCard({
       window.removeEventListener("resize", close);
     };
   }, [menuOpen]);
+
+  const menu =
+    menuOpen && mounted
+      ? createPortal(
+          <div
+            ref={menuRef}
+            role="menu"
+            style={{ position: "fixed", top: menuPos.top, right: menuPos.right, zIndex: 100 }}
+            className="min-w-40 rounded-xl border border-black/10 dark:border-white/10 bg-white dark:bg-zinc-900 p-1 shadow-lg"
+          >
+            <button
+              type="button"
+              role="menuitem"
+              className="block w-full rounded px-3 py-1.5 text-left text-sm hover:bg-black/5 dark:hover:bg-white/5"
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                setMenuOpen(false);
+                onAssociateWithRole?.();
+              }}
+            >
+              Associate with role
+            </button>
+          </div>,
+          document.body
+        )
+      : null;
 
   return (
     <div
@@ -148,28 +181,7 @@ export default function StaffDragCard({
           </button>
         )}
       </div>
-      {menuOpen && (
-        <div
-          ref={menuRef}
-          role="menu"
-          style={{ position: "fixed", top: menuPos.top, right: menuPos.right, zIndex: 50 }}
-          className="min-w-40 rounded-xl border border-black/10 dark:border-white/10 bg-white dark:bg-zinc-900 p-1 shadow-lg"
-        >
-          <button
-            type="button"
-            role="menuitem"
-            className="block w-full rounded px-3 py-1.5 text-left text-sm hover:bg-black/5 dark:hover:bg-white/5"
-            onClick={(event) => {
-              event.preventDefault();
-              event.stopPropagation();
-              setMenuOpen(false);
-              onAssociateWithRole?.();
-            }}
-          >
-            Associate with role
-          </button>
-        </div>
-      )}
+      {menu}
     </div>
   );
 }
