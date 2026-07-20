@@ -10,8 +10,15 @@ import {
   contrastingTextColor,
   formatResponsibilitiesTooltip,
 } from "@/lib/role-boards";
-import type { StaffAllocationItem, StaffAllocationPerson } from "@/server/staff-allocation";
+import type {
+  StaffAllocationItem,
+  StaffAllocationPerson,
+  StaffAllocationRole,
+} from "@/server/staff-allocation";
 import { loadStaffAllocationAction } from "../staff-allocation-actions";
+
+/** Reserved width so grouping content stays indented whether or not a role chip is present. */
+const ROLE_CHIP_COLUMN_CLASS = "w-40 shrink-0";
 
 function personName(person: { firstName: string; lastName: string | null }) {
   return `${person.firstName} ${person.lastName ?? ""}`.trim();
@@ -30,12 +37,29 @@ function staffMatchesQuery(member: StaffAllocationItem, query: string): boolean 
     ...member.groupings.flatMap((grouping) => [
       grouping.groupingName,
       grouping.containerTitle,
+      grouping.associatedRoleName ?? "",
       ...grouping.students.map(personName),
     ]),
   ]
     .join(" ")
     .toLowerCase();
   return haystack.includes(query);
+}
+
+function RoleChip({ role }: { role: StaffAllocationRole }) {
+  return (
+    <Link
+      href="/roles"
+      className="chip hover:opacity-90"
+      title={formatResponsibilitiesTooltip(role.responsibilities)}
+      style={{
+        backgroundColor: role.color,
+        color: contrastingTextColor(role.color),
+      }}
+    >
+      {role.roleName}
+    </Link>
+  );
 }
 
 function StudentChip({ student }: { student: StaffAllocationPerson }) {
@@ -54,6 +78,24 @@ function StudentChip({ student }: { student: StaffAllocationPerson }) {
       {personName(student)}
     </Link>
   );
+}
+
+/** Roles not associated with any of this staff member's grouping placements. */
+function unassociatedRoles(member: StaffAllocationItem): StaffAllocationRole[] {
+  const associatedNames = new Set(
+    member.groupings
+      .map((grouping) => grouping.associatedRoleName)
+      .filter((name): name is string => Boolean(name))
+  );
+  return member.roles.filter((role) => !associatedNames.has(role.roleName));
+}
+
+function roleForName(
+  roles: StaffAllocationRole[],
+  roleName: string | null
+): StaffAllocationRole | null {
+  if (!roleName) return null;
+  return roles.find((role) => role.roleName === roleName) ?? null;
 }
 
 type ViewOption = {
@@ -204,6 +246,9 @@ export default function StaffAllocationView({
         <div className="space-y-4">
           {filtered.map((member) => {
             const assigned = member.roles.length + member.groupings.length > 0;
+            const standaloneRoles = unassociatedRoles(member);
+            const hasContent = standaloneRoles.length > 0 || member.groupings.length > 0;
+
             return (
               <section key={member.id} className="card space-y-4">
                 <div className="flex flex-wrap items-start justify-between gap-2">
@@ -226,71 +271,79 @@ export default function StaffAllocationView({
                   {!assigned && <span className="chip">Unassigned</span>}
                 </div>
 
-                <div className="space-y-2">
-                  <h3 className="label">Roles</h3>
-                  {member.roles.length === 0 ? (
-                    <p className="text-sm text-black/45 dark:text-white/45">No roles in this view.</p>
-                  ) : (
-                    <ul className="flex flex-wrap gap-1.5">
-                      {member.roles.map((role) => (
-                        <li key={role.roleName}>
-                          <Link
-                            href="/roles"
-                            className="chip hover:opacity-90"
-                            title={formatResponsibilitiesTooltip(role.responsibilities)}
-                            style={{
-                              backgroundColor: role.color,
-                              color: contrastingTextColor(role.color),
-                            }}
-                          >
-                            {role.roleName}
-                          </Link>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  <h3 className="label">Groupings</h3>
-                  {member.groupings.length === 0 ? (
+                <div className="space-y-3">
+                  <h3 className="label">Roles and Groupings</h3>
+                  {!hasContent ? (
                     <p className="text-sm text-black/45 dark:text-white/45">
-                      Not placed in any grouping.
+                      No roles or grouping placements in this view.
                     </p>
                   ) : (
-                    <ul className="space-y-3">
-                      {member.groupings.map((grouping) => (
-                        <li
-                          key={`${grouping.groupingId}-${grouping.containerIndex}`}
-                          className="rounded-lg border border-black/5 dark:border-white/10 p-3"
-                        >
-                          <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-                            <Link
-                              href={`/groupings?grouping=${grouping.groupingId}`}
-                              className="text-sm font-medium hover:underline"
-                            >
-                              {grouping.groupingName}
-                            </Link>
-                            <span className="text-xs text-black/45 dark:text-white/45">
-                              {grouping.containerTitle}
-                            </span>
-                          </div>
-                          {grouping.students.length === 0 ? (
-                            <p className="mt-2 text-xs text-black/45 dark:text-white/45">
-                              No students in this container.
-                            </p>
-                          ) : (
-                            <ul className="mt-2 flex flex-wrap gap-1.5">
-                              {grouping.students.map((student) => (
-                                <li key={student.id}>
-                                  <StudentChip student={student} />
-                                </li>
-                              ))}
-                            </ul>
-                          )}
-                        </li>
-                      ))}
-                    </ul>
+                    <div className="space-y-3">
+                      {standaloneRoles.length > 0 && (
+                        <ul className="flex flex-wrap gap-1.5">
+                          {standaloneRoles.map((role) => (
+                            <li key={role.roleName}>
+                              <RoleChip role={role} />
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+
+                      {member.groupings.length > 0 && (
+                        <ul className="space-y-3">
+                          {member.groupings.map((grouping) => {
+                            const associatedRole =
+                              roleForName(member.roles, grouping.associatedRoleName) ??
+                              (grouping.associatedRoleName
+                                ? {
+                                    roleName: grouping.associatedRoleName,
+                                    color: "#e5e7eb",
+                                    responsibilities: [] as string[],
+                                  }
+                                : null);
+
+                            return (
+                              <li
+                                key={`${grouping.groupingId}-${grouping.containerIndex}`}
+                                className="rounded-lg border border-black/5 dark:border-white/10 p-3"
+                              >
+                                <div className="flex items-start gap-3">
+                                  <div className={ROLE_CHIP_COLUMN_CLASS}>
+                                    {associatedRole ? <RoleChip role={associatedRole} /> : null}
+                                  </div>
+                                  <div className="min-w-0 flex-1">
+                                    <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                                      <Link
+                                        href={`/groupings?grouping=${grouping.groupingId}`}
+                                        className="text-sm font-medium hover:underline"
+                                      >
+                                        {grouping.groupingName}
+                                      </Link>
+                                      <span className="text-xs text-black/45 dark:text-white/45">
+                                        {grouping.containerTitle}
+                                      </span>
+                                    </div>
+                                    {grouping.students.length === 0 ? (
+                                      <p className="mt-2 text-xs text-black/45 dark:text-white/45">
+                                        No students in this container.
+                                      </p>
+                                    ) : (
+                                      <ul className="mt-2 flex flex-wrap gap-1.5">
+                                        {grouping.students.map((student) => (
+                                          <li key={student.id}>
+                                            <StudentChip student={student} />
+                                          </li>
+                                        ))}
+                                      </ul>
+                                    )}
+                                  </div>
+                                </div>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      )}
+                    </div>
                   )}
                 </div>
               </section>

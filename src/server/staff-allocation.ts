@@ -34,6 +34,8 @@ export type StaffAllocationGrouping = {
   groupingName: string;
   containerTitle: string;
   containerIndex: number;
+  /** Role display name associated with this staff placement, if any. */
+  associatedRoleName: string | null;
   students: StaffAllocationPerson[];
 };
 
@@ -178,6 +180,7 @@ export async function getStaffAllocationForView(
           groupingName: grouping.name,
           containerTitle,
           containerIndex,
+          associatedRoleName: staffRef.associatedRoleName ?? null,
           students: containerStudents,
         });
       }

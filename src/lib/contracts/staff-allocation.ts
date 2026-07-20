@@ -24,6 +24,7 @@ export const staffAllocationInsightsBody = z.object({
             groupingName: z.string(),
             containerTitle: z.string(),
             containerIndex: z.number().int(),
+            associatedRoleName: z.string().nullable().optional().default(null),
             students: z.array(
               z.object({
                 id: z.number().int(),

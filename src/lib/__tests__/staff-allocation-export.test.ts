@@ -29,6 +29,7 @@ describe("staff allocation export", () => {
             groupingName: "Fall Small Groups",
             containerTitle: "Group A",
             containerIndex: 0,
+            associatedRoleName: null,
             students: [
               { id: 101, firstName: "Jane", lastName: "Doe", statuses: ["engaged"] },
               { id: 102, firstName: "Alex", lastName: "Kim", statuses: ["active"] },
