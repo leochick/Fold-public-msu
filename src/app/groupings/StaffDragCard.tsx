@@ -153,7 +153,7 @@ export default function StaffDragCard({
           ref={menuRef}
           role="menu"
           style={{ position: "fixed", top: menuPos.top, right: menuPos.right, zIndex: 50 }}
-          className="card min-w-40 p-1 shadow-lg"
+          className="min-w-40 rounded-xl border border-black/10 dark:border-white/10 bg-white dark:bg-zinc-900 p-1 shadow-lg"
         >
           <button
             type="button"
