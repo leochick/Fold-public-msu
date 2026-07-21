@@ -21,6 +21,8 @@ export default function ContainerCard({
   visibleStudentIds,
   activeDragEntity,
   onTitleChange,
+  onLocationChange,
+  onTimeChange,
   onInsertItemAt,
   onDragEntityStart,
   onDragEntityEnd,
@@ -38,6 +40,8 @@ export default function ContainerCard({
   visibleStudentIds: Set<number>;
   activeDragEntity: GroupingDragEntity | null;
   onTitleChange: (index: number, title: string) => void;
+  onLocationChange: (index: number, location: string) => void;
+  onTimeChange: (index: number, time: string) => void;
   onInsertItemAt: (containerIndex: number, item: GroupingContainerItem, insertAt: number) => void;
   onDragEntityStart: (entity: GroupingDragEntity) => void;
   onDragEntityEnd: () => void;
@@ -50,6 +54,11 @@ export default function ContainerCard({
 }) {
   const [insertAtIndex, setInsertAtIndex] = useState<number | null>(null);
   const insertAtIndexRef = useRef<number | null>(null);
+  const [editingLocation, setEditingLocation] = useState(false);
+  const [editingTime, setEditingTime] = useState(false);
+
+  const showLocationInput = editingLocation || Boolean(container.location?.trim());
+  const showTimeInput = editingTime || Boolean(container.time?.trim());
 
   const { students: studentCount, staff: staffCount } = countContainerItems(container.items);
 
@@ -164,6 +173,51 @@ export default function ContainerCard({
         >
           ✕
         </button>
+      </div>
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        {showLocationInput ? (
+          <input
+            type="text"
+            className="input flex-1 min-w-[6rem] text-xs py-1"
+            placeholder="Location"
+            aria-label={`Location for ${container.title.trim() || `container ${containerIndex + 1}`}`}
+            value={container.location ?? ""}
+            autoFocus={editingLocation}
+            onChange={(event) => onLocationChange(containerIndex, event.target.value)}
+            onBlur={() => {
+              if (!container.location?.trim()) setEditingLocation(false);
+            }}
+          />
+        ) : (
+          <button
+            type="button"
+            className="btn-ghost px-1.5 py-0.5 text-xs leading-none text-black/50 dark:text-white/50 hover:text-black/70 dark:hover:text-white/70"
+            onClick={() => setEditingLocation(true)}
+          >
+            + Loc
+          </button>
+        )}
+        {showTimeInput ? (
+          <input
+            type="datetime-local"
+            className="input flex-1 min-w-[10rem] text-xs py-1"
+            aria-label={`Time for ${container.title.trim() || `container ${containerIndex + 1}`}`}
+            value={container.time ?? ""}
+            autoFocus={editingTime}
+            onChange={(event) => onTimeChange(containerIndex, event.target.value)}
+            onBlur={() => {
+              if (!container.time?.trim()) setEditingTime(false);
+            }}
+          />
+        ) : (
+          <button
+            type="button"
+            className="btn-ghost px-1.5 py-0.5 text-xs leading-none text-black/50 dark:text-white/50 hover:text-black/70 dark:hover:text-white/70"
+            onClick={() => setEditingTime(true)}
+          >
+            + Time
+          </button>
+        )}
       </div>
       <div
         className={`rounded-lg border border-dashed p-2 min-h-[6rem] transition-colors ${

@@ -2,10 +2,18 @@ import type { GroupingContainerData, GroupingContainerItem } from "../../drizzle
 
 type LegacyGroupingContainer = {
   title?: string;
+  location?: string;
+  time?: string;
   studentIds?: number[];
   staffIds?: number[];
   items?: GroupingContainerItem[];
 };
+
+function normalizeOptionalText(value: unknown): string | undefined {
+  if (typeof value !== "string") return undefined;
+  const trimmed = value.trim();
+  return trimmed || undefined;
+}
 
 function isValidItem(item: unknown): item is GroupingContainerItem {
   if (!item || typeof item !== "object") return false;
@@ -41,9 +49,17 @@ function dedupeItems(items: GroupingContainerItem[]): GroupingContainerItem[] {
 
 export function normalizeGroupingContainer(raw: LegacyGroupingContainer): GroupingContainerData {
   const title = raw.title ?? "";
+  const location = normalizeOptionalText(raw.location);
+  const time = normalizeOptionalText(raw.time);
+  const meta = {
+    ...(location ? { location } : {}),
+    ...(time ? { time } : {}),
+  };
+
   if (Array.isArray(raw.items)) {
     return {
       title,
+      ...meta,
       items: dedupeItems(raw.items.filter(isValidItem)),
     };
   }
@@ -57,6 +73,7 @@ export function normalizeGroupingContainer(raw: LegacyGroupingContainer): Groupi
 
   return {
     title,
+    ...meta,
     items: dedupeItems([
       ...staffIds.map((id) => ({ entity: "staff" as const, id })),
       ...studentIds.map((id) => ({ entity: "student" as const, id })),

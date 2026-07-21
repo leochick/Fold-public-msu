@@ -25,4 +25,34 @@ describe("normalizeGroupingContainers", () => {
       },
     ]);
   });
+
+  it("preserves location and time and drops blank values", () => {
+    const containers = normalizeGroupingContainers([
+      {
+        title: "Group A",
+        location: "  Student Center  ",
+        time: "2026-07-21T18:30",
+        items: [{ entity: "student", id: 1 }],
+      },
+      {
+        title: "Group B",
+        location: "   ",
+        time: "",
+        items: [],
+      },
+    ]);
+
+    expect(containers).toEqual([
+      {
+        title: "Group A",
+        location: "Student Center",
+        time: "2026-07-21T18:30",
+        items: [{ entity: "student", id: 1 }],
+      },
+      {
+        title: "Group B",
+        items: [],
+      },
+    ]);
+  });
 });

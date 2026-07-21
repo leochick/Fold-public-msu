@@ -14,6 +14,8 @@ function assertContainers(containers: GroupingContainerData[]): GroupingContaine
   }
   return normalized.map((container) => ({
     title: container.title.trim(),
+    ...(container.location ? { location: container.location } : {}),
+    ...(container.time ? { time: container.time } : {}),
     items: container.items,
   }));
 }

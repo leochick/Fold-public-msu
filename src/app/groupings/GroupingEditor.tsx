@@ -473,6 +473,34 @@ export default function GroupingEditor({
     );
   }
 
+  function updateContainerLocation(index: number, location: string) {
+    setContainers((current) =>
+      current.map((container, containerIndex) => {
+        if (containerIndex !== index) return container;
+        if (!location.trim()) {
+          const next = { ...container };
+          delete next.location;
+          return next;
+        }
+        return { ...container, location };
+      })
+    );
+  }
+
+  function updateContainerTime(index: number, time: string) {
+    setContainers((current) =>
+      current.map((container, containerIndex) => {
+        if (containerIndex !== index) return container;
+        if (!time.trim()) {
+          const next = { ...container };
+          delete next.time;
+          return next;
+        }
+        return { ...container, time };
+      })
+    );
+  }
+
   function removeContainer(index: number) {
     setContainers((current) => current.filter((_, containerIndex) => containerIndex !== index));
     setDeleteContainerIndex(null);
@@ -728,6 +756,8 @@ export default function GroupingEditor({
                 visibleStudentIds={visibleStudentIds}
                 activeDragEntity={activeDragEntity}
                 onTitleChange={updateContainerTitle}
+                onLocationChange={updateContainerLocation}
+                onTimeChange={updateContainerTime}
                 onInsertItemAt={(containerIndex, item, insertAt) => {
                   setDragOverZone(null);
                   insertItemAt(containerIndex, item, insertAt);

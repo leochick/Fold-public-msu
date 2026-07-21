@@ -223,6 +223,10 @@ export type GroupingContainerItem = {
 
 export type GroupingContainerData = {
   title: string;
+  /** Optional meeting location for this container. */
+  location?: string;
+  /** Optional meeting datetime (`YYYY-MM-DDTHH:mm` for datetime-local). */
+  time?: string;
   items: GroupingContainerItem[];
 };
 
