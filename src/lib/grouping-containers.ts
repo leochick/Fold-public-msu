@@ -9,10 +9,30 @@ type LegacyGroupingContainer = {
   items?: GroupingContainerItem[];
 };
 
+export const GROUPING_CONTAINER_DAYS = [
+  "Sunday",
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+] as const;
+
+export type GroupingContainerDay = (typeof GROUPING_CONTAINER_DAYS)[number];
+
+const GROUPING_CONTAINER_DAY_SET = new Set<string>(GROUPING_CONTAINER_DAYS);
+
 function normalizeOptionalText(value: unknown): string | undefined {
   if (typeof value !== "string") return undefined;
   const trimmed = value.trim();
   return trimmed || undefined;
+}
+
+function normalizeContainerDay(value: unknown): GroupingContainerDay | undefined {
+  const trimmed = normalizeOptionalText(value);
+  if (!trimmed || !GROUPING_CONTAINER_DAY_SET.has(trimmed)) return undefined;
+  return trimmed as GroupingContainerDay;
 }
 
 function isValidItem(item: unknown): item is GroupingContainerItem {
@@ -50,7 +70,7 @@ function dedupeItems(items: GroupingContainerItem[]): GroupingContainerItem[] {
 export function normalizeGroupingContainer(raw: LegacyGroupingContainer): GroupingContainerData {
   const title = raw.title ?? "";
   const location = normalizeOptionalText(raw.location);
-  const time = normalizeOptionalText(raw.time);
+  const time = normalizeContainerDay(raw.time);
   const meta = {
     ...(location ? { location } : {}),
     ...(time ? { time } : {}),

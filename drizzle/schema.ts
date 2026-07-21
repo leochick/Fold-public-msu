@@ -225,7 +225,7 @@ export type GroupingContainerData = {
   title: string;
   /** Optional meeting location for this container. */
   location?: string;
-  /** Optional meeting datetime (`YYYY-MM-DDTHH:mm` for datetime-local). */
+  /** Optional meeting day of week (e.g. "Monday"). */
   time?: string;
   items: GroupingContainerItem[];
 };

@@ -31,7 +31,7 @@ describe("normalizeGroupingContainers", () => {
       {
         title: "Group A",
         location: "  Student Center  ",
-        time: "2026-07-21T18:30",
+        time: "Monday",
         items: [{ entity: "student", id: 1 }],
       },
       {
@@ -40,17 +40,26 @@ describe("normalizeGroupingContainers", () => {
         time: "",
         items: [],
       },
+      {
+        title: "Group C",
+        time: "2026-07-21T18:30",
+        items: [],
+      },
     ]);
 
     expect(containers).toEqual([
       {
         title: "Group A",
         location: "Student Center",
-        time: "2026-07-21T18:30",
+        time: "Monday",
         items: [{ entity: "student", id: 1 }],
       },
       {
         title: "Group B",
+        items: [],
+      },
+      {
+        title: "Group C",
         items: [],
       },
     ]);

@@ -3,7 +3,7 @@
 import { Fragment, useRef, useState, type DragEvent } from "react";
 import type { GroupingContainerData, GroupingContainerItem } from "../../../drizzle/schema";
 import { readGroupingDragData, type GroupingDragEntity } from "@/lib/grouping-drag";
-import { countContainerItems } from "@/lib/grouping-containers";
+import { countContainerItems, GROUPING_CONTAINER_DAYS } from "@/lib/grouping-containers";
 import StudentDragCard, { type StudentCardData } from "./StudentDragCard";
 import StaffDragCard, { type StaffCardData } from "./StaffDragCard";
 import InsertionGap from "./InsertionGap";
@@ -198,17 +198,23 @@ export default function ContainerCard({
           </button>
         )}
         {showTimeInput ? (
-          <input
-            type="datetime-local"
-            className="input flex-1 min-w-[10rem] text-xs py-1"
-            aria-label={`Time for ${container.title.trim() || `container ${containerIndex + 1}`}`}
+          <select
+            className="input flex-1 min-w-[8rem] text-xs py-1"
+            aria-label={`Day for ${container.title.trim() || `container ${containerIndex + 1}`}`}
             value={container.time ?? ""}
             autoFocus={editingTime}
             onChange={(event) => onTimeChange(containerIndex, event.target.value)}
             onBlur={() => {
               if (!container.time?.trim()) setEditingTime(false);
             }}
-          />
+          >
+            <option value="">Day</option>
+            {GROUPING_CONTAINER_DAYS.map((day) => (
+              <option key={day} value={day}>
+                {day}
+              </option>
+            ))}
+          </select>
         ) : (
           <button
             type="button"
