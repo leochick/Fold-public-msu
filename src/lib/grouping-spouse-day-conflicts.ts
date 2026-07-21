@@ -25,8 +25,8 @@ export function buildSpouseByStaffId(staff: StaffSpouseRef[]): Map<number, numbe
 }
 
 /**
- * Spouses conflict when they are placed in different containers that meet on the same day.
- * Containers without a day are ignored.
+ * Spouses conflict when both are placed in containers with days set, and those days differ.
+ * Containers without a day are ignored (no conflict until both sides have a day).
  */
 export function findSpouseDayConflicts(
   containers: GroupingContainerData[],
@@ -58,8 +58,7 @@ export function findSpouseDayConflicts(
     if (spouseId == null) continue;
     const spousePlacement = placementByStaffId.get(spouseId);
     if (!spousePlacement) continue;
-    if (spousePlacement.day !== placement.day) continue;
-    if (spousePlacement.containerIndex === placement.containerIndex) continue;
+    if (spousePlacement.day === placement.day) continue;
 
     staffIds.add(staffId);
     staffIds.add(spouseId);

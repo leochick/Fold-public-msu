@@ -119,74 +119,81 @@ export default function StaffDragCard({
       : null;
 
   return (
-    <div
-      draggable
-      onDragStart={(event) => {
-        setMenuOpen(false);
-        setGroupingDragData(event, dragMeta);
-        onDragStart(staff.id);
-      }}
-      onDragEnd={() => onDragEnd?.()}
-      onDragEnter={(event) => {
-        if (!onDragEnterCard) return;
-        event.preventDefault();
-        const rect = event.currentTarget.getBoundingClientRect();
-        onDragEnterCard(event.clientY < rect.top + rect.height / 2);
-      }}
-      onDragOver={(event) => {
-        if (!onDragEnterCard) return;
-        event.preventDefault();
-        event.dataTransfer.dropEffect = "move";
-        const rect = event.currentTarget.getBoundingClientRect();
-        onDragEnterCard(event.clientY < rect.top + rect.height / 2);
-      }}
-      onDrop={(event) => {
-        if (!onDropOnCard) return;
-        const meta = readGroupingDragData(event);
-        if (!meta || meta.entity !== "staff" || meta.id === staff.id) return;
-        event.preventDefault();
-        event.stopPropagation();
-        onDropOnCard(event);
-      }}
-      className={`rounded-lg border p-2 cursor-grab active:cursor-grabbing shadow-sm bg-black/[0.03] dark:bg-white/[0.04] ${
-        hasSpouseDayConflict ? "border-dotted border-red-500 dark:border-red-400" : ""
-      }`}
-    >
-      <div className="flex items-start gap-1">
-        <div className="min-w-0 flex-1">
-          <Link
-            href={`/staff/${staff.id}`}
-            draggable={false}
-            onDragStart={(event) => event.preventDefault()}
-            className={`text-sm font-medium hover:underline ${nameClass}`}
-          >
-            {fullName}
-          </Link>
-          {associatedRoleName ? (
-            <p className="mt-1 text-xs italic text-black/60 dark:text-white/60">
-              {associatedRoleName}
-            </p>
-          ) : null}
+    <div>
+      <div
+        draggable
+        onDragStart={(event) => {
+          setMenuOpen(false);
+          setGroupingDragData(event, dragMeta);
+          onDragStart(staff.id);
+        }}
+        onDragEnd={() => onDragEnd?.()}
+        onDragEnter={(event) => {
+          if (!onDragEnterCard) return;
+          event.preventDefault();
+          const rect = event.currentTarget.getBoundingClientRect();
+          onDragEnterCard(event.clientY < rect.top + rect.height / 2);
+        }}
+        onDragOver={(event) => {
+          if (!onDragEnterCard) return;
+          event.preventDefault();
+          event.dataTransfer.dropEffect = "move";
+          const rect = event.currentTarget.getBoundingClientRect();
+          onDragEnterCard(event.clientY < rect.top + rect.height / 2);
+        }}
+        onDrop={(event) => {
+          if (!onDropOnCard) return;
+          const meta = readGroupingDragData(event);
+          if (!meta || meta.entity !== "staff" || meta.id === staff.id) return;
+          event.preventDefault();
+          event.stopPropagation();
+          onDropOnCard(event);
+        }}
+        className={`rounded-lg border p-2 cursor-grab active:cursor-grabbing shadow-sm bg-black/[0.03] dark:bg-white/[0.04] ${
+          hasSpouseDayConflict ? "border-dotted border-red-500 dark:border-red-400" : ""
+        }`}
+      >
+        <div className="flex items-start gap-1">
+          <div className="min-w-0 flex-1">
+            <Link
+              href={`/staff/${staff.id}`}
+              draggable={false}
+              onDragStart={(event) => event.preventDefault()}
+              className={`text-sm font-medium hover:underline ${nameClass}`}
+            >
+              {fullName}
+            </Link>
+            {associatedRoleName ? (
+              <p className="mt-1 text-xs italic text-black/60 dark:text-white/60">
+                {associatedRoleName}
+              </p>
+            ) : null}
+          </div>
+          {showActions && (
+            <button
+              ref={btnRef}
+              type="button"
+              draggable={false}
+              onMouseDown={(event) => {
+                event.stopPropagation();
+              }}
+              onClick={toggleMenu}
+              aria-label={`Actions for ${fullName}`}
+              aria-haspopup="menu"
+              aria-expanded={menuOpen}
+              className="btn-ghost shrink-0 px-1.5 py-0.5 leading-none text-black/45 dark:text-white/45 hover:text-black/70 dark:hover:text-white/70"
+            >
+              ⋮
+            </button>
+          )}
         </div>
-        {showActions && (
-          <button
-            ref={btnRef}
-            type="button"
-            draggable={false}
-            onMouseDown={(event) => {
-              event.stopPropagation();
-            }}
-            onClick={toggleMenu}
-            aria-label={`Actions for ${fullName}`}
-            aria-haspopup="menu"
-            aria-expanded={menuOpen}
-            className="btn-ghost shrink-0 px-1.5 py-0.5 leading-none text-black/45 dark:text-white/45 hover:text-black/70 dark:hover:text-white/70"
-          >
-            ⋮
-          </button>
-        )}
+        {menu}
       </div>
-      {menu}
+      {hasSpouseDayConflict ? (
+        <p className="mt-1 px-0.5 text-[10px] leading-tight text-red-600 dark:text-red-400">
+          Conflicting day with spouse
+        </p>
+      ) : null}
     </div>
   );
 }

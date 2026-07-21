@@ -9,10 +9,10 @@ describe("findSpouseDayConflicts", () => {
     { id: 3, spouseId: null },
   ];
 
-  it("flags spouses in different containers on the same day", () => {
+  it("flags spouses on different days", () => {
     const containers: GroupingContainerData[] = [
-      { title: "A", time: "Monday", items: [{ entity: "staff", id: 1 }] },
-      { title: "B", time: "Monday", items: [{ entity: "staff", id: 2 }] },
+      { title: "A", time: "Wednesday", items: [{ entity: "staff", id: 1 }] },
+      { title: "B", time: "Tuesday", items: [{ entity: "staff", id: 2 }] },
     ];
 
     const result = findSpouseDayConflicts(containers, staff);
@@ -20,10 +20,10 @@ describe("findSpouseDayConflicts", () => {
     expect([...result.containerIndexes].sort()).toEqual([0, 1]);
   });
 
-  it("does not flag spouses on different days", () => {
+  it("does not flag spouses on the same day", () => {
     const containers: GroupingContainerData[] = [
       { title: "A", time: "Monday", items: [{ entity: "staff", id: 1 }] },
-      { title: "B", time: "Tuesday", items: [{ entity: "staff", id: 2 }] },
+      { title: "B", time: "Monday", items: [{ entity: "staff", id: 2 }] },
     ];
 
     const result = findSpouseDayConflicts(containers, staff);
@@ -49,7 +49,7 @@ describe("findSpouseDayConflicts", () => {
 
   it("ignores containers without a day", () => {
     const containers: GroupingContainerData[] = [
-      { title: "A", items: [{ entity: "staff", id: 1 }] },
+      { title: "A", time: "Monday", items: [{ entity: "staff", id: 1 }] },
       { title: "B", items: [{ entity: "staff", id: 2 }] },
     ];
 
@@ -60,7 +60,7 @@ describe("findSpouseDayConflicts", () => {
   it("resolves one-sided spouse links", () => {
     const containers: GroupingContainerData[] = [
       { title: "A", time: "Friday", items: [{ entity: "staff", id: 10 }] },
-      { title: "B", time: "Friday", items: [{ entity: "staff", id: 11 }] },
+      { title: "B", time: "Saturday", items: [{ entity: "staff", id: 11 }] },
     ];
 
     const result = findSpouseDayConflicts(containers, [
