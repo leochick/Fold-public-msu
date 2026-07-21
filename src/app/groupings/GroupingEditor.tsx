@@ -30,6 +30,7 @@ import type { GroupingExportMember, GroupingExportSnapshot } from "@/lib/groupin
 import { findSpouseDayConflicts } from "@/lib/grouping-spouse-day-conflicts";
 import AssociateRoleModal, { type StaffRoleOption } from "./AssociateRoleModal";
 import ContainerCard from "./ContainerCard";
+import ContainerInsertGap from "./ContainerInsertGap";
 import DeleteContainerModal from "./DeleteContainerModal";
 import { useGroupingExport } from "./GroupingExport";
 import StudentDragCard, { type StudentCardData } from "./StudentDragCard";
@@ -51,6 +52,21 @@ function matchesNameSearch(
   if (!normalized) return true;
   const fullName = `${person.firstName} ${person.lastName ?? ""}`.trim().toLowerCase();
   return fullName.includes(normalized);
+}
+
+function createContainerKey() {
+  return `container-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function remapIndexAfterReorder(
+  index: number,
+  fromIndex: number,
+  toIndex: number
+): number {
+  if (index === fromIndex) return toIndex;
+  if (fromIndex < toIndex && index > fromIndex && index <= toIndex) return index - 1;
+  if (fromIndex > toIndex && index >= toIndex && index < fromIndex) return index + 1;
+  return index;
 }
 
 export type StaffRoleEntry = StaffRoleOption & {
@@ -77,6 +93,9 @@ export default function GroupingEditor({
     grouping.includeNewsletterContacts
   );
   const [containers, setContainers] = useState<GroupingContainerData[]>(grouping.containers);
+  const [containerKeys, setContainerKeys] = useState(() =>
+    grouping.containers.map(() => createContainerKey())
+  );
   const [studentFilters, setStudentFilters] = useState<GroupingStudentFilters>(
     EMPTY_GROUPING_STUDENT_FILTERS
   );
@@ -84,6 +103,10 @@ export default function GroupingEditor({
   const [staffSearch, setStaffSearch] = useState("");
   const [activeDragEntity, setActiveDragEntity] = useState<GroupingDragEntity | null>(null);
   const [dragOverZone, setDragOverZone] = useState<string | null>(null);
+  const [containerDragFromIndex, setContainerDragFromIndex] = useState<number | null>(null);
+  const [containerDropInsertIndex, setContainerDropInsertIndex] = useState<number | null>(null);
+  const containerDragFromIndexRef = useRef<number | null>(null);
+  const containerDropInsertIndexRef = useRef<number | null>(null);
   const [deleteContainerIndex, setDeleteContainerIndex] = useState<number | null>(null);
   const [associateRoleTarget, setAssociateRoleTarget] = useState<{
     containerIndex: number;
@@ -107,6 +130,9 @@ export default function GroupingEditor({
     setCheckedEventIds(grouping.checkedEventIds);
     setIncludeNewsletterContacts(grouping.includeNewsletterContacts);
     setContainers(grouping.containers);
+    setContainerKeys(grouping.containers.map(() => createContainerKey()));
+    setContainerDragFromIndex(null);
+    setContainerDropInsertIndex(null);
     setDeleteContainerIndex(null);
     setAssociateRoleTarget(null);
   }, [grouping.id]);
@@ -215,8 +241,11 @@ export default function GroupingEditor({
       viewTo: grouping.viewTo,
       eventSelectionLabel: formatGroupingEventSelection(checkedEventIds, eventNameById),
       eventNames,
-      groups: containers.map((container) => ({
+      groups: containers.map((container, containerIndex) => ({
         title: container.title,
+        location: container.location,
+        day: container.time,
+        hasSpouseDayConflict: spouseDayConflicts.containerIndexes.has(containerIndex),
         members: container.items.flatMap((item): GroupingExportMember[] => {
           if (item.entity === "student") {
             const student = studentsFullById.get(item.id);
@@ -251,6 +280,7 @@ export default function GroupingEditor({
               newsletter: null,
               groupme: null,
               attendanceCountInRange: null,
+              hasSpouseDayConflict: spouseDayConflicts.staffIds.has(item.id),
             },
           ];
         }),
@@ -266,6 +296,8 @@ export default function GroupingEditor({
     grouping.viewName,
     grouping.viewTo,
     includeNewsletterContacts,
+    spouseDayConflicts.containerIndexes,
+    spouseDayConflicts.staffIds,
     staffById,
     studentsFullById,
   ]);
@@ -364,6 +396,7 @@ export default function GroupingEditor({
   }
 
   function beginDrag(entity: GroupingDragEntity) {
+    clearContainerReorderState();
     setActiveDragEntity(entity);
     setDragOverZone(null);
   }
@@ -473,6 +506,7 @@ export default function GroupingEditor({
 
   function addContainer() {
     setContainers((current) => [...current, { title: "", items: [] }]);
+    setContainerKeys((current) => [...current, createContainerKey()]);
   }
 
   function updateContainerTitle(index: number, title: string) {
@@ -513,6 +547,7 @@ export default function GroupingEditor({
 
   function removeContainer(index: number) {
     setContainers((current) => current.filter((_, containerIndex) => containerIndex !== index));
+    setContainerKeys((current) => current.filter((_, containerIndex) => containerIndex !== index));
     setDeleteContainerIndex(null);
     setAssociateRoleTarget((current) => {
       if (!current) return null;
@@ -523,6 +558,90 @@ export default function GroupingEditor({
       return current;
     });
   }
+
+  function clearContainerReorderState() {
+    containerDragFromIndexRef.current = null;
+    containerDropInsertIndexRef.current = null;
+    setContainerDragFromIndex(null);
+    setContainerDropInsertIndex(null);
+  }
+
+  function beginContainerReorder(fromIndex: number) {
+    setActiveDragEntity(null);
+    setDragOverZone(null);
+    // Refs update synchronously so dragover/drop work before React re-renders.
+    containerDragFromIndexRef.current = fromIndex;
+    containerDropInsertIndexRef.current = fromIndex;
+    setContainerDragFromIndex(fromIndex);
+    setContainerDropInsertIndex(fromIndex);
+  }
+
+  function setContainerReorderInsertIndex(nextInsert: number) {
+    if (containerDropInsertIndexRef.current === nextInsert) return;
+    containerDropInsertIndexRef.current = nextInsert;
+    setContainerDropInsertIndex(nextInsert);
+  }
+
+  function reorderContainers(fromIndex: number, toIndex: number) {
+    if (fromIndex === toIndex) return;
+    setContainers((current) => {
+      if (
+        fromIndex < 0 ||
+        toIndex < 0 ||
+        fromIndex >= current.length ||
+        toIndex >= current.length
+      ) {
+        return current;
+      }
+      const next = [...current];
+      const [moved] = next.splice(fromIndex, 1);
+      next.splice(toIndex, 0, moved);
+      return next;
+    });
+    setContainerKeys((current) => {
+      if (
+        fromIndex < 0 ||
+        toIndex < 0 ||
+        fromIndex >= current.length ||
+        toIndex >= current.length
+      ) {
+        return current;
+      }
+      const next = [...current];
+      const [moved] = next.splice(fromIndex, 1);
+      next.splice(toIndex, 0, moved);
+      return next;
+    });
+    setDeleteContainerIndex((current) =>
+      current == null ? null : remapIndexAfterReorder(current, fromIndex, toIndex)
+    );
+    setAssociateRoleTarget((current) => {
+      if (!current) return null;
+      return {
+        ...current,
+        containerIndex: remapIndexAfterReorder(current.containerIndex, fromIndex, toIndex),
+      };
+    });
+  }
+
+  function commitContainerReorder() {
+    const fromIndex = containerDragFromIndexRef.current;
+    const dropInsertIndex = containerDropInsertIndexRef.current;
+    if (fromIndex == null || dropInsertIndex == null) {
+      clearContainerReorderState();
+      return;
+    }
+    const toIndex = dropInsertIndex > fromIndex ? dropInsertIndex - 1 : dropInsertIndex;
+    reorderContainers(fromIndex, toIndex);
+    clearContainerReorderState();
+  }
+
+  const isContainerReorderActive = containerDragFromIndex != null;
+  const showContainerInsertGap =
+    containerDragFromIndex != null &&
+    containerDropInsertIndex != null &&
+    containerDropInsertIndex !== containerDragFromIndex &&
+    containerDropInsertIndex !== containerDragFromIndex + 1;
 
   const statusLabel =
     saveStatus === "saving" || isPending
@@ -756,38 +875,80 @@ export default function GroupingEditor({
 
         <div className="flex-1 min-w-0">
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 items-start">
-            {containers.map((container, index) => (
-              <ContainerCard
-                key={index}
-                container={container}
-                containerIndex={index}
-                studentsById={studentsById}
-                staffById={staffById}
-                visibleStudentIds={visibleStudentIds}
-                activeDragEntity={activeDragEntity}
-                onTitleChange={updateContainerTitle}
-                onLocationChange={updateContainerLocation}
-                onTimeChange={updateContainerTime}
-                onInsertItemAt={(containerIndex, item, insertAt) => {
-                  setDragOverZone(null);
-                  insertItemAt(containerIndex, item, insertAt);
-                }}
-                onDragEntityStart={beginDrag}
-                onDragEntityEnd={endDrag}
-                onDragStart={handleDragStart}
-                isDragOver={dragOverZone === `container-${index}`}
-                onDragEnter={() => setDragOverZone(`container-${index}`)}
-                onDragLeave={() =>
-                  setDragOverZone((zone) => (zone === `container-${index}` ? null : zone))
-                }
-                onRequestDelete={setDeleteContainerIndex}
-                onAssociateStaffRole={(containerIndex, staffId) =>
-                  setAssociateRoleTarget({ containerIndex, staffId })
-                }
-                spouseDayConflictStaffIds={spouseDayConflicts.staffIds}
-                hasSpouseDayConflict={spouseDayConflicts.containerIndexes.has(index)}
-              />
-            ))}
+            {containers.map((container, index) => {
+              const showInsertBefore =
+                showContainerInsertGap && containerDropInsertIndex === index;
+              const showInsertAfter =
+                showContainerInsertGap &&
+                containerDropInsertIndex === containers.length &&
+                index === containers.length - 1;
+
+              return (
+                <div key={containerKeys[index] ?? `fallback-${index}`} className="relative min-w-0">
+                  <ContainerInsertGap
+                    show={showInsertBefore}
+                    edge="before"
+                    active={isContainerReorderActive}
+                    onDragOver={() => {
+                      if (containerDragFromIndexRef.current == null) return;
+                      setContainerReorderInsertIndex(index);
+                    }}
+                    onDrop={commitContainerReorder}
+                  />
+                  <ContainerCard
+                    container={container}
+                    containerIndex={index}
+                    studentsById={studentsById}
+                    staffById={staffById}
+                    visibleStudentIds={visibleStudentIds}
+                    activeDragEntity={activeDragEntity}
+                    onTitleChange={updateContainerTitle}
+                    onLocationChange={updateContainerLocation}
+                    onTimeChange={updateContainerTime}
+                    onInsertItemAt={(containerIndex, item, insertAt) => {
+                      setDragOverZone(null);
+                      insertItemAt(containerIndex, item, insertAt);
+                    }}
+                    onDragEntityStart={beginDrag}
+                    onDragEntityEnd={endDrag}
+                    onDragStart={handleDragStart}
+                    isDragOver={dragOverZone === `container-${index}`}
+                    onDragEnter={() => setDragOverZone(`container-${index}`)}
+                    onDragLeave={() =>
+                      setDragOverZone((zone) => (zone === `container-${index}` ? null : zone))
+                    }
+                    onRequestDelete={setDeleteContainerIndex}
+                    onAssociateStaffRole={(containerIndex, staffId) =>
+                      setAssociateRoleTarget({ containerIndex, staffId })
+                    }
+                    spouseDayConflictStaffIds={spouseDayConflicts.staffIds}
+                    hasSpouseDayConflict={spouseDayConflicts.containerIndexes.has(index)}
+                    isContainerDragging={containerDragFromIndex === index}
+                    isContainerReorderActive={() => containerDragFromIndexRef.current != null}
+                    onContainerReorderDragStart={beginContainerReorder}
+                    onContainerReorderDragOver={(overIndex, insertBefore) => {
+                      if (containerDragFromIndexRef.current == null) return;
+                      const nextInsert = insertBefore ? overIndex : overIndex + 1;
+                      setContainerReorderInsertIndex(nextInsert);
+                    }}
+                    onContainerReorderDrop={commitContainerReorder}
+                    onContainerReorderDragEnd={clearContainerReorderState}
+                  />
+                  {index === containers.length - 1 && (
+                    <ContainerInsertGap
+                      show={showInsertAfter}
+                      edge="after"
+                      active={isContainerReorderActive}
+                      onDragOver={() => {
+                        if (containerDragFromIndexRef.current == null) return;
+                        setContainerReorderInsertIndex(containers.length);
+                      }}
+                      onDrop={commitContainerReorder}
+                    />
+                  )}
+                </div>
+              );
+            })}
             <button
               type="button"
               className="card min-h-[10rem] flex items-center justify-center text-2xl text-black/40 dark:text-white/40 hover:text-accent hover:border-accent/30 transition-colors self-start w-full"

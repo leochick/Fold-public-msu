@@ -17,10 +17,18 @@ export type GroupingExportMember = {
   newsletter: boolean | null;
   groupme: boolean | null;
   attendanceCountInRange: number | null;
+  /** Staff only — true when this staff member has a spouse day conflict. */
+  hasSpouseDayConflict?: boolean;
 };
 
 export type GroupingExportGroup = {
   title: string;
+  /** Optional meeting day of week (e.g. "Monday"). */
+  day?: string;
+  /** Optional meeting location. */
+  location?: string;
+  /** True when any staff in this group has a spouse day conflict. */
+  hasSpouseDayConflict?: boolean;
   members: GroupingExportMember[];
 };
 
@@ -53,6 +61,8 @@ const META_LABEL_FONT: Partial<ExcelJS.Font> = {
 
 const MEMBER_HEADERS = [
   "Group",
+  "Day",
+  "Location",
   "Position",
   "Type",
   "First Name",
@@ -64,6 +74,7 @@ const MEMBER_HEADERS = [
   "Newsletter",
   "GroupMe",
   "Attendance in View",
+  "Spouse Day Conflict",
 ] as const;
 
 function formatYesNo(value: boolean | null): string {
@@ -119,9 +130,21 @@ function styleDataCell(cell: ExcelJS.Cell, options?: { center?: boolean }) {
   };
 }
 
+function byGroupHeaderLabel(group: GroupingExportGroup, index: number): string {
+  const title = groupDisplayTitle(group.title, index);
+  const details: string[] = [];
+  if (group.day?.trim()) details.push(group.day.trim());
+  if (group.location?.trim()) details.push(group.location.trim());
+  if (group.hasSpouseDayConflict) details.push("Spouse day conflict");
+  if (details.length === 0) return title;
+  return `${title}\n${details.join(" · ")}`;
+}
+
 export function buildGroupingMemberRows(snapshot: GroupingExportSnapshot) {
   const rows: Array<{
     group: string;
+    day: string;
+    location: string;
     position: number;
     type: string;
     firstName: string;
@@ -133,14 +156,19 @@ export function buildGroupingMemberRows(snapshot: GroupingExportSnapshot) {
     newsletter: string;
     groupme: string;
     attendance: number | string;
+    spouseDayConflict: string;
   }> = [];
 
   snapshot.groups.forEach((group, groupIndex) => {
     const title = groupDisplayTitle(group.title, groupIndex);
+    const day = group.day?.trim() ?? "";
+    const location = group.location?.trim() ?? "";
     group.members.forEach((member, memberIndex) => {
       const isStudent = member.entity === "student";
       rows.push({
         group: title,
+        day,
+        location,
         position: memberIndex + 1,
         type: isStudent ? "Student" : "Staff",
         firstName: member.firstName,
@@ -152,6 +180,11 @@ export function buildGroupingMemberRows(snapshot: GroupingExportSnapshot) {
         newsletter: isStudent ? formatYesNo(member.newsletter) : "",
         groupme: isStudent ? formatYesNo(member.groupme) : "",
         attendance: isStudent ? (member.attendanceCountInRange ?? "") : "",
+        spouseDayConflict: isStudent
+          ? ""
+          : member.hasSpouseDayConflict
+            ? "Yes"
+            : "No",
       });
     });
   });
@@ -180,6 +213,14 @@ export async function buildGroupingWorkbook(snapshot: GroupingExportSnapshot): P
     (count, group) => count + group.members.filter((member) => member.entity === "staff").length,
     0
   );
+  const spouseDayConflictStaffCount = snapshot.groups.reduce(
+    (count, group) =>
+      count +
+      group.members.filter(
+        (member) => member.entity === "staff" && member.hasSpouseDayConflict
+      ).length,
+    0
+  );
 
   const summary = workbook.addWorksheet("Summary", {
     views: [{ showGridLines: false }],
@@ -197,6 +238,7 @@ export async function buildGroupingWorkbook(snapshot: GroupingExportSnapshot): P
     ["Groups", snapshot.groups.length],
     ["Students assigned", studentCount],
     ["Staff assigned", staffCount],
+    ["Spouse day conflicts", spouseDayConflictStaffCount],
     ["Exported at", exportedAt],
   ];
 
@@ -212,6 +254,8 @@ export async function buildGroupingWorkbook(snapshot: GroupingExportSnapshot): P
   const members = workbook.addWorksheet("Members");
   members.columns = [
     { key: "group", width: 18 },
+    { key: "day", width: 12 },
+    { key: "location", width: 18 },
     { key: "position", width: 10 },
     { key: "type", width: 10 },
     { key: "firstName", width: 16 },
@@ -223,6 +267,7 @@ export async function buildGroupingWorkbook(snapshot: GroupingExportSnapshot): P
     { key: "newsletter", width: 12 },
     { key: "groupme", width: 12 },
     { key: "attendance", width: 16 },
+    { key: "spouseDayConflict", width: 18 },
   ];
 
   const headerRow = members.getRow(1);
@@ -237,10 +282,13 @@ export async function buildGroupingWorkbook(snapshot: GroupingExportSnapshot): P
   };
 
   const memberRows = buildGroupingMemberRows(snapshot);
+  const centeredColumns = new Set([4, 5, 8, 12, 13, 15]);
   memberRows.forEach((data, index) => {
     const row = members.getRow(index + 2);
     row.values = [
       data.group,
+      data.day,
+      data.location,
       data.position,
       data.type,
       data.firstName,
@@ -252,25 +300,26 @@ export async function buildGroupingWorkbook(snapshot: GroupingExportSnapshot): P
       data.newsletter,
       data.groupme,
       data.attendance,
+      data.spouseDayConflict,
     ];
     row.eachCell({ includeEmpty: true }, (cell, colNumber) => {
       styleDataCell(cell, {
-        center: colNumber === 2 || colNumber === 3 || colNumber === 6 || colNumber === 10 || colNumber === 11,
+        center: centeredColumns.has(colNumber),
       });
     });
   });
 
   const byGroup = workbook.addWorksheet("By Group");
-  const groupTitles = snapshot.groups.map((group, index) => groupDisplayTitle(group.title, index));
   const maxMembers = snapshot.groups.reduce((max, group) => Math.max(max, group.members.length), 0);
 
-  groupTitles.forEach((title, index) => {
+  snapshot.groups.forEach((group, index) => {
     const column = byGroup.getColumn(index + 1);
-    column.width = 22;
+    column.width = 24;
     const headerCell = byGroup.getRow(1).getCell(index + 1);
-    headerCell.value = title;
+    headerCell.value = byGroupHeaderLabel(group, index);
   });
   applyHeaderRow(byGroup.getRow(1));
+  byGroup.getRow(1).height = 36;
   byGroup.views = [{ state: "frozen", ySplit: 1 }];
 
   for (let memberIndex = 0; memberIndex < maxMembers; memberIndex += 1) {
@@ -289,7 +338,7 @@ export async function buildGroupingWorkbook(snapshot: GroupingExportSnapshot): P
     });
   }
 
-  if (groupTitles.length === 0) {
+  if (snapshot.groups.length === 0) {
     byGroup.getColumn(1).width = 22;
     byGroup.getRow(1).getCell(1).value = "No groups";
     applyHeaderRow(byGroup.getRow(1));

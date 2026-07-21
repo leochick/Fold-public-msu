@@ -2,7 +2,12 @@
 
 import { Fragment, useRef, useState, type DragEvent } from "react";
 import type { GroupingContainerData, GroupingContainerItem } from "../../../drizzle/schema";
-import { readGroupingDragData, type GroupingDragEntity } from "@/lib/grouping-drag";
+import {
+  isGroupingContainerDrag,
+  readGroupingDragData,
+  setGroupingContainerDragData,
+  type GroupingDragEntity,
+} from "@/lib/grouping-drag";
 import { countContainerItems, GROUPING_CONTAINER_DAYS } from "@/lib/grouping-containers";
 import StudentDragCard, { type StudentCardData } from "./StudentDragCard";
 import StaffDragCard, { type StaffCardData } from "./StaffDragCard";
@@ -34,6 +39,12 @@ export default function ContainerCard({
   onAssociateStaffRole,
   spouseDayConflictStaffIds,
   hasSpouseDayConflict,
+  isContainerDragging,
+  isContainerReorderActive,
+  onContainerReorderDragStart,
+  onContainerReorderDragOver,
+  onContainerReorderDrop,
+  onContainerReorderDragEnd,
 }: {
   container: GroupingContainerData;
   containerIndex: number;
@@ -55,7 +66,15 @@ export default function ContainerCard({
   onAssociateStaffRole: (containerIndex: number, staffId: number) => void;
   spouseDayConflictStaffIds: Set<number>;
   hasSpouseDayConflict: boolean;
+  isContainerDragging: boolean;
+  /** May read a ref — call inside event handlers so dragover works before re-render. */
+  isContainerReorderActive: () => boolean;
+  onContainerReorderDragStart: (index: number) => void;
+  onContainerReorderDragOver: (index: number, insertBefore: boolean) => void;
+  onContainerReorderDrop: () => void;
+  onContainerReorderDragEnd: () => void;
 }) {
+  const cardRef = useRef<HTMLDivElement>(null);
   const [insertAtIndex, setInsertAtIndex] = useState<number | null>(null);
   const insertAtIndexRef = useRef<number | null>(null);
   const [editingLocation, setEditingLocation] = useState(false);
@@ -96,6 +115,11 @@ export default function ContainerCard({
     event.preventDefault();
     event.stopPropagation();
 
+    if (isContainerReorderActive() || isGroupingContainerDrag(event)) {
+      onContainerReorderDrop();
+      return;
+    }
+
     const meta = readGroupingDragData(event);
     if (!meta) return;
 
@@ -107,13 +131,54 @@ export default function ContainerCard({
     onInsertItemAt(containerIndex, { entity: meta.entity, id: meta.id }, insertAt);
   }
 
+  function handleContainerReorderDragOver(event: DragEvent<HTMLDivElement>) {
+    if (!isContainerReorderActive() && !isGroupingContainerDrag(event)) return;
+    event.preventDefault();
+    event.stopPropagation();
+    event.dataTransfer.dropEffect = "move";
+    const rect = event.currentTarget.getBoundingClientRect();
+    const insertBefore =
+      rect.width >= rect.height
+        ? event.clientX < rect.left + rect.width / 2
+        : event.clientY < rect.top + rect.height / 2;
+    onContainerReorderDragOver(containerIndex, insertBefore);
+  }
+
+  function handleReorderHandleDragStart(event: DragEvent<HTMLSpanElement>) {
+    event.stopPropagation();
+    clearInsertion();
+    onDragLeave();
+
+    setGroupingContainerDragData(event, { fromIndex: containerIndex });
+
+    const card = cardRef.current;
+    if (card) {
+      const rect = card.getBoundingClientRect();
+      event.dataTransfer.setDragImage(
+        card,
+        Math.min(24, rect.width / 4),
+        Math.min(24, rect.height / 4)
+      );
+    }
+
+    onContainerReorderDragStart(containerIndex);
+  }
+
   function showGap(index: number) {
-    return activeDragEntity !== null && insertAtIndex === index;
+    return !isContainerReorderActive() && activeDragEntity !== null && insertAtIndex === index;
   }
 
   function handleCardHover(index: number, insertBefore: boolean) {
+    if (isContainerReorderActive()) return;
     setInsertion(insertBefore ? index : index + 1);
   }
+
+  const cardClassName = [
+    "card min-h-[10rem] w-full self-start isolate transition-opacity duration-150",
+    isContainerDragging ? "opacity-40" : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
 
   function renderItem(item: GroupingContainerItem, index: number) {
     if (item.entity === "staff") {
@@ -161,8 +226,29 @@ export default function ContainerCard({
   }
 
   return (
-    <div className="card min-h-[10rem] w-full self-start isolate">
+    <div
+      ref={cardRef}
+      data-container-card
+      className={cardClassName}
+      onDragOver={handleContainerReorderDragOver}
+      onDrop={(event) => {
+        if (!isContainerReorderActive() && !isGroupingContainerDrag(event)) return;
+        event.preventDefault();
+        event.stopPropagation();
+        onContainerReorderDrop();
+      }}
+    >
       <div className="flex items-center gap-1 mb-3">
+        <span
+          draggable
+          onDragStart={handleReorderHandleDragStart}
+          onDragEnd={onContainerReorderDragEnd}
+          className="inline-flex cursor-grab active:cursor-grabbing select-none px-1 py-1.5 text-black/40 dark:text-white/40 hover:text-black/70 dark:hover:text-white/70"
+          title="Drag to reorder"
+          aria-label={`Drag to reorder ${container.title.trim() || `container ${containerIndex + 1}`}`}
+        >
+          ⋮⋮
+        </span>
         <input
           type="text"
           className="input flex-1 min-w-0"
@@ -242,10 +328,16 @@ export default function ContainerCard({
             : "border-black/10 dark:border-white/15"
         }`}
         onDragOver={(event) => {
+          if (isContainerReorderActive() || isGroupingContainerDrag(event)) {
+            // Let the card-level handler manage container reorder.
+            handleContainerReorderDragOver(event);
+            return;
+          }
           event.preventDefault();
           event.dataTransfer.dropEffect = "move";
         }}
         onDragEnter={(event) => {
+          if (isContainerReorderActive() || isGroupingContainerDrag(event)) return;
           event.preventDefault();
           onDragEnter();
           if (isEmpty && activeDragEntity) {
