@@ -27,6 +27,7 @@ import {
 } from "@/lib/grouping-events";
 import { readGroupingDragData, type GroupingDragEntity } from "@/lib/grouping-drag";
 import type { GroupingExportMember, GroupingExportSnapshot } from "@/lib/grouping-export";
+import { findSpouseDayConflicts } from "@/lib/grouping-spouse-day-conflicts";
 import AssociateRoleModal, { type StaffRoleOption } from "./AssociateRoleModal";
 import ContainerCard from "./ContainerCard";
 import DeleteContainerModal from "./DeleteContainerModal";
@@ -180,6 +181,15 @@ export default function GroupingEditor({
     }
     return map;
   }, [staff]);
+
+  const spouseDayConflicts = useMemo(
+    () =>
+      findSpouseDayConflicts(
+        containers,
+        staff.map((member) => ({ id: member.id, spouseId: member.spouseId }))
+      ),
+    [containers, staff]
+  );
 
   const eventNameById = useMemo(() => {
     const map = new Map<number, string>();
@@ -774,6 +784,8 @@ export default function GroupingEditor({
                 onAssociateStaffRole={(containerIndex, staffId) =>
                   setAssociateRoleTarget({ containerIndex, staffId })
                 }
+                spouseDayConflictStaffIds={spouseDayConflicts.staffIds}
+                hasSpouseDayConflict={spouseDayConflicts.containerIndexes.has(index)}
               />
             ))}
             <button

@@ -21,6 +21,7 @@ export default function StaffDragCard({
   onDragEnterCard,
   associatedRoleName,
   onAssociateWithRole,
+  hasSpouseDayConflict = false,
 }: {
   staff: StaffCardData;
   dragMeta: GroupingDragMeta;
@@ -33,6 +34,8 @@ export default function StaffDragCard({
   associatedRoleName?: string;
   /** When set, shows a ⋮ menu with "Associate with role". */
   onAssociateWithRole?: () => void;
+  /** When true, outlines the card for a spouse day-of-week conflict. */
+  hasSpouseDayConflict?: boolean;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuPos, setMenuPos] = useState<{ top: number; right: number }>({ top: 0, right: 0 });
@@ -145,7 +148,9 @@ export default function StaffDragCard({
         event.stopPropagation();
         onDropOnCard(event);
       }}
-      className="rounded-lg border p-2 cursor-grab active:cursor-grabbing shadow-sm bg-black/[0.03] dark:bg-white/[0.04]"
+      className={`rounded-lg border p-2 cursor-grab active:cursor-grabbing shadow-sm bg-black/[0.03] dark:bg-white/[0.04] ${
+        hasSpouseDayConflict ? "border-dotted border-red-500 dark:border-red-400" : ""
+      }`}
     >
       <div className="flex items-start gap-1">
         <div className="min-w-0 flex-1">

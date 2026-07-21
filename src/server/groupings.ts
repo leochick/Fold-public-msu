@@ -52,6 +52,7 @@ export type GroupingStaffItem = {
   firstName: string;
   lastName: string | null;
   gender: "M" | "F" | null;
+  spouseId: number | null;
   startingDate: Date | null;
   endingDate: Date | null;
   /** True when staff dates overlap the current view (for unassigned pool filtering). */
@@ -353,6 +354,7 @@ export async function getAllStaff(): Promise<Omit<GroupingStaffItem, "activeInVi
       firstName: staff.firstName,
       lastName: staff.lastName,
       gender: staff.gender,
+      spouseId: staff.spouseId,
       startingDate: staff.startingDate,
       endingDate: staff.endingDate,
     })

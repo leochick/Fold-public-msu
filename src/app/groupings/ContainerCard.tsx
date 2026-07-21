@@ -32,6 +32,8 @@ export default function ContainerCard({
   onDragLeave,
   onRequestDelete,
   onAssociateStaffRole,
+  spouseDayConflictStaffIds,
+  hasSpouseDayConflict,
 }: {
   container: GroupingContainerData;
   containerIndex: number;
@@ -51,6 +53,8 @@ export default function ContainerCard({
   onDragLeave: () => void;
   onRequestDelete: (index: number) => void;
   onAssociateStaffRole: (containerIndex: number, staffId: number) => void;
+  spouseDayConflictStaffIds: Set<number>;
+  hasSpouseDayConflict: boolean;
 }) {
   const [insertAtIndex, setInsertAtIndex] = useState<number | null>(null);
   const insertAtIndexRef = useRef<number | null>(null);
@@ -125,6 +129,7 @@ export default function ContainerCard({
             onDragEnterCard={(insertBefore) => handleCardHover(index, insertBefore)}
             associatedRoleName={item.associatedRoleName}
             onAssociateWithRole={() => onAssociateStaffRole(containerIndex, item.id)}
+            hasSpouseDayConflict={spouseDayConflictStaffIds.has(item.id)}
           />
         </div>
       );
@@ -199,8 +204,13 @@ export default function ContainerCard({
         )}
         {showTimeInput ? (
           <select
-            className="input flex-1 min-w-[8rem] text-xs py-1"
+            className={`input flex-1 min-w-[8rem] text-xs py-1 ${
+              hasSpouseDayConflict
+                ? "!border-dotted !border-red-500 dark:!border-red-400 focus:!ring-red-500/40"
+                : ""
+            }`}
             aria-label={`Day for ${container.title.trim() || `container ${containerIndex + 1}`}`}
+            aria-invalid={hasSpouseDayConflict || undefined}
             value={container.time ?? ""}
             autoFocus={editingTime}
             onChange={(event) => onTimeChange(containerIndex, event.target.value)}
@@ -221,7 +231,7 @@ export default function ContainerCard({
             className="btn-ghost px-1.5 py-0.5 text-xs leading-none text-black/50 dark:text-white/50 hover:text-black/70 dark:hover:text-white/70"
             onClick={() => setEditingTime(true)}
           >
-            + Time
+            + Day
           </button>
         )}
       </div>

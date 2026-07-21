@@ -21,7 +21,7 @@ export const GROUPING_CONTAINER_DAYS = [
 
 export type GroupingContainerDay = (typeof GROUPING_CONTAINER_DAYS)[number];
 
-const GROUPING_CONTAINER_DAY_SET = new Set<string>(GROUPING_CONTAINER_DAYS);
+export const GROUPING_CONTAINER_DAY_SET = new Set<string>(GROUPING_CONTAINER_DAYS);
 
 function normalizeOptionalText(value: unknown): string | undefined {
   if (typeof value !== "string") return undefined;
