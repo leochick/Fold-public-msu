@@ -329,3 +329,38 @@ export const changelogEntries = sqliteTable("changelog_entries", {
 
 export type ChangelogEntry = typeof changelogEntries.$inferSelect;
 export type NewChangelogEntry = typeof changelogEntries.$inferInsert;
+
+export type AcademicHoliday = {
+  name: string;
+  /** YYYY-MM-DD */
+  startDate: string | null;
+  /** YYYY-MM-DD; null for single-day holidays */
+  endDate: string | null;
+};
+
+export const academicYears = sqliteTable(
+  "academic_years",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    name: text("name").notNull(),
+    newStudentsMoveIn: integer("new_students_move_in", { mode: "timestamp" }),
+    classesBegin: integer("classes_begin", { mode: "timestamp" }),
+    classesEnd: integer("classes_end", { mode: "timestamp" }),
+    finalExamsStart: integer("final_exams_start", { mode: "timestamp" }),
+    finalExamsEnd: integer("final_exams_end", { mode: "timestamp" }),
+    holidays: text("holidays", { mode: "json" }).$type<AcademicHoliday[]>().notNull(),
+    addedByUserId: text("added_by_user_id").references(() => users.id, { onDelete: "set null" }),
+    createdAt: integer("created_at", { mode: "timestamp" })
+      .notNull()
+      .default(sql`(unixepoch())`),
+    updatedAt: integer("updated_at", { mode: "timestamp" })
+      .notNull()
+      .default(sql`(unixepoch())`),
+  },
+  (t) => ({
+    uniqName: uniqueIndex("uniq_academic_year_name").on(t.name),
+  })
+);
+
+export type AcademicYear = typeof academicYears.$inferSelect;
+export type NewAcademicYear = typeof academicYears.$inferInsert;

@@ -21,6 +21,7 @@ const navItems: NavItem[] = [
       { href: "/events", label: "Events" },
       { href: "/students", label: "Students" },
       { href: "/staff", label: "Staff" },
+      { href: "/academic-calendar", label: "Academic Calendar" },
     ],
   },
   {
