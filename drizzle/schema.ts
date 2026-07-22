@@ -338,17 +338,36 @@ export type AcademicHoliday = {
   endDate: string | null;
 };
 
+export type AcademicSemesterData = {
+  /** YYYY-MM-DD */
+  newStudentsMoveIn: string | null;
+  /** YYYY-MM-DD */
+  classesBegin: string | null;
+  /** YYYY-MM-DD */
+  classesEnd: string | null;
+  /** YYYY-MM-DD */
+  finalExamsStart: string | null;
+  /** YYYY-MM-DD */
+  finalExamsEnd: string | null;
+  holidays: AcademicHoliday[];
+};
+
+export const emptyAcademicSemester = (): AcademicSemesterData => ({
+  newStudentsMoveIn: null,
+  classesBegin: null,
+  classesEnd: null,
+  finalExamsStart: null,
+  finalExamsEnd: null,
+  holidays: [],
+});
+
 export const academicYears = sqliteTable(
   "academic_years",
   {
     id: integer("id").primaryKey({ autoIncrement: true }),
     name: text("name").notNull(),
-    newStudentsMoveIn: integer("new_students_move_in", { mode: "timestamp" }),
-    classesBegin: integer("classes_begin", { mode: "timestamp" }),
-    classesEnd: integer("classes_end", { mode: "timestamp" }),
-    finalExamsStart: integer("final_exams_start", { mode: "timestamp" }),
-    finalExamsEnd: integer("final_exams_end", { mode: "timestamp" }),
-    holidays: text("holidays", { mode: "json" }).$type<AcademicHoliday[]>().notNull(),
+    fall: text("fall", { mode: "json" }).$type<AcademicSemesterData>().notNull(),
+    spring: text("spring", { mode: "json" }).$type<AcademicSemesterData>().notNull(),
     addedByUserId: text("added_by_user_id").references(() => users.id, { onDelete: "set null" }),
     createdAt: integer("created_at", { mode: "timestamp" })
       .notNull()

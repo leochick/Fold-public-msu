@@ -4,8 +4,12 @@ import { revalidatePath } from "next/cache";
 import { eq, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
-import { parseDashboardDateEnd, parseDashboardDateStart } from "@/lib/dashboard-date-range";
-import { academicYears, type AcademicHoliday } from "../../drizzle/schema";
+import {
+  academicYears,
+  emptyAcademicSemester,
+  type AcademicHoliday,
+  type AcademicSemesterData,
+} from "../../drizzle/schema";
 
 function normalizeHolidays(holidays: AcademicHoliday[]): AcademicHoliday[] {
   if (!Array.isArray(holidays)) return [];
@@ -22,14 +26,30 @@ function normalizeHolidays(holidays: AcademicHoliday[]): AcademicHoliday[] {
   }));
 }
 
-function parseOptionalDate(value: string | null | undefined): Date | null {
-  if (!value || !value.trim()) return null;
-  return parseDashboardDateStart(value.trim());
-}
-
-function parseOptionalEndDate(value: string | null | undefined): Date | null {
-  if (!value || !value.trim()) return null;
-  return parseDashboardDateEnd(value.trim());
+function normalizeSemester(semester: AcademicSemesterData): AcademicSemesterData {
+  return {
+    newStudentsMoveIn:
+      typeof semester?.newStudentsMoveIn === "string" && semester.newStudentsMoveIn.trim()
+        ? semester.newStudentsMoveIn.trim()
+        : null,
+    classesBegin:
+      typeof semester?.classesBegin === "string" && semester.classesBegin.trim()
+        ? semester.classesBegin.trim()
+        : null,
+    classesEnd:
+      typeof semester?.classesEnd === "string" && semester.classesEnd.trim()
+        ? semester.classesEnd.trim()
+        : null,
+    finalExamsStart:
+      typeof semester?.finalExamsStart === "string" && semester.finalExamsStart.trim()
+        ? semester.finalExamsStart.trim()
+        : null,
+    finalExamsEnd:
+      typeof semester?.finalExamsEnd === "string" && semester.finalExamsEnd.trim()
+        ? semester.finalExamsEnd.trim()
+        : null,
+    holidays: normalizeHolidays(semester?.holidays ?? []),
+  };
 }
 
 export async function createAcademicYearAction(name: string) {
@@ -42,7 +62,8 @@ export async function createAcademicYearAction(name: string) {
       .insert(academicYears)
       .values({
         name: trimmed,
-        holidays: [],
+        fall: emptyAcademicSemester(),
+        spring: emptyAcademicSemester(),
         addedByUserId: user.id,
       })
       .returning({ id: academicYears.id });
@@ -57,12 +78,8 @@ export async function createAcademicYearAction(name: string) {
 export async function updateAcademicYearAction(
   id: number,
   data: {
-    newStudentsMoveIn: string;
-    classesBegin: string;
-    classesEnd: string;
-    finalExamsStart: string;
-    finalExamsEnd: string;
-    holidays: AcademicHoliday[];
+    fall: AcademicSemesterData;
+    spring: AcademicSemesterData;
   }
 ) {
   await requireUser();
@@ -71,12 +88,8 @@ export async function updateAcademicYearAction(
   await db
     .update(academicYears)
     .set({
-      newStudentsMoveIn: parseOptionalDate(data.newStudentsMoveIn),
-      classesBegin: parseOptionalDate(data.classesBegin),
-      classesEnd: parseOptionalDate(data.classesEnd),
-      finalExamsStart: parseOptionalDate(data.finalExamsStart),
-      finalExamsEnd: parseOptionalEndDate(data.finalExamsEnd),
-      holidays: normalizeHolidays(data.holidays),
+      fall: normalizeSemester(data.fall),
+      spring: normalizeSemester(data.spring),
       updatedAt: sql`(unixepoch())`,
     })
     .where(eq(academicYears.id, id));

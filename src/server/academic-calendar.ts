@@ -1,9 +1,9 @@
 import { asc, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { formatDashboardDate } from "@/lib/dashboard-date-range";
 import {
   academicYears,
-  type AcademicHoliday,
+  emptyAcademicSemester,
+  type AcademicSemesterData,
   type AcademicYear,
 } from "../../drizzle/schema";
 
@@ -15,28 +15,56 @@ export type AcademicYearListItem = {
 export type AcademicYearDetail = {
   id: number;
   name: string;
-  newStudentsMoveIn: string;
-  classesBegin: string;
-  classesEnd: string;
-  finalExamsStart: string;
-  finalExamsEnd: string;
-  holidays: AcademicHoliday[];
+  fall: AcademicSemesterData;
+  spring: AcademicSemesterData;
 };
 
-function formatOptionalDate(d: Date | null): string {
-  return d ? formatDashboardDate(d) : "";
+function normalizeSemester(value: AcademicSemesterData | null | undefined): AcademicSemesterData {
+  const empty = emptyAcademicSemester();
+  if (!value || typeof value !== "object") return empty;
+  return {
+    newStudentsMoveIn:
+      typeof value.newStudentsMoveIn === "string" && value.newStudentsMoveIn.trim()
+        ? value.newStudentsMoveIn.trim()
+        : null,
+    classesBegin:
+      typeof value.classesBegin === "string" && value.classesBegin.trim()
+        ? value.classesBegin.trim()
+        : null,
+    classesEnd:
+      typeof value.classesEnd === "string" && value.classesEnd.trim()
+        ? value.classesEnd.trim()
+        : null,
+    finalExamsStart:
+      typeof value.finalExamsStart === "string" && value.finalExamsStart.trim()
+        ? value.finalExamsStart.trim()
+        : null,
+    finalExamsEnd:
+      typeof value.finalExamsEnd === "string" && value.finalExamsEnd.trim()
+        ? value.finalExamsEnd.trim()
+        : null,
+    holidays: Array.isArray(value.holidays)
+      ? value.holidays.map((holiday) => ({
+          name: typeof holiday?.name === "string" ? holiday.name : "",
+          startDate:
+            typeof holiday?.startDate === "string" && holiday.startDate.trim()
+              ? holiday.startDate.trim()
+              : null,
+          endDate:
+            typeof holiday?.endDate === "string" && holiday.endDate.trim()
+              ? holiday.endDate.trim()
+              : null,
+        }))
+      : [],
+  };
 }
 
 function toDetail(row: AcademicYear): AcademicYearDetail {
   return {
     id: row.id,
     name: row.name,
-    newStudentsMoveIn: formatOptionalDate(row.newStudentsMoveIn),
-    classesBegin: formatOptionalDate(row.classesBegin),
-    classesEnd: formatOptionalDate(row.classesEnd),
-    finalExamsStart: formatOptionalDate(row.finalExamsStart),
-    finalExamsEnd: formatOptionalDate(row.finalExamsEnd),
-    holidays: Array.isArray(row.holidays) ? row.holidays : [],
+    fall: normalizeSemester(row.fall),
+    spring: normalizeSemester(row.spring),
   };
 }
 
