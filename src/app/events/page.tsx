@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { events, attendances, students } from "../../../drizzle/schema";
-import { and, desc, gte, lte, sql, eq } from "drizzle-orm";
+import { desc, sql, eq } from "drizzle-orm";
 import QuickAdd from "./QuickAdd";
 import RowActions from "../RowActions";
 import { deleteEventAction } from "./actions";
@@ -16,12 +16,53 @@ import { getActiveDashboardView } from "@/server/dashboard-views";
 
 export const dynamic = "force-dynamic";
 
+type EventRow = {
+  e: typeof events.$inferSelect;
+  count: number;
+};
+
+function eventInRange(startDate: Date | string, from: Date, to: Date): boolean {
+  const t = new Date(startDate).getTime();
+  return t >= from.getTime() && t <= to.getTime();
+}
+
+function EventRows({ rows }: { rows: EventRow[] }) {
+  return (
+    <>
+      {rows.map(({ e, count }) => {
+        const attendanceCount = Number(count);
+        const displayCount = e.totalStudents ?? attendanceCount;
+        const missingTotal = e.totalStudents == null;
+        return (
+          <tr key={e.id} className="hover:bg-black/5 dark:hover:bg-white/5">
+            <td>
+              <Link href={`/events/${e.id}`} className="font-medium hover:underline">{e.name}</Link>
+            </td>
+            <td>{e.type ?? <span className="text-black/30">—</span>}</td>
+            <td>{new Date(e.startDate).toLocaleDateString()}</td>
+            <td>{e.location ?? <span className="text-black/30">—</span>}</td>
+            <td className={missingTotal ? "text-orange-600 font-medium tabular-nums" : "tabular-nums"}>
+              {displayCount}
+            </td>
+            <td className="text-right">
+              <RowActions
+                id={e.id}
+                deleteAction={deleteEventAction}
+                confirmMessage={`Delete "${e.name}" and its ${attendanceCount} attendance record(s)? This can't be undone.`}
+              />
+            </td>
+          </tr>
+        );
+      })}
+    </>
+  );
+}
+
 export default async function EventsPage() {
   const activeView = await getActiveDashboardView();
   const { from, to } = resolveDashboardDateRange(
     activeView ? { from: activeView.from, to: activeView.to } : {}
   );
-  const eventDateRange = and(gte(events.startDate, from), lte(events.startDate, to));
 
   const rows = await db
     .select({
@@ -30,12 +71,14 @@ export default async function EventsPage() {
     })
     .from(events)
     .leftJoin(attendances, eq(attendances.eventId, events.id))
-    .where(eventDateRange)
     .groupBy(events.id)
     .orderBy(desc(events.startDate));
 
+  const inViewRows = rows.filter(({ e }) => eventInRange(e.startDate, from, to));
+  const outOfViewRows = rows.filter(({ e }) => !eventInRange(e.startDate, from, to));
+
   // Pull attendances + students for health metrics on events in the active view.
-  const eventIds = rows.map(({ e }) => e.id);
+  const eventIds = inViewRows.map(({ e }) => e.id);
   const allAttendanceRows =
     eventIds.length > 0
       ? await db
@@ -66,7 +109,7 @@ export default async function EventsPage() {
     recordedAt: new Date(a.recordedAt),
   }));
 
-  const featured: FeaturedEvent[] = rows.map(({ e, count }) => {
+  const featured: FeaturedEvent[] = inViewRows.map(({ e, count }) => {
     const startDate = new Date(e.startDate);
     const health = perEventHealth(
       { id: e.id, startDate },
@@ -174,38 +217,41 @@ export default async function EventsPage() {
             </tr>
           </thead>
           <tbody>
-            {rows.map(({ e, count }) => {
-              const attendanceCount = Number(count);
-              const displayCount = e.totalStudents ?? attendanceCount;
-              const missingTotal = e.totalStudents == null;
-              return (
-              <tr key={e.id} className="hover:bg-black/5 dark:hover:bg-white/5">
-                <td>
-                  <Link href={`/events/${e.id}`} className="font-medium hover:underline">{e.name}</Link>
-                </td>
-                <td>{e.type ?? <span className="text-black/30">—</span>}</td>
-                <td>{new Date(e.startDate).toLocaleDateString()}</td>
-                <td>{e.location ?? <span className="text-black/30">—</span>}</td>
-                <td className={missingTotal ? "text-orange-600 font-medium tabular-nums" : "tabular-nums"}>
-                  {displayCount}
-                </td>
-                <td className="text-right">
-                  <RowActions
-                    id={e.id}
-                    deleteAction={deleteEventAction}
-                    confirmMessage={`Delete "${e.name}" and its ${attendanceCount} attendance record(s)? This can't be undone.`}
-                  />
-                </td>
-              </tr>
-            );})}
-            {rows.length === 0 && (
+            {rows.length === 0 ? (
               <tr>
                 <td colSpan={6} className="text-center text-black/50 py-8">
-                  {activeView
-                    ? `No events in ${activeView.name} yet. Create one above.`
-                    : "No events yet. Create one above."}
+                  No events yet. Create one above.
                 </td>
               </tr>
+            ) : (
+              <>
+                {inViewRows.length > 0 && (
+                  <>
+                    <tr>
+                      <td
+                        colSpan={6}
+                        className="bg-black/[0.04] dark:bg-white/[0.06] text-xs font-semibold uppercase tracking-wide text-black/60 dark:text-white/60 pt-3 pb-2"
+                      >
+                        Events Within Current View
+                      </td>
+                    </tr>
+                    <EventRows rows={inViewRows} />
+                  </>
+                )}
+                {outOfViewRows.length > 0 && (
+                  <>
+                    <tr>
+                      <td
+                        colSpan={6}
+                        className="bg-black/[0.04] dark:bg-white/[0.06] text-xs font-semibold uppercase tracking-wide text-black/60 dark:text-white/60 pt-3 pb-2"
+                      >
+                        Events Outside Of Current View
+                      </td>
+                    </tr>
+                    <EventRows rows={outOfViewRows} />
+                  </>
+                )}
+              </>
             )}
           </tbody>
         </table>
