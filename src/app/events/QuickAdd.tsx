@@ -30,6 +30,16 @@ type ParseResponse =
   | { mode: "single"; event: BatchEventItem; attendees: Attendee[] }
   | { mode: "batch"; intent: "create" | "update"; items: BatchEventItem[]; explanation: string };
 
+async function readJsonResponse(r: Response): Promise<{ error?: string } & Record<string, unknown>> {
+  const raw = await r.text();
+  try {
+    return JSON.parse(raw) as { error?: string } & Record<string, unknown>;
+  } catch {
+    const snippet = raw.trim().replace(/\s+/g, " ").slice(0, 180);
+    throw new Error(snippet || `Request failed (${r.status})`);
+  }
+}
+
 export default function QuickAdd({ roster = [] }: { roster?: RosterEntry[] }) {
   const router = useRouter();
   const [text, setText] = useState("");
@@ -68,7 +78,7 @@ export default function QuickAdd({ roster = [] }: { roster?: RosterEntry[] }) {
           headers: { "content-type": "application/json" },
           body: JSON.stringify({ text }),
         });
-        const data = await r.json();
+        const data = await readJsonResponse(r);
         if (!r.ok) throw new Error(data.error ?? "Parse failed");
 
         const parsed = data as ParseResponse;
@@ -136,7 +146,7 @@ export default function QuickAdd({ roster = [] }: { roster?: RosterEntry[] }) {
               })),
             }),
           });
-          const data = await r.json();
+          const data = await readJsonResponse(r);
           if (!r.ok) throw new Error(data.error ?? "Save failed");
           reset();
           router.push("/events");
@@ -158,7 +168,7 @@ export default function QuickAdd({ roster = [] }: { roster?: RosterEntry[] }) {
             attendees,
           }),
         });
-        const data = await r.json();
+        const data = await readJsonResponse(r);
         if (!r.ok) throw new Error(data.error ?? "Save failed");
 
         reset();
@@ -197,7 +207,7 @@ export default function QuickAdd({ roster = [] }: { roster?: RosterEntry[] }) {
             onChange={(e) => setText(e.target.value)}
             rows={3}
             className="input font-sans text-sm"
-            placeholder={`e.g. "add Alex, Jordan to new Weekly 5/1 at Community Center"\n"create Weekly meetings 5/1, 5/8, 5/15 at Community Center"\n"Edit the Large Group events on 1/24, 2/5, and 3/16 to have type Large Group"\nOr paste Event + Notes columns from a spreadsheet to append dated notes`}
+            placeholder={`e.g. "add Alex, Jordan to new Weekly 5/1 at Community Center"\n"create Weekly meetings 5/1, 5/8, 5/15 at Community Center"\n"Edit the Large Group events on 1/24, 2/5, and 3/16 to have type Large Group"\nOr paste spreadsheet columns: Date + Event (+ Location, Attendance, Notes)\nOr Event + Notes to append dated notes`}
           />
           <button
             onClick={handleProcessText}

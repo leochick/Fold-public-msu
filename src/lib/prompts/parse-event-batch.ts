@@ -12,6 +12,8 @@ You must call EXACTLY ONE of these tools:
    - Updating notes from a freeform Event/Notes list (when not already handled as a spreadsheet paste)
    Set intent to "update" when the user is editing existing events; "create" when adding new ones.
 
+Note: Date/Event(/Location/Attendance/Notes) spreadsheet pastes and Event/Notes note-update pastes are parsed deterministically by the server — you will not see those inputs.
+
 Common rules for both:
 - Dates: ISO YYYY-MM-DD. "5/1" → use current year. "next Friday" → resolve from today.
 - Event types: Weekly, Social, General, Workshop, Hangout, Study Group, Large Group — infer from name when possible.

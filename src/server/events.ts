@@ -10,7 +10,7 @@ import { callClaudeOrThrow } from "./attendance";
 import type { BatchEventIncoming, CommitEventBatchBody, ParseEventBatchBody } from "@/lib/contracts/events";
 import { eq } from "drizzle-orm";
 import { assignEventMatches, eventDateStr } from "@/lib/funnel/event-dedup";
-import { parseEventNotesTable } from "@/lib/parse-event-notes-table";
+import { parseEventCreateTable, parseEventNotesTable } from "@/lib/parse-event-spreadsheet";
 import { appendStampedLine } from "@/lib/append-stamped-line";
 import { pickEventFields } from "@/lib/changelog";
 import {
@@ -76,6 +76,34 @@ function enrichBatchItem(
   return assignEventMatches([incoming], currentEventsList, intent)[0];
 }
 
+function parseEventCreateTableBatch(text: string, currentEventsList: typeof events.$inferSelect[]) {
+  const rows = parseEventCreateTable(text);
+  if (!rows) return null;
+
+  const incomingList: BatchEventIncoming[] = rows.map((r) => ({
+    name: r.name,
+    date: r.date,
+    location: r.location,
+    notes: r.notes,
+    totalStudents: r.totalStudents,
+  }));
+
+  const items = assignEventMatches(incomingList, currentEventsList, "create");
+  const matched = items.filter((i) => i.isDuplicate).length;
+  const creates = items.filter((i) => i.chosenAction === "create").length;
+
+  return {
+    mode: "batch" as const,
+    intent: "create" as const,
+    items,
+    explanation:
+      `Parsed ${items.length} event${items.length === 1 ? "" : "s"} from spreadsheet` +
+      (matched > 0
+        ? ` (${creates} new, ${matched} matched existing — review merge vs create).`
+        : "."),
+  };
+}
+
 function parseEventNotesTableBatch(text: string, currentEventsList: typeof events.$inferSelect[]) {
   const rows = parseEventNotesTable(text);
   if (!rows) return null;
@@ -126,6 +154,10 @@ export async function parseEventBatch(body: ParseEventBatchBody) {
   const roster = await loadBasicRoster();
   const rosterCompact = formatRosterCompact(roster);
   const currentEventsList = await db.select().from(events);
+
+  // Deterministic spreadsheet paths — avoid LLM for large TSV pastes (token/timeout failures).
+  const createTable = parseEventCreateTableBatch(body.text, currentEventsList);
+  if (createTable) return createTable;
 
   const notesTable = parseEventNotesTableBatch(body.text, currentEventsList);
   if (notesTable) return notesTable;
