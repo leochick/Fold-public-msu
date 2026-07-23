@@ -29,6 +29,7 @@ const navItems: NavItem[] = [
     items: [
       { href: "/groupings", label: "Groupings" },
       { href: "/roles", label: "Roles" },
+      { href: "/semester-planning", label: "Semester Planning" },
     ],
   },
   { href: "/staff-allocation", label: "Staff Allocation" },

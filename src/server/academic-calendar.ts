@@ -76,6 +76,11 @@ export async function listAcademicYears(): Promise<AcademicYearListItem[]> {
   return rows;
 }
 
+export async function listAcademicYearDetails(): Promise<AcademicYearDetail[]> {
+  const rows = await db.select().from(academicYears).orderBy(asc(academicYears.name));
+  return rows.map(toDetail);
+}
+
 export async function getAcademicYearById(id: number): Promise<AcademicYearDetail | null> {
   if (!Number.isFinite(id)) return null;
   const [row] = await db.select().from(academicYears).where(eq(academicYears.id, id)).limit(1);
