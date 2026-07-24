@@ -352,12 +352,21 @@ export type AcademicSemesterData = {
   holidays: AcademicHoliday[];
 };
 
+/** Break periods (Winter / Summer) store holidays only; date ranges are derived. */
+export type AcademicBreakData = {
+  holidays: AcademicHoliday[];
+};
+
 export const emptyAcademicSemester = (): AcademicSemesterData => ({
   newStudentsMoveIn: null,
   classesBegin: null,
   classesEnd: null,
   finalExamsStart: null,
   finalExamsEnd: null,
+  holidays: [],
+});
+
+export const emptyAcademicBreak = (): AcademicBreakData => ({
   holidays: [],
 });
 
@@ -368,6 +377,8 @@ export const academicYears = sqliteTable(
     name: text("name").notNull(),
     fall: text("fall", { mode: "json" }).$type<AcademicSemesterData>().notNull(),
     spring: text("spring", { mode: "json" }).$type<AcademicSemesterData>().notNull(),
+    winter: text("winter", { mode: "json" }).$type<AcademicBreakData>().notNull(),
+    summer: text("summer", { mode: "json" }).$type<AcademicBreakData>().notNull(),
     addedByUserId: text("added_by_user_id").references(() => users.id, { onDelete: "set null" }),
     createdAt: integer("created_at", { mode: "timestamp" })
       .notNull()

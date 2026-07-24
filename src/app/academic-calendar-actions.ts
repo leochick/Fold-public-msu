@@ -6,7 +6,9 @@ import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import {
   academicYears,
+  emptyAcademicBreak,
   emptyAcademicSemester,
+  type AcademicBreakData,
   type AcademicHoliday,
   type AcademicSemesterData,
 } from "../../drizzle/schema";
@@ -52,6 +54,12 @@ function normalizeSemester(semester: AcademicSemesterData): AcademicSemesterData
   };
 }
 
+function normalizeBreak(breakData: AcademicBreakData): AcademicBreakData {
+  return {
+    holidays: normalizeHolidays(breakData?.holidays ?? []),
+  };
+}
+
 export async function createAcademicYearAction(name: string) {
   const user = await requireUser();
   const trimmed = name.trim();
@@ -64,6 +72,8 @@ export async function createAcademicYearAction(name: string) {
         name: trimmed,
         fall: emptyAcademicSemester(),
         spring: emptyAcademicSemester(),
+        winter: emptyAcademicBreak(),
+        summer: emptyAcademicBreak(),
         addedByUserId: user.id,
       })
       .returning({ id: academicYears.id });
@@ -80,6 +90,8 @@ export async function updateAcademicYearAction(
   data: {
     fall: AcademicSemesterData;
     spring: AcademicSemesterData;
+    winter: AcademicBreakData;
+    summer: AcademicBreakData;
   }
 ) {
   await requireUser();
@@ -90,6 +102,8 @@ export async function updateAcademicYearAction(
     .set({
       fall: normalizeSemester(data.fall),
       spring: normalizeSemester(data.spring),
+      winter: normalizeBreak(data.winter),
+      summer: normalizeBreak(data.summer),
       updatedAt: sql`(unixepoch())`,
     })
     .where(eq(academicYears.id, id));

@@ -225,6 +225,13 @@
       "when": 1781500000000,
       "tag": "0031_academic_year_semesters",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "6",
+      "when": 1781600000000,
+      "tag": "0032_academic_year_breaks",
+      "breakpoints": true
     }
   ]
 }
