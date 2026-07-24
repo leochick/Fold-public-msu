@@ -26,12 +26,12 @@ export async function createGroupingAction(
   eventAndStudentDataView: number | null = null
 ) {
   const user = await requireUser();
-  if (!Number.isFinite(viewId)) throw new Error("Invalid view");
+  if (!Number.isFinite(viewId)) throw new Error("Invalid semester");
   const trimmed = name.trim();
   if (!trimmed) throw new Error("Name is required");
 
   const [view] = await db.select({ id: views.id }).from(views).where(eq(views.id, viewId)).limit(1);
-  if (!view) throw new Error("View not found");
+  if (!view) throw new Error("Semester not found");
 
   let dataViewId: number | null = null;
   if (eventAndStudentDataView != null && Number.isFinite(eventAndStudentDataView)) {
@@ -41,7 +41,7 @@ export async function createGroupingAction(
         .from(views)
         .where(eq(views.id, eventAndStudentDataView))
         .limit(1);
-      if (!dataView) throw new Error("Event and student data view not found");
+      if (!dataView) throw new Error("Event and student data semester not found");
       dataViewId = dataView.id;
     }
   }

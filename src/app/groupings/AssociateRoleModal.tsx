@@ -37,7 +37,7 @@ export default function AssociateRoleModal({
         <div className="mt-4 max-h-72 overflow-y-auto space-y-2">
           {roles.length === 0 ? (
             <p className="text-sm text-black/50 dark:text-white/50 py-4 text-center">
-              This staff member has no roles on the role board for this view.
+              This staff member has no roles on the role board for this semester.
             </p>
           ) : (
             roles.map((role) => {

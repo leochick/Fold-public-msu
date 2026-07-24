@@ -178,7 +178,7 @@ export async function buildStaffAllocationWorkbook(
   ];
 
   const summaryRows: Array<[string, string | number]> = [
-    ["View", snapshot.viewName],
+    ["Semester", snapshot.viewName],
     ["Date range", `${snapshot.viewFrom} – ${snapshot.viewTo}`],
     ["Staff total", snapshot.staff.length],
     ["Staff assigned", assignedCount],

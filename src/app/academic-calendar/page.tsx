@@ -25,7 +25,8 @@ export default async function AcademicCalendarPage({
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Academic Calendar</h1>
         <p className="mt-1 text-sm text-black/60 dark:text-white/60">
-          Define academic years, term dates, and holidays. Changes save automatically.
+          Define academic years, term dates, and holidays. Changes save automatically and power the
+          Semesters menu in the header.
         </p>
       </div>
 

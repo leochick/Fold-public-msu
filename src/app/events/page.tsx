@@ -232,7 +232,7 @@ export default async function EventsPage() {
                         colSpan={6}
                         className="bg-black/[0.04] dark:bg-white/[0.06] text-xs font-semibold uppercase tracking-wide text-black/60 dark:text-white/60 pt-3 pb-2"
                       >
-                        Events Within Current View
+                        Events Within Current Semester
                       </td>
                     </tr>
                     <EventRows rows={inViewRows} />
@@ -245,7 +245,7 @@ export default async function EventsPage() {
                         colSpan={6}
                         className="bg-black/[0.04] dark:bg-white/[0.06] text-xs font-semibold uppercase tracking-wide text-black/60 dark:text-white/60 pt-3 pb-2"
                       >
-                        Events Outside Of Current View
+                        Events Outside Of Current Semester
                       </td>
                     </tr>
                     <EventRows rows={outOfViewRows} />

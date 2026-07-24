@@ -166,7 +166,7 @@ export default function StaffAllocationView({
     <div className="space-y-4">
       <div className="card">
         <label htmlFor="staff-allocation-engagement-view" className="label block mb-1">
-          View for student engagement data
+          Semester for student engagement data
         </label>
         <select
           id="staff-allocation-engagement-view"
@@ -175,7 +175,7 @@ export default function StaffAllocationView({
           onChange={(event) => onEngagementViewChange(event.target.value)}
           disabled={otherViews.length === 0 || isPending}
         >
-          <option value="">{viewName} (current view)</option>
+          <option value="">{viewName} (current semester)</option>
           {otherViews.map((view) => (
             <option key={view.id} value={view.id}>
               {view.name}
@@ -186,7 +186,7 @@ export default function StaffAllocationView({
           <p className="text-xs text-red-600 dark:text-red-400 mt-2">{loadError}</p>
         )}
         <p className="text-xs text-black/60 dark:text-white/60 mt-2">
-          Engagement levels for students in groupings use this view&apos;s date range.
+          Engagement levels for students in groupings use this semester&apos;s date range.
         </p>
       </div>
 
@@ -216,7 +216,7 @@ export default function StaffAllocationView({
       <div className="flex flex-wrap gap-2 text-sm text-black/60 dark:text-white/60">
         <span className="chip">{assignedCount} assigned</span>
         <span className="chip">{staff.length - assignedCount} unassigned</span>
-        <span className="chip">View: {viewName}</span>
+        <span className="chip">Semester: {viewName}</span>
       </div>
 
       {staff.length === 0 ? (
@@ -275,7 +275,7 @@ export default function StaffAllocationView({
                   <h3 className="label">Roles and Groupings</h3>
                   {!hasContent ? (
                     <p className="text-sm text-black/45 dark:text-white/45">
-                      No roles or grouping placements in this view.
+                      No roles or grouping placements in this semester.
                     </p>
                   ) : (
                     <div className="space-y-3">

@@ -744,7 +744,7 @@ export default function GroupingEditor({
           ))}
           {events.length === 0 && (
             <p className="text-xs text-black/50 dark:text-white/50">
-              No events in this view&apos;s date range.
+              No events in this semester&apos;s date range.
             </p>
           )}
         </div>

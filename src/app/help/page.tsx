@@ -149,7 +149,7 @@ export default function HelpPage() {
         <ul className="list-disc pl-5 space-y-1">
           <li>Ambiguous names (multiple matches, or no match) are flagged for you to resolve.</li>
           <li><em>Delete</em> permanently removes a student and their attendance history — be careful.</li>
-          <li><em>Mark inactive</em> is the gentler option: keeps the record, hides them from active views.</li>
+          <li><em>Mark inactive</em> is the gentler option: keeps the record, hides them from active lists.</li>
         </ul>
       </Section>
 

@@ -9,7 +9,7 @@ import { normalizeRoleBoardRows } from "@/lib/role-boards";
 
 async function assertViewExists(viewId: number) {
   const [view] = await db.select({ id: views.id }).from(views).where(eq(views.id, viewId)).limit(1);
-  if (!view) throw new Error("View not found");
+  if (!view) throw new Error("Semester not found");
 }
 
 export async function updateRoleBoardAction(
@@ -38,7 +38,7 @@ export async function updateRoleBoardAction(
     if (dataViewId == null) {
       dataViewId = null;
     } else if (!Number.isFinite(dataViewId)) {
-      throw new Error("Invalid event and student data view");
+      throw new Error("Invalid event and student data semester");
     } else if (dataViewId === existing.viewId) {
       dataViewId = null;
     } else {

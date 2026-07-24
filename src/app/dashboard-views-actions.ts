@@ -6,74 +6,27 @@ import { db } from "@/lib/db";
 import { views } from "../../drizzle/schema";
 import { requireUser } from "@/lib/auth";
 import { setActiveViewIdCookie } from "@/lib/active-view";
-import { parseDashboardDateEnd, parseDashboardDateStart } from "@/lib/dashboard-date-range";
 import { getDashboardViewById } from "@/server/dashboard-views";
 
-function assertValidDateRange(from: string, to: string) {
-  const start = parseDashboardDateStart(from);
-  const end = parseDashboardDateEnd(to);
-  if (!start || !end || start > end) {
-    throw new Error("Invalid date range");
-  }
-  return { start, end };
-}
-
-function revalidateViewConsumers() {
+function revalidateSemesterConsumers() {
   revalidatePath("/", "layout");
-}
-
-export async function saveDashboardViewAction(from: string, to: string, name: string) {
-  const user = await requireUser();
-  const { start, end } = assertValidDateRange(from, to);
-  const trimmed = name.trim();
-  if (!trimmed) throw new Error("Name is required");
-
-  const existing = await db.select({ id: views.id }).from(views);
-  const isFirst = existing.length === 0;
-
-  const [created] = await db
-    .insert(views)
-    .values({
-      name: trimmed,
-      startDate: start,
-      endDate: end,
-      addedByUserId: user.id,
-      isDefault: isFirst,
-    })
-    .returning({ id: views.id });
-
-  await setActiveViewIdCookie(created.id);
-  revalidateViewConsumers();
-  return created.id;
 }
 
 export async function selectDashboardViewAction(id: number) {
   await requireUser();
-  if (!Number.isFinite(id)) throw new Error("Invalid view");
-  const view = await getDashboardViewById(id);
-  if (!view) throw new Error("View not found");
+  if (!Number.isFinite(id)) throw new Error("Invalid semester");
+  const semester = await getDashboardViewById(id);
+  if (!semester) throw new Error("Semester not found");
 
   await setActiveViewIdCookie(id);
-  revalidateViewConsumers();
-}
-
-export async function renameDashboardViewAction(id: number, name: string) {
-  await requireUser();
-  if (!Number.isFinite(id)) throw new Error("Invalid view");
-  const trimmed = name.trim();
-  if (!trimmed) throw new Error("Name is required");
-
-  await db
-    .update(views)
-    .set({ name: trimmed, updatedAt: sql`(unixepoch())` })
-    .where(eq(views.id, id));
-
-  revalidateViewConsumers();
+  revalidateSemesterConsumers();
 }
 
 export async function setDefaultDashboardViewAction(id: number) {
   await requireUser();
-  if (!Number.isFinite(id)) throw new Error("Invalid view");
+  if (!Number.isFinite(id)) throw new Error("Invalid semester");
+  const semester = await getDashboardViewById(id);
+  if (!semester) throw new Error("Semester not found");
 
   await db.update(views).set({ isDefault: false, updatedAt: sql`(unixepoch())` });
   await db
@@ -81,5 +34,5 @@ export async function setDefaultDashboardViewAction(id: number) {
     .set({ isDefault: true, updatedAt: sql`(unixepoch())` })
     .where(eq(views.id, id));
 
-  revalidateViewConsumers();
+  revalidateSemesterConsumers();
 }

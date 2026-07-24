@@ -8,7 +8,7 @@ import { getStaffAllocationForView } from "@/server/staff-allocation";
 
 async function assertViewExists(viewId: number) {
   const [view] = await db.select({ id: views.id }).from(views).where(eq(views.id, viewId)).limit(1);
-  if (!view) throw new Error("View not found");
+  if (!view) throw new Error("Semester not found");
 }
 
 /** Load staff allocation with engagement levels from an optional alternate view (ephemeral). */
@@ -17,14 +17,14 @@ export async function loadStaffAllocationAction(
   engagementViewId: number | null
 ) {
   await requireUser();
-  if (!Number.isFinite(viewId)) throw new Error("Invalid view");
+  if (!Number.isFinite(viewId)) throw new Error("Invalid semester");
   await assertViewExists(viewId);
 
   let dataViewId: number | null = engagementViewId;
   if (dataViewId == null) {
     dataViewId = null;
   } else if (!Number.isFinite(dataViewId)) {
-    throw new Error("Invalid student engagement data view");
+    throw new Error("Invalid student engagement data semester");
   } else if (dataViewId === viewId) {
     dataViewId = null;
   } else {

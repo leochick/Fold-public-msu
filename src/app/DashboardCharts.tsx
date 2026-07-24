@@ -115,7 +115,7 @@ export default function DashboardCharts({
         countLabel={`${notOnNewsletter.length} Missing`}
         chipClass="bg-violet-500/10 text-violet-600 dark:text-violet-400"
         students={notOnNewsletter}
-        emptyMessage="Everyone who attended in this view is on the newsletter."
+        emptyMessage="Everyone who attended in this semester is on the newsletter."
         linkToStudent
       />
 
@@ -125,7 +125,7 @@ export default function DashboardCharts({
         countLabel={`${notOnGroupme.length} Missing`}
         chipClass="bg-sky-500/10 text-sky-600 dark:text-sky-400"
         students={notOnGroupme}
-        emptyMessage="Everyone who attended in this view is in Groupme."
+        emptyMessage="Everyone who attended in this semester is in Groupme."
         linkToStudent
       />
 

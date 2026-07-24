@@ -196,20 +196,31 @@ export type NewEvent = typeof events.$inferInsert;
 export type Attendance = typeof attendances.$inferSelect;
 export type User = typeof users.$inferSelect;
 
-export const views = sqliteTable("views", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  name: text("name").notNull(),
-  startDate: integer("start_date", { mode: "timestamp" }).notNull(),
-  endDate: integer("end_date", { mode: "timestamp" }).notNull(),
-  addedByUserId: text("added_by_user_id").references(() => users.id, { onDelete: "set null" }),
-  isDefault: integer("is_default", { mode: "boolean" }).notNull().default(false),
-  createdAt: integer("created_at", { mode: "timestamp" })
-    .notNull()
-    .default(sql`(unixepoch())`),
-  updatedAt: integer("updated_at", { mode: "timestamp" })
-    .notNull()
-    .default(sql`(unixepoch())`),
-});
+export const views = sqliteTable(
+  "views",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    name: text("name").notNull(),
+    startDate: integer("start_date", { mode: "timestamp" }).notNull(),
+    endDate: integer("end_date", { mode: "timestamp" }).notNull(),
+    /** When set, this row is a synced academic-calendar semester. */
+    academicYearId: integer("academic_year_id").references(() => academicYears.id, {
+      onDelete: "cascade",
+    }),
+    season: text("season", { enum: ["fall", "winter", "spring", "summer"] }),
+    addedByUserId: text("added_by_user_id").references(() => users.id, { onDelete: "set null" }),
+    isDefault: integer("is_default", { mode: "boolean" }).notNull().default(false),
+    createdAt: integer("created_at", { mode: "timestamp" })
+      .notNull()
+      .default(sql`(unixepoch())`),
+    updatedAt: integer("updated_at", { mode: "timestamp" })
+      .notNull()
+      .default(sql`(unixepoch())`),
+  },
+  (t) => ({
+    uniqYearSeason: uniqueIndex("uniq_view_year_season").on(t.academicYearId, t.season),
+  })
+);
 
 export type View = typeof views.$inferSelect;
 export type NewView = typeof views.$inferInsert;

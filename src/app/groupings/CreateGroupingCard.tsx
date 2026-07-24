@@ -86,7 +86,7 @@ export default function CreateGroupingCard({
             disabled={viewId == null || otherViews.length === 0}
           >
             <option value="">
-              {viewName ? `${viewName} (current view)` : "Current view"}
+              {viewName ? `${viewName} (current semester)` : "Current semester"}
             </option>
             {otherViews.map((view) => (
               <option key={view.id} value={view.id}>
@@ -99,7 +99,7 @@ export default function CreateGroupingCard({
       {saveError && <p className="text-xs text-red-600 dark:text-red-400 mt-2">{saveError}</p>}
       {viewId == null ? (
         <p className="text-xs text-black/60 dark:text-white/60 mt-2">
-          Create a view from the Views menu in the header first.
+          Choose a semester from the Semesters menu in the header first.
         </p>
       ) : (
         <p className="text-xs text-black/60 dark:text-white/60 mt-2">

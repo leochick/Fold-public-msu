@@ -34,7 +34,7 @@ export default function RolesHeader({
         <p className="text-sm text-black/60 dark:text-white/60 mt-1">
           {snapshot
             ? `Role assignments for ${snapshot.viewName}.`
-            : "Assign people to roles in the current view."}
+            : "Assign people to roles in the current semester."}
         </p>
       </div>
       <div className="flex flex-col items-end gap-1">
@@ -44,7 +44,7 @@ export default function RolesHeader({
           onClick={handleExport}
           disabled={!snapshot || isExporting}
           title={
-            snapshot ? "Export roles for this view to Excel" : "Select a view to export"
+            snapshot ? "Export roles for this semester to Excel" : "Select a semester to export"
           }
         >
           {isExporting ? "Exporting…" : "Export to .xlsx"}

@@ -355,7 +355,7 @@ export default function RolesEditor({
               onChange={(event) => setEventAndStudentDataView(event.target.value)}
               disabled={otherViews.length === 0}
             >
-              <option value="">{viewName} (current view)</option>
+              <option value="">{viewName} (current semester)</option>
               {otherViews.map((view) => (
                 <option key={view.id} value={view.id}>
                   {view.name}

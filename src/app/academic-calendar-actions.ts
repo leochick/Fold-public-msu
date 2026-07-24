@@ -79,6 +79,7 @@ export async function createAcademicYearAction(name: string) {
       .returning({ id: academicYears.id });
 
     revalidatePath("/academic-calendar");
+    revalidatePath("/", "layout");
     return created.id;
   } catch {
     throw new Error("An academic year with that name already exists");
@@ -109,6 +110,7 @@ export async function updateAcademicYearAction(
     .where(eq(academicYears.id, id));
 
   revalidatePath("/academic-calendar");
+  revalidatePath("/", "layout");
 }
 
 export async function renameAcademicYearAction(id: number, name: string) {
@@ -130,6 +132,7 @@ export async function renameAcademicYearAction(id: number, name: string) {
   }
 
   revalidatePath("/academic-calendar");
+  revalidatePath("/", "layout");
 }
 
 export async function deleteAcademicYearAction(id: number) {
@@ -138,4 +141,5 @@ export async function deleteAcademicYearAction(id: number) {
 
   await db.delete(academicYears).where(eq(academicYears.id, id));
   revalidatePath("/academic-calendar");
+  revalidatePath("/", "layout");
 }

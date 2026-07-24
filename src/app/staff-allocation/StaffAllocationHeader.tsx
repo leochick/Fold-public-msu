@@ -34,7 +34,7 @@ export default function StaffAllocationHeader({
         <p className="text-sm text-black/60 mt-1">
           {snapshot
             ? `Roles and grouping placements for each staff member in ${snapshot.viewName}.`
-            : "Roles and grouping placements for each staff member in the current view."}
+            : "Roles and grouping placements for each staff member in the current semester."}
         </p>
       </div>
       <div className="flex flex-col items-end gap-1">
@@ -45,8 +45,8 @@ export default function StaffAllocationHeader({
           disabled={!snapshot || isExporting}
           title={
             snapshot
-              ? "Export staff allocation for this view to Excel"
-              : "Select a view to export"
+              ? "Export staff allocation for this semester to Excel"
+              : "Select a semester to export"
           }
         >
           {isExporting ? "Exporting…" : "Export to .xlsx"}

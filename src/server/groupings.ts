@@ -55,7 +55,7 @@ export type GroupingStaffItem = {
   spouseId: number | null;
   startingDate: Date | null;
   endingDate: Date | null;
-  /** True when staff dates overlap the current view (for unassigned pool filtering). */
+  /** True when staff dates overlap the current semester (for unassigned pool filtering). */
   activeInView: boolean;
 };
 
@@ -81,10 +81,10 @@ export type GroupingDetail = {
   viewName: string;
   viewFrom: string;
   viewTo: string;
-  /** When set, events/students come from this view instead of viewId. */
+  /** When set, events/students come from this semester instead of viewId. */
   eventAndStudentDataView: number | null;
   eventAndStudentDataViewName: string | null;
-  /** null = all non-tabling events in the view; [] = none; otherwise specific event ids */
+  /** null = all non-tabling events in the semester; [] = none; otherwise specific event ids */
   checkedEventIds: number[] | null;
   includeNewsletterContacts: boolean;
   containers: GroupingContainerData[];

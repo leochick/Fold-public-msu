@@ -73,7 +73,7 @@ const MEMBER_HEADERS = [
   "Course Material",
   "Newsletter",
   "GroupMe",
-  "Attendance in View",
+  "Attendance in Semester",
   "Spouse Day Conflict",
 ] as const;
 
@@ -232,7 +232,7 @@ export async function buildGroupingWorkbook(snapshot: GroupingExportSnapshot): P
 
   const summaryRows: Array<[string, string | number]> = [
     ["Grouping", snapshot.groupingName],
-    ["View", snapshot.viewName],
+    ["Semester", snapshot.viewName],
     ["Date range", `${snapshot.viewFrom} – ${snapshot.viewTo}`],
     ["Events", eventDetail],
     ["Groups", snapshot.groups.length],

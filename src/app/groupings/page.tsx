@@ -9,7 +9,7 @@ import {
   listGroupings,
   type GroupingStaffItem,
 } from "@/server/groupings";
-import { getActiveDashboardView, listDashboardViews } from "@/server/dashboard-views";
+import { getSemestersContext } from "@/server/dashboard-views";
 import { resolveDashboardDateRange } from "@/lib/dashboard-date-range";
 import { resolveRoleBoardRoleEntries } from "@/lib/role-boards";
 import { isStaffActiveInRange } from "@/lib/staff-active";
@@ -27,8 +27,7 @@ export default async function GroupingsPage({
   searchParams: Promise<{ grouping?: string }>;
 }) {
   const sp = await searchParams;
-  const activeView = await getActiveDashboardView();
-  const allViews = await listDashboardViews();
+  const { semesters: allViews, active: activeView } = await getSemestersContext();
   const savedGroupings = activeView ? await listGroupings(activeView.id) : [];
 
   const groupingId = sp.grouping ? Number(sp.grouping) : null;
@@ -125,7 +124,7 @@ export default async function GroupingsPage({
                 <p className="text-sm text-black/60 dark:text-white/60">
                   {activeView
                     ? `No groupings for ${activeView.name} yet. Create your first grouping above.`
-                    : "Create a view from the Views menu in the header, then create your first grouping."}
+                    : "Choose a semester from the Semesters menu in the header, then create your first grouping."}
                 </p>
               </div>
             )}

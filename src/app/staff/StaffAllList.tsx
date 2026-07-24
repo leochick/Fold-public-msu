@@ -116,7 +116,7 @@ export default function StaffAllList({
                         colSpan={2}
                         className="bg-black/[0.04] dark:bg-white/[0.06] text-xs font-semibold uppercase tracking-wide text-black/60 dark:text-white/60 pt-3 pb-2"
                       >
-                        Active (within current view)
+                        Active (within current semester)
                       </td>
                     </tr>
                     <StaffRows rows={filteredActive} />
@@ -129,7 +129,7 @@ export default function StaffAllList({
                         colSpan={2}
                         className="bg-black/[0.04] dark:bg-white/[0.06] text-xs font-semibold uppercase tracking-wide text-black/60 dark:text-white/60 pt-3 pb-2"
                       >
-                        Inactive (outside of current view)
+                        Inactive (outside of current semester)
                       </td>
                     </tr>
                     <StaffRows rows={filteredInactive} />
