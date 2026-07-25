@@ -34,9 +34,10 @@ function toItem(view: View): DashboardViewItem | null {
 }
 
 function sortItems(items: DashboardViewItem[]): DashboardViewItem[] {
+  // Newest date ranges first (most recent at the top of the Semesters menu).
   return items.slice().sort((a, b) => {
-    if (a.isDefault !== b.isDefault) return a.isDefault ? -1 : 1;
-    if (a.from !== b.from) return a.from.localeCompare(b.from);
+    if (a.from !== b.from) return b.from.localeCompare(a.from);
+    if (a.to !== b.to) return b.to.localeCompare(a.to);
     return a.name.localeCompare(b.name);
   });
 }
