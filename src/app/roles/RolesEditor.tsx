@@ -338,9 +338,24 @@ export default function RolesEditor({
     ),
   };
 
+  function handleImported(next: { rows: RoleBoardRow[]; personColumnCount: number }) {
+    skipNextAutosaveRef.current = true;
+    setPersonColumnCount(next.personColumnCount);
+    setRows(next.rows);
+    setRowKeys(next.rows.map(() => createRowKey()));
+    setSaveStatus("saved");
+    setSaveError(null);
+    router.refresh();
+  }
+
   return (
     <div className="space-y-6">
-      <RolesHeader snapshot={exportSnapshot} />
+      <RolesHeader
+        snapshot={exportSnapshot}
+        boardId={board.id}
+        personOptions={personOptions}
+        onImported={handleImported}
+      />
 
       <div className="card">
         <div className="flex flex-col sm:flex-row sm:items-end gap-3">
