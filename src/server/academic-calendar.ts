@@ -1,4 +1,4 @@
-import { asc, eq } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { findNextAcademicYear } from "@/lib/academic-calendar-breaks";
 import {
@@ -109,24 +109,24 @@ export async function listAcademicYears(): Promise<AcademicYearListItem[]> {
   const rows = await db
     .select({ id: academicYears.id, name: academicYears.name })
     .from(academicYears)
-    .orderBy(asc(academicYears.name));
+    .orderBy(desc(academicYears.name));
   return rows;
 }
 
 export async function listAcademicYearDetails(): Promise<AcademicYearDetail[]> {
-  const rows = await db.select().from(academicYears).orderBy(asc(academicYears.name));
+  const rows = await db.select().from(academicYears).orderBy(desc(academicYears.name));
   return rows.map((row) => toDetail(row, rows));
 }
 
 export async function getAcademicYearById(id: number): Promise<AcademicYearDetail | null> {
   if (!Number.isFinite(id)) return null;
-  const rows = await db.select().from(academicYears).orderBy(asc(academicYears.name));
+  const rows = await db.select().from(academicYears).orderBy(desc(academicYears.name));
   const row = rows.find((year) => year.id === id);
   return row ? toDetail(row, rows) : null;
 }
 
 export async function getFirstAcademicYear(): Promise<AcademicYearDetail | null> {
-  const rows = await db.select().from(academicYears).orderBy(asc(academicYears.name));
+  const rows = await db.select().from(academicYears).orderBy(desc(academicYears.name));
   const row = rows[0];
   return row ? toDetail(row, rows) : null;
 }

@@ -2,11 +2,8 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import {
-  createAcademicYearAction,
-  deleteAcademicYearAction,
-  renameAcademicYearAction,
-} from "../academic-calendar-actions";
+import { createAcademicYearAction, deleteAcademicYearAction } from "../academic-calendar-actions";
+import { isValidAcademicYearName } from "@/lib/academic-year-name";
 import type { AcademicYearListItem } from "@/server/academic-calendar";
 
 export default function AcademicYearsSidebar({
@@ -18,56 +15,32 @@ export default function AcademicYearsSidebar({
 }) {
   const [collapsed, setCollapsed] = useState(false);
   const [newName, setNewName] = useState("");
-  const [editingId, setEditingId] = useState<number | null>(null);
-  const [editName, setEditName] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<AcademicYearListItem | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
+
+  const trimmedName = newName.trim();
+  const nameValid = isValidAcademicYearName(trimmedName);
 
   function loadYear(id: number) {
     router.push(`/academic-calendar?year=${id}`);
   }
 
   function createYear() {
-    const trimmed = newName.trim();
-    if (!trimmed) return;
+    if (!nameValid) {
+      setError("Use the format 20XX-YY (e.g. 2025-26)");
+      return;
+    }
     setError(null);
     startTransition(async () => {
       try {
-        const id = await createAcademicYearAction(trimmed);
+        const id = await createAcademicYearAction(trimmedName);
         setNewName("");
         router.push(`/academic-calendar?year=${id}`);
         router.refresh();
       } catch (err) {
         setError(err instanceof Error ? err.message : "Could not create academic year");
-      }
-    });
-  }
-
-  function startRename(year: AcademicYearListItem) {
-    setEditingId(year.id);
-    setEditName(year.name);
-    setError(null);
-  }
-
-  function cancelRename() {
-    setEditingId(null);
-    setEditName("");
-  }
-
-  function submitRename(id: number) {
-    const trimmed = editName.trim();
-    if (!trimmed) return;
-    setError(null);
-    startTransition(async () => {
-      try {
-        await renameAcademicYearAction(id, trimmed);
-        setEditingId(null);
-        setEditName("");
-        router.refresh();
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Could not rename academic year");
       }
     });
   }
@@ -120,15 +93,20 @@ export default function AcademicYearsSidebar({
                   id="new-academic-year"
                   className="input"
                   placeholder="e.g. 2025-26"
+                  pattern="20[0-9]{2}-[0-9]{2}"
+                  title="Format: 20XX-YY (e.g. 2025-26)"
                   value={newName}
-                  onChange={(event) => setNewName(event.target.value)}
+                  onChange={(event) => {
+                    setNewName(event.target.value);
+                    if (error) setError(null);
+                  }}
                 />
                 <button
                   type="submit"
                   className="btn btn-primary w-full text-xs"
-                  disabled={!newName.trim() || isPending}
+                  disabled={!nameValid || isPending}
                 >
-                  {isPending && !editingId && !deleteTarget ? "Adding…" : "Add"}
+                  {isPending && !deleteTarget ? "Adding…" : "Add"}
                 </button>
               </form>
 
@@ -156,64 +134,22 @@ export default function AcademicYearsSidebar({
                             : "border-black/5 dark:border-white/10"
                         }`}
                       >
-                        {editingId === year.id ? (
-                          <form
-                            className="space-y-2"
-                            onSubmit={(event) => {
-                              event.preventDefault();
-                              submitRename(year.id);
-                            }}
+                        <button
+                          type="button"
+                          className="w-full text-left"
+                          onClick={() => loadYear(year.id)}
+                        >
+                          <span className="text-sm font-medium leading-tight">{year.name}</span>
+                        </button>
+                        <div className="mt-2 flex gap-1">
+                          <button
+                            type="button"
+                            className="btn btn-ghost text-xs px-2 py-1 text-red-600 dark:text-red-400"
+                            onClick={() => setDeleteTarget(year)}
                           >
-                            <input
-                              className="input"
-                              value={editName}
-                              onChange={(event) => setEditName(event.target.value)}
-                              autoFocus
-                            />
-                            <div className="flex gap-1">
-                              <button
-                                type="submit"
-                                className="btn btn-primary text-xs px-2 py-1"
-                                disabled={!editName.trim() || isPending}
-                              >
-                                Save
-                              </button>
-                              <button
-                                type="button"
-                                className="btn btn-ghost text-xs px-2 py-1"
-                                onClick={cancelRename}
-                              >
-                                Cancel
-                              </button>
-                            </div>
-                          </form>
-                        ) : (
-                          <>
-                            <button
-                              type="button"
-                              className="w-full text-left"
-                              onClick={() => loadYear(year.id)}
-                            >
-                              <span className="text-sm font-medium leading-tight">{year.name}</span>
-                            </button>
-                            <div className="mt-2 flex gap-1">
-                              <button
-                                type="button"
-                                className="btn btn-ghost text-xs px-2 py-1"
-                                onClick={() => startRename(year)}
-                              >
-                                Rename
-                              </button>
-                              <button
-                                type="button"
-                                className="btn btn-ghost text-xs px-2 py-1 text-red-600 dark:text-red-400"
-                                onClick={() => setDeleteTarget(year)}
-                              >
-                                Delete
-                              </button>
-                            </div>
-                          </>
-                        )}
+                            Delete
+                          </button>
+                        </div>
                       </div>
                     );
                   })

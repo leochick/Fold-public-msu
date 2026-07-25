@@ -12,6 +12,7 @@ import {
   type AcademicHoliday,
   type AcademicSemesterData,
 } from "../../drizzle/schema";
+import { isValidAcademicYearName } from "@/lib/academic-year-name";
 
 function normalizeHolidays(holidays: AcademicHoliday[]): AcademicHoliday[] {
   if (!Array.isArray(holidays)) return [];
@@ -64,6 +65,9 @@ export async function createAcademicYearAction(name: string) {
   const user = await requireUser();
   const trimmed = name.trim();
   if (!trimmed) throw new Error("Name is required");
+  if (!isValidAcademicYearName(trimmed)) {
+    throw new Error("Use the format 20XX-YY (e.g. 2025-26)");
+  }
 
   try {
     const [created] = await db
@@ -118,6 +122,9 @@ export async function renameAcademicYearAction(id: number, name: string) {
   if (!Number.isFinite(id)) throw new Error("Invalid academic year");
   const trimmed = name.trim();
   if (!trimmed) throw new Error("Name is required");
+  if (!isValidAcademicYearName(trimmed)) {
+    throw new Error("Use the format 20XX-YY (e.g. 2025-26)");
+  }
 
   try {
     await db
