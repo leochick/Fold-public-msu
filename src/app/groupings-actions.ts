@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { eq, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { groupings, views, type GroupingContainerData } from "../../drizzle/schema";
+import { groupings, groupingVersions, views, type GroupingContainerData } from "../../drizzle/schema";
 import { requireUser } from "@/lib/auth";
 import { emptyGroupingContainers, normalizeGroupingContainers } from "@/lib/grouping-containers";
 
@@ -18,6 +18,12 @@ function assertContainers(containers: GroupingContainerData[]): GroupingContaine
     ...(container.time ? { time: container.time } : {}),
     items: container.items,
   }));
+}
+
+function normalizeEventIds(checkedEventIds: number[] | null): number[] | null {
+  return checkedEventIds === null
+    ? null
+    : [...new Set(checkedEventIds.filter((eventId) => Number.isFinite(eventId)))];
 }
 
 export async function createGroupingAction(
@@ -73,10 +79,7 @@ export async function updateGroupingAction(
   if (!Number.isFinite(id)) throw new Error("Invalid grouping");
 
   const normalizedContainers = assertContainers(containers);
-  const normalizedEventIds =
-    checkedEventIds === null
-      ? null
-      : [...new Set(checkedEventIds.filter((eventId) => Number.isFinite(eventId)))];
+  const normalizedEventIds = normalizeEventIds(checkedEventIds);
 
   await db
     .update(groupings)
@@ -89,6 +92,56 @@ export async function updateGroupingAction(
     .where(eq(groupings.id, id));
 
   revalidatePath("/groupings");
+}
+
+export async function saveGroupingVersionAction(
+  groupingId: number,
+  name: string,
+  checkedEventIds: number[] | null,
+  containers: GroupingContainerData[],
+  includeNewsletterContacts = false
+) {
+  const user = await requireUser();
+  if (!Number.isFinite(groupingId)) throw new Error("Invalid grouping");
+  const trimmed = name.trim();
+  if (!trimmed) throw new Error("Version name is required");
+
+  const [grouping] = await db
+    .select({ id: groupings.id })
+    .from(groupings)
+    .where(eq(groupings.id, groupingId))
+    .limit(1);
+  if (!grouping) throw new Error("Grouping not found");
+
+  const normalizedContainers = assertContainers(containers);
+  const normalizedEventIds = normalizeEventIds(checkedEventIds);
+
+  const [created] = await db
+    .insert(groupingVersions)
+    .values({
+      groupingId,
+      name: trimmed,
+      checkedEventIds: normalizedEventIds,
+      includeNewsletterContacts: Boolean(includeNewsletterContacts),
+      containers: normalizedContainers,
+      addedByUserId: user.id,
+    })
+    .returning({
+      id: groupingVersions.id,
+      name: groupingVersions.name,
+      checkedEventIds: groupingVersions.checkedEventIds,
+      includeNewsletterContacts: groupingVersions.includeNewsletterContacts,
+      containers: groupingVersions.containers,
+    });
+
+  revalidatePath("/groupings");
+  return {
+    id: created.id,
+    name: created.name,
+    checkedEventIds: created.checkedEventIds ?? null,
+    includeNewsletterContacts: created.includeNewsletterContacts,
+    containers: normalizeGroupingContainers(created.containers),
+  };
 }
 
 export async function renameGroupingAction(id: number, name: string) {

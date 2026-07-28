@@ -8,6 +8,7 @@ import type {
   GroupingEventItem,
   GroupingStaffItem,
   GroupingStudentItem,
+  GroupingVersionItem,
 } from "@/server/groupings";
 import {
   EMPTY_GROUPING_STUDENT_FILTERS,
@@ -33,6 +34,7 @@ import ContainerCard from "./ContainerCard";
 import ContainerInsertGap from "./ContainerInsertGap";
 import DeleteContainerModal from "./DeleteContainerModal";
 import { useGroupingExport } from "./GroupingExport";
+import GroupingVersionsCard from "./GroupingVersionsCard";
 import StudentDragCard, { type StudentCardData } from "./StudentDragCard";
 import StaffDragCard, { type StaffCardData } from "./StaffDragCard";
 import StudentFiltersCard from "./StudentFiltersCard";
@@ -79,6 +81,7 @@ export default function GroupingEditor({
   students,
   staff,
   staffRoles,
+  versions: initialVersions,
 }: {
   grouping: GroupingDetail;
   events: GroupingEventItem[];
@@ -86,6 +89,7 @@ export default function GroupingEditor({
   staff: GroupingStaffItem[];
   /** Roles from the view's role board, keyed for each staff member who appears on it. */
   staffRoles: StaffRoleEntry[];
+  versions: GroupingVersionItem[];
 }) {
   const { setSnapshot } = useGroupingExport();
   const [checkedEventIds, setCheckedEventIds] = useState<number[] | null>(grouping.checkedEventIds);
@@ -96,6 +100,8 @@ export default function GroupingEditor({
   const [containerKeys, setContainerKeys] = useState(() =>
     grouping.containers.map(() => createContainerKey())
   );
+  const [versions, setVersions] = useState(initialVersions);
+  const [activeVersionId, setActiveVersionId] = useState<number | null>(null);
   const [studentFilters, setStudentFilters] = useState<GroupingStudentFilters>(
     EMPTY_GROUPING_STUDENT_FILTERS
   );
@@ -131,12 +137,26 @@ export default function GroupingEditor({
     setIncludeNewsletterContacts(grouping.includeNewsletterContacts);
     setContainers(grouping.containers);
     setContainerKeys(grouping.containers.map(() => createContainerKey()));
+    setVersions(initialVersions);
+    setActiveVersionId(null);
     setContainerDragFromIndex(null);
     setContainerDropInsertIndex(null);
     setDeleteContainerIndex(null);
     setAssociateRoleTarget(null);
+    // Only reset when switching groupings; `key={grouping.id}` remounts for that case.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: avoid resetting on prop refresh after autosave
   }, [grouping.id]);
 
+  function selectVersion(version: GroupingVersionItem) {
+    const nextContainers = structuredClone(version.containers);
+    setActiveVersionId(version.id);
+    setCheckedEventIds(
+      version.checkedEventIds === null ? null : [...version.checkedEventIds]
+    );
+    setIncludeNewsletterContacts(version.includeNewsletterContacts);
+    setContainers(nextContainers);
+    setContainerKeys(nextContainers.map(() => createContainerKey()));
+  }
   useEffect(() => {
     if (skipNextAutosaveRef.current) {
       skipNextAutosaveRef.current = false;
@@ -749,6 +769,15 @@ export default function GroupingEditor({
           )}
         </div>
       </div>
+
+      <GroupingVersionsCard
+        groupingId={grouping.id}
+        versions={versions}
+        activeVersionId={activeVersionId}
+        getSnapshot={() => latestRef.current}
+        onVersionsChange={setVersions}
+        onSelectVersion={selectVersion}
+      />
 
       <div className="flex gap-4 items-start min-w-0">
         <div className="w-52 shrink-0 space-y-4">

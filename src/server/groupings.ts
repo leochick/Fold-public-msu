@@ -3,6 +3,7 @@ import {
   attendances,
   events,
   groupings,
+  groupingVersions,
   staff,
   students,
   views,
@@ -85,6 +86,14 @@ export type GroupingDetail = {
   eventAndStudentDataView: number | null;
   eventAndStudentDataViewName: string | null;
   /** null = all non-tabling events in the semester; [] = none; otherwise specific event ids */
+  checkedEventIds: number[] | null;
+  includeNewsletterContacts: boolean;
+  containers: GroupingContainerData[];
+};
+
+export type GroupingVersionItem = {
+  id: number;
+  name: string;
   checkedEventIds: number[] | null;
   includeNewsletterContacts: boolean;
   containers: GroupingContainerData[];
@@ -216,6 +225,30 @@ export async function getFirstGrouping(viewId?: number): Promise<GroupingDetail 
     .orderBy(asc(groupings.id))
     .limit(1);
   return row ? getGroupingById(row.id) : null;
+}
+
+export async function listGroupingVersions(groupingId: number): Promise<GroupingVersionItem[]> {
+  if (!Number.isFinite(groupingId)) return [];
+
+  const rows = await db
+    .select({
+      id: groupingVersions.id,
+      name: groupingVersions.name,
+      checkedEventIds: groupingVersions.checkedEventIds,
+      includeNewsletterContacts: groupingVersions.includeNewsletterContacts,
+      containers: groupingVersions.containers,
+    })
+    .from(groupingVersions)
+    .where(eq(groupingVersions.groupingId, groupingId))
+    .orderBy(asc(groupingVersions.createdAt), asc(groupingVersions.id));
+
+  return rows.map((row) => ({
+    id: row.id,
+    name: row.name,
+    checkedEventIds: row.checkedEventIds ?? null,
+    includeNewsletterContacts: row.includeNewsletterContacts,
+    containers: normalizeGroupingContainers(row.containers),
+  }));
 }
 
 export async function getEventsForView(viewId: number): Promise<GroupingEventItem[]> {

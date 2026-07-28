@@ -6,6 +6,7 @@ import {
   getGroupingById,
   getGroupingDataViewId,
   getStudentsForView,
+  listGroupingVersions,
   listGroupings,
   type GroupingStaffItem,
 } from "@/server/groupings";
@@ -45,15 +46,16 @@ export default async function GroupingsPage({
   const { from, to } = resolveDashboardDateRange(
     activeView ? { from: activeView.from, to: activeView.to } : {}
   );
-  const [events, students, allStaff, roleBoard] =
-    dataViewId != null && activeView
+  const [events, students, allStaff, roleBoard, groupingVersions] =
+    dataViewId != null && activeView && activeGrouping
       ? await Promise.all([
           getEventsForView(dataViewId),
           getStudentsForView(dataViewId),
           getAllStaff(),
           getRoleBoardByViewId(activeView.id),
+          listGroupingVersions(activeGrouping.id),
         ])
-      : [[], [], [] as Awaited<ReturnType<typeof getAllStaff>>, null];
+      : [[], [], [] as Awaited<ReturnType<typeof getAllStaff>>, null, []];
 
   const assignedStaffIds = new Set<number>();
   if (activeGrouping) {
@@ -118,6 +120,7 @@ export default async function GroupingsPage({
                 students={students}
                 staff={staffMembers}
                 staffRoles={staffRoles}
+                versions={groupingVersions}
               />
             ) : (
               <div className="card">

@@ -268,6 +268,26 @@ export const groupings = sqliteTable("groupings", {
 export type Grouping = typeof groupings.$inferSelect;
 export type NewGrouping = typeof groupings.$inferInsert;
 
+export const groupingVersions = sqliteTable("grouping_versions", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  groupingId: integer("grouping_id")
+    .notNull()
+    .references(() => groupings.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  checkedEventIds: text("checked_event_ids", { mode: "json" }).$type<number[]>(),
+  includeNewsletterContacts: integer("include_newsletter_contacts", { mode: "boolean" })
+    .notNull()
+    .default(false),
+  containers: text("containers", { mode: "json" }).$type<GroupingContainerData[]>().notNull(),
+  addedByUserId: text("added_by_user_id").references(() => users.id, { onDelete: "set null" }),
+  createdAt: integer("created_at", { mode: "timestamp" })
+    .notNull()
+    .default(sql`(unixepoch())`),
+});
+
+export type GroupingVersion = typeof groupingVersions.$inferSelect;
+export type NewGroupingVersion = typeof groupingVersions.$inferInsert;
+
 export type RoleBoardPerson = {
   entity: "student" | "staff";
   id: number;
