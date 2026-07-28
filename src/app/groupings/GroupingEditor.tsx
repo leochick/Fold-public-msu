@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import type { GroupingContainerData, GroupingContainerItem } from "../../../drizzle/schema";
-import { updateGroupingAction } from "../groupings-actions";
+import { updateGroupingAction, updateGroupingVersionAction } from "../groupings-actions";
 import type {
   GroupingDetail,
   GroupingEventItem,
@@ -132,12 +132,14 @@ export default function GroupingEditor({
   const [isPending, startTransition] = useTransition();
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const skipNextAutosaveRef = useRef(true);
+  const activeVersionIdRef = useRef(activeVersionId);
   const latestRef = useRef({
     checkedEventIds,
     includeNewsletterContacts,
     containers,
   });
 
+  activeVersionIdRef.current = activeVersionId;
   latestRef.current = { checkedEventIds, includeNewsletterContacts, containers };
 
   useEffect(() => {
@@ -169,6 +171,7 @@ export default function GroupingEditor({
   }, [grouping.id]);
 
   function selectVersion(version: GroupingVersionItem) {
+    skipNextAutosaveRef.current = true;
     const nextContainers = structuredClone(version.containers);
     setActiveVersionId(version.id);
     setCheckedEventIds(
@@ -178,6 +181,7 @@ export default function GroupingEditor({
     setContainers(nextContainers);
     setContainerKeys(nextContainers.map(() => createContainerKey()));
   }
+
   useEffect(() => {
     if (skipNextAutosaveRef.current) {
       skipNextAutosaveRef.current = false;
@@ -190,8 +194,32 @@ export default function GroupingEditor({
 
     saveTimerRef.current = setTimeout(() => {
       const snapshot = latestRef.current;
+      const versionId = activeVersionIdRef.current;
       startTransition(async () => {
         try {
+          if (versionId != null) {
+            await updateGroupingVersionAction(
+              versionId,
+              snapshot.checkedEventIds,
+              snapshot.containers,
+              snapshot.includeNewsletterContacts
+            );
+            setVersions((current) =>
+              current.map((version) =>
+                version.id === versionId
+                  ? {
+                      ...version,
+                      checkedEventIds:
+                        snapshot.checkedEventIds === null
+                          ? null
+                          : [...snapshot.checkedEventIds],
+                      includeNewsletterContacts: snapshot.includeNewsletterContacts,
+                      containers: structuredClone(snapshot.containers),
+                    }
+                  : version
+              )
+            );
+          }
           await updateGroupingAction(
             grouping.id,
             snapshot.checkedEventIds,

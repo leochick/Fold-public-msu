@@ -94,6 +94,33 @@ export async function updateGroupingAction(
   revalidatePath("/groupings");
 }
 
+export async function updateGroupingVersionAction(
+  id: number,
+  checkedEventIds: number[] | null,
+  containers: GroupingContainerData[],
+  includeNewsletterContacts = false
+) {
+  await requireUser();
+  if (!Number.isFinite(id)) throw new Error("Invalid version");
+
+  const normalizedContainers = assertContainers(containers);
+  const normalizedEventIds = normalizeEventIds(checkedEventIds);
+
+  const updated = await db
+    .update(groupingVersions)
+    .set({
+      checkedEventIds: normalizedEventIds,
+      includeNewsletterContacts: Boolean(includeNewsletterContacts),
+      containers: normalizedContainers,
+    })
+    .where(eq(groupingVersions.id, id))
+    .returning({ id: groupingVersions.id });
+
+  if (!updated.length) throw new Error("Version not found");
+
+  revalidatePath("/groupings");
+}
+
 export async function saveGroupingVersionAction(
   groupingId: number,
   name: string,
