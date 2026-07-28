@@ -158,6 +158,15 @@ export async function renameGroupingAction(id: number, name: string) {
   revalidatePath("/groupings");
 }
 
+export async function deleteGroupingVersionAction(id: number) {
+  await requireUser();
+  if (!Number.isFinite(id)) throw new Error("Invalid version");
+
+  await db.delete(groupingVersions).where(eq(groupingVersions.id, id));
+
+  revalidatePath("/groupings");
+}
+
 export async function deleteGroupingAction(id: number) {
   await requireUser();
   if (!Number.isFinite(id)) throw new Error("Invalid grouping");

@@ -92,16 +92,25 @@ export default function GroupingEditor({
   versions: GroupingVersionItem[];
 }) {
   const { setSnapshot } = useGroupingExport();
-  const [checkedEventIds, setCheckedEventIds] = useState<number[] | null>(grouping.checkedEventIds);
-  const [includeNewsletterContacts, setIncludeNewsletterContacts] = useState(
-    grouping.includeNewsletterContacts
-  );
-  const [containers, setContainers] = useState<GroupingContainerData[]>(grouping.containers);
-  const [containerKeys, setContainerKeys] = useState(() =>
-    grouping.containers.map(() => createContainerKey())
-  );
   const [versions, setVersions] = useState(initialVersions);
-  const [activeVersionId, setActiveVersionId] = useState<number | null>(null);
+  const [activeVersionId, setActiveVersionId] = useState<number | null>(
+    () => initialVersions[0]?.id ?? null
+  );
+  const [checkedEventIds, setCheckedEventIds] = useState<number[] | null>(
+    () => initialVersions[0]?.checkedEventIds ?? grouping.checkedEventIds
+  );
+  const [includeNewsletterContacts, setIncludeNewsletterContacts] = useState(
+    () => initialVersions[0]?.includeNewsletterContacts ?? grouping.includeNewsletterContacts
+  );
+  const [containers, setContainers] = useState<GroupingContainerData[]>(
+    () =>
+      initialVersions[0]
+        ? structuredClone(initialVersions[0].containers)
+        : grouping.containers
+  );
+  const [containerKeys, setContainerKeys] = useState(() =>
+    (initialVersions[0]?.containers ?? grouping.containers).map(() => createContainerKey())
+  );
   const [studentFilters, setStudentFilters] = useState<GroupingStudentFilters>(
     EMPTY_GROUPING_STUDENT_FILTERS
   );
@@ -133,12 +142,24 @@ export default function GroupingEditor({
 
   useEffect(() => {
     skipNextAutosaveRef.current = true;
-    setCheckedEventIds(grouping.checkedEventIds);
-    setIncludeNewsletterContacts(grouping.includeNewsletterContacts);
-    setContainers(grouping.containers);
-    setContainerKeys(grouping.containers.map(() => createContainerKey()));
     setVersions(initialVersions);
-    setActiveVersionId(null);
+    const firstVersion = initialVersions[0];
+    if (firstVersion) {
+      const nextContainers = structuredClone(firstVersion.containers);
+      setActiveVersionId(firstVersion.id);
+      setCheckedEventIds(
+        firstVersion.checkedEventIds === null ? null : [...firstVersion.checkedEventIds]
+      );
+      setIncludeNewsletterContacts(firstVersion.includeNewsletterContacts);
+      setContainers(nextContainers);
+      setContainerKeys(nextContainers.map(() => createContainerKey()));
+    } else {
+      setActiveVersionId(null);
+      setCheckedEventIds(grouping.checkedEventIds);
+      setIncludeNewsletterContacts(grouping.includeNewsletterContacts);
+      setContainers(grouping.containers);
+      setContainerKeys(grouping.containers.map(() => createContainerKey()));
+    }
     setContainerDragFromIndex(null);
     setContainerDropInsertIndex(null);
     setDeleteContainerIndex(null);
@@ -777,6 +798,7 @@ export default function GroupingEditor({
         getSnapshot={() => latestRef.current}
         onVersionsChange={setVersions}
         onSelectVersion={selectVersion}
+        onClearActiveVersion={() => setActiveVersionId(null)}
       />
 
       <div className="flex gap-4 items-start min-w-0">
