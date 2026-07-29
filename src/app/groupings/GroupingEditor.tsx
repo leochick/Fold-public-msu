@@ -10,6 +10,7 @@ import type {
   GroupingStudentItem,
   GroupingVersionItem,
 } from "@/server/groupings";
+import { pickInitialGroupingVersion } from "@/lib/grouping-versions";
 import {
   EMPTY_GROUPING_STUDENT_FILTERS,
   studentMatchesFilters,
@@ -93,23 +94,21 @@ export default function GroupingEditor({
 }) {
   const { setSnapshot } = useGroupingExport();
   const [versions, setVersions] = useState(initialVersions);
+  const initialVersion = pickInitialGroupingVersion(initialVersions);
   const [activeVersionId, setActiveVersionId] = useState<number | null>(
-    () => initialVersions[0]?.id ?? null
+    () => initialVersion?.id ?? null
   );
   const [checkedEventIds, setCheckedEventIds] = useState<number[] | null>(
-    () => initialVersions[0]?.checkedEventIds ?? grouping.checkedEventIds
+    () => initialVersion?.checkedEventIds ?? grouping.checkedEventIds
   );
   const [includeNewsletterContacts, setIncludeNewsletterContacts] = useState(
-    () => initialVersions[0]?.includeNewsletterContacts ?? grouping.includeNewsletterContacts
+    () => initialVersion?.includeNewsletterContacts ?? grouping.includeNewsletterContacts
   );
-  const [containers, setContainers] = useState<GroupingContainerData[]>(
-    () =>
-      initialVersions[0]
-        ? structuredClone(initialVersions[0].containers)
-        : grouping.containers
+  const [containers, setContainers] = useState<GroupingContainerData[]>(() =>
+    initialVersion ? structuredClone(initialVersion.containers) : grouping.containers
   );
   const [containerKeys, setContainerKeys] = useState(() =>
-    (initialVersions[0]?.containers ?? grouping.containers).map(() => createContainerKey())
+    (initialVersion?.containers ?? grouping.containers).map(() => createContainerKey())
   );
   const [studentFilters, setStudentFilters] = useState<GroupingStudentFilters>(
     EMPTY_GROUPING_STUDENT_FILTERS
@@ -145,14 +144,14 @@ export default function GroupingEditor({
   useEffect(() => {
     skipNextAutosaveRef.current = true;
     setVersions(initialVersions);
-    const firstVersion = initialVersions[0];
-    if (firstVersion) {
-      const nextContainers = structuredClone(firstVersion.containers);
-      setActiveVersionId(firstVersion.id);
+    const version = pickInitialGroupingVersion(initialVersions);
+    if (version) {
+      const nextContainers = structuredClone(version.containers);
+      setActiveVersionId(version.id);
       setCheckedEventIds(
-        firstVersion.checkedEventIds === null ? null : [...firstVersion.checkedEventIds]
+        version.checkedEventIds === null ? null : [...version.checkedEventIds]
       );
-      setIncludeNewsletterContacts(firstVersion.includeNewsletterContacts);
+      setIncludeNewsletterContacts(version.includeNewsletterContacts);
       setContainers(nextContainers);
       setContainerKeys(nextContainers.map(() => createContainerKey()));
     } else {

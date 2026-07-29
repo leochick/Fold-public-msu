@@ -2,8 +2,31 @@
 
 import { useState, useTransition } from "react";
 import type { GroupingContainerData } from "../../../drizzle/schema";
-import { deleteGroupingVersionAction, saveGroupingVersionAction } from "../groupings-actions";
+import {
+  deleteGroupingVersionAction,
+  saveGroupingVersionAction,
+  setDefaultGroupingVersionAction,
+} from "../groupings-actions";
+import { pickInitialGroupingVersion } from "@/lib/grouping-versions";
 import type { GroupingVersionItem } from "@/server/groupings";
+
+function StarIcon({ filled }: { filled: boolean }) {
+  return (
+    <svg
+      viewBox="0 0 20 20"
+      className="h-3.5 w-3.5"
+      aria-hidden
+      fill={filled ? "currentColor" : "none"}
+      stroke="currentColor"
+      strokeWidth="1.5"
+    >
+      <path
+        strokeLinejoin="round"
+        d="M10 2.5l2.2 4.46 4.92.72-3.56 3.47.84 4.9L10 13.77l-4.4 2.28.84-4.9L2.88 7.68l4.92-.72L10 2.5z"
+      />
+    </svg>
+  );
+}
 
 export default function GroupingVersionsCard({
   groupingId,
@@ -54,6 +77,24 @@ export default function GroupingVersionsCard({
     });
   }
 
+  function setDefaultVersion(version: GroupingVersionItem) {
+    if (version.isDefault) return;
+    setSaveError(null);
+    startTransition(async () => {
+      try {
+        await setDefaultGroupingVersionAction(version.id);
+        onVersionsChange(
+          versions.map((entry) => ({
+            ...entry,
+            isDefault: entry.id === version.id,
+          }))
+        );
+      } catch (error) {
+        setSaveError(error instanceof Error ? error.message : "Could not set default version");
+      }
+    });
+  }
+
   function confirmDelete() {
     if (!deleteTarget) return;
     const target = deleteTarget;
@@ -63,8 +104,9 @@ export default function GroupingVersionsCard({
         const remaining = versions.filter((version) => version.id !== target.id);
         onVersionsChange(remaining);
         if (activeVersionId === target.id) {
-          if (remaining[0]) {
-            onSelectVersion(remaining[0]);
+          const next = pickInitialGroupingVersion(remaining);
+          if (next) {
+            onSelectVersion(next);
           } else {
             onClearActiveVersion();
           }
@@ -134,6 +176,27 @@ export default function GroupingVersionsCard({
                   </button>
                   <button
                     type="button"
+                    className={`px-2 border-l border-black/10 dark:border-white/15 hover:bg-black/5 dark:hover:bg-white/5 ${
+                      version.isDefault
+                        ? "text-amber-500"
+                        : "text-black/35 dark:text-white/35 hover:text-amber-500"
+                    }`}
+                    aria-label={
+                      version.isDefault
+                        ? `${version.name} is the default version`
+                        : `Set ${version.name} as default version`
+                    }
+                    aria-pressed={version.isDefault}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      setDefaultVersion(version);
+                    }}
+                    disabled={isPending || version.isDefault}
+                  >
+                    <StarIcon filled={version.isDefault} />
+                  </button>
+                  <button
+                    type="button"
                     className="px-2 border-l border-black/10 dark:border-white/15 text-black/45 dark:text-white/45 hover:bg-black/5 dark:hover:bg-white/5 hover:text-red-600 dark:hover:text-red-400"
                     aria-label={`Delete version ${version.name}`}
                     onClick={(event) => {
@@ -152,6 +215,7 @@ export default function GroupingVersionsCard({
         ) : (
           <p className="text-xs text-black/50 dark:text-white/50 mt-3">
             Save named snapshots of this grouping to compare arrangements side by side.
+            Star a version to use it on load and in Staff Allocation.
           </p>
         )}
       </div>

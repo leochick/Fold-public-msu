@@ -97,6 +97,7 @@ export type GroupingVersionItem = {
   checkedEventIds: number[] | null;
   includeNewsletterContacts: boolean;
   containers: GroupingContainerData[];
+  isDefault: boolean;
 };
 
 /** View id used for loading events and students for a grouping. */
@@ -237,6 +238,7 @@ export async function listGroupingVersions(groupingId: number): Promise<Grouping
       checkedEventIds: groupingVersions.checkedEventIds,
       includeNewsletterContacts: groupingVersions.includeNewsletterContacts,
       containers: groupingVersions.containers,
+      isDefault: groupingVersions.isDefault,
     })
     .from(groupingVersions)
     .where(eq(groupingVersions.groupingId, groupingId))
@@ -248,6 +250,7 @@ export async function listGroupingVersions(groupingId: number): Promise<Grouping
     checkedEventIds: row.checkedEventIds ?? null,
     includeNewsletterContacts: row.includeNewsletterContacts,
     containers: normalizeGroupingContainers(row.containers),
+    isDefault: row.isDefault,
   }));
 }
 

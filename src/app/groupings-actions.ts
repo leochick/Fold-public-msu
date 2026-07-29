@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { eq, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { groupings, groupingVersions, views, type GroupingContainerData } from "../../drizzle/schema";
 import { requireUser } from "@/lib/auth";
@@ -119,6 +119,7 @@ export async function updateGroupingVersionAction(
   if (!updated.length) throw new Error("Version not found");
 
   revalidatePath("/groupings");
+  revalidatePath("/staff-allocation");
 }
 
 export async function saveGroupingVersionAction(
@@ -151,6 +152,7 @@ export async function saveGroupingVersionAction(
       checkedEventIds: normalizedEventIds,
       includeNewsletterContacts: Boolean(includeNewsletterContacts),
       containers: normalizedContainers,
+      isDefault: false,
       addedByUserId: user.id,
     })
     .returning({
@@ -159,6 +161,7 @@ export async function saveGroupingVersionAction(
       checkedEventIds: groupingVersions.checkedEventIds,
       includeNewsletterContacts: groupingVersions.includeNewsletterContacts,
       containers: groupingVersions.containers,
+      isDefault: groupingVersions.isDefault,
     });
 
   revalidatePath("/groupings");
@@ -168,7 +171,41 @@ export async function saveGroupingVersionAction(
     checkedEventIds: created.checkedEventIds ?? null,
     includeNewsletterContacts: created.includeNewsletterContacts,
     containers: normalizeGroupingContainers(created.containers),
+    isDefault: created.isDefault,
   };
+}
+
+export async function setDefaultGroupingVersionAction(versionId: number) {
+  await requireUser();
+  if (!Number.isFinite(versionId)) throw new Error("Invalid version");
+
+  const [version] = await db
+    .select({
+      id: groupingVersions.id,
+      groupingId: groupingVersions.groupingId,
+    })
+    .from(groupingVersions)
+    .where(eq(groupingVersions.id, versionId))
+    .limit(1);
+  if (!version) throw new Error("Version not found");
+
+  await db
+    .update(groupingVersions)
+    .set({ isDefault: false })
+    .where(
+      and(
+        eq(groupingVersions.groupingId, version.groupingId),
+        eq(groupingVersions.isDefault, true)
+      )
+    );
+
+  await db
+    .update(groupingVersions)
+    .set({ isDefault: true })
+    .where(eq(groupingVersions.id, versionId));
+
+  revalidatePath("/groupings");
+  revalidatePath("/staff-allocation");
 }
 
 export async function renameGroupingAction(id: number, name: string) {
@@ -192,6 +229,7 @@ export async function deleteGroupingVersionAction(id: number) {
   await db.delete(groupingVersions).where(eq(groupingVersions.id, id));
 
   revalidatePath("/groupings");
+  revalidatePath("/staff-allocation");
 }
 
 export async function deleteGroupingAction(id: number) {
@@ -201,4 +239,5 @@ export async function deleteGroupingAction(id: number) {
   await db.delete(groupings).where(eq(groupings.id, id));
 
   revalidatePath("/groupings");
+  revalidatePath("/staff-allocation");
 }

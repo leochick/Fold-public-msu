@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
-import { groupings, students } from "../../drizzle/schema";
-import { asc, eq, inArray } from "drizzle-orm";
+import { groupings, groupingVersions, students, type GroupingContainerData } from "../../drizzle/schema";
+import { and, asc, eq, inArray } from "drizzle-orm";
 import { resolveDashboardDateRange } from "@/lib/dashboard-date-range";
 import { normalizeGroupingContainers } from "@/lib/grouping-containers";
 import type { GroupingStudentStatus } from "@/lib/grouping-status";
@@ -83,6 +83,38 @@ export async function getStaffAllocationForView(
     getStudentsForView(engagementDataViewId),
   ]);
 
+  const groupingIds = groupingRows.map((grouping) => grouping.id);
+  const defaultVersionRows =
+    groupingIds.length > 0
+      ? await db
+          .select({
+            groupingId: groupingVersions.groupingId,
+            containers: groupingVersions.containers,
+          })
+          .from(groupingVersions)
+          .where(
+            and(
+              inArray(groupingVersions.groupingId, groupingIds),
+              eq(groupingVersions.isDefault, true)
+            )
+          )
+      : [];
+
+  const defaultContainersByGroupingId = new Map<number, GroupingContainerData[]>(
+    defaultVersionRows.map((row) => [
+      row.groupingId,
+      normalizeGroupingContainers(row.containers),
+    ])
+  );
+
+  const resolvedGroupings = groupingRows.map((grouping) => ({
+    id: grouping.id,
+    name: grouping.name,
+    containers:
+      defaultContainersByGroupingId.get(grouping.id) ??
+      normalizeGroupingContainers(grouping.containers),
+  }));
+
   const { from, to } = resolveDashboardDateRange(
     view ? { from: view.from, to: view.to } : {}
   );
@@ -95,8 +127,8 @@ export async function getStaffAllocationForView(
   );
 
   const studentIds = new Set<number>();
-  for (const grouping of groupingRows) {
-    for (const container of normalizeGroupingContainers(grouping.containers)) {
+  for (const grouping of resolvedGroupings) {
+    for (const container of grouping.containers) {
       for (const item of container.items) {
         if (item.entity === "student") studentIds.add(item.id);
       }
@@ -158,9 +190,8 @@ export async function getStaffAllocationForView(
     }
   }
 
-  for (const grouping of groupingRows) {
-    const containers = normalizeGroupingContainers(grouping.containers);
-    containers.forEach((container, containerIndex) => {
+  for (const grouping of resolvedGroupings) {
+    grouping.containers.forEach((container, containerIndex) => {
       const staffInContainer = container.items.filter((item) => item.entity === "staff");
       if (staffInContainer.length === 0) return;
 

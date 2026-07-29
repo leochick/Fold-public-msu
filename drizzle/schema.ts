@@ -279,6 +279,7 @@ export const groupingVersions = sqliteTable("grouping_versions", {
     .notNull()
     .default(false),
   containers: text("containers", { mode: "json" }).$type<GroupingContainerData[]>().notNull(),
+  isDefault: integer("is_default", { mode: "boolean" }).notNull().default(false),
   addedByUserId: text("added_by_user_id").references(() => users.id, { onDelete: "set null" }),
   createdAt: integer("created_at", { mode: "timestamp" })
     .notNull()
