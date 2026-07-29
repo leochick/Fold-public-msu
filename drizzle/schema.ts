@@ -96,6 +96,12 @@ export const events = sqliteTable("events", {
     .default(sql`(unixepoch())`),
 });
 
+export type StaffChild = {
+  name: string;
+  age: number | null;
+  gender: "M" | "F" | null;
+};
+
 export const staff = sqliteTable("staff", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   firstName: text("first_name").notNull(),
@@ -106,6 +112,7 @@ export const staff = sqliteTable("staff", {
   spouseId: integer("spouse_id").references((): AnySQLiteColumn => staff.id, {
     onDelete: "set null",
   }),
+  children: text("children", { mode: "json" }).$type<StaffChild[]>(),
   createdAt: integer("created_at", { mode: "timestamp" })
     .notNull()
     .default(sql`(unixepoch())`),

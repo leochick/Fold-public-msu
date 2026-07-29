@@ -20,6 +20,7 @@ describe("buildGroupingMemberRows", () => {
         day: "Wednesday",
         location: "Student Center",
         hasSpouseDayConflict: true,
+        hasChildcareConflict: false,
         members: [
           {
             entity: "student",
@@ -45,6 +46,7 @@ describe("buildGroupingMemberRows", () => {
             groupme: null,
             attendanceCountInRange: null,
             hasSpouseDayConflict: true,
+            hasChildcareConflict: false,
           },
         ],
       },
@@ -74,6 +76,7 @@ describe("buildGroupingMemberRows", () => {
         groupme: "No",
         attendance: 4,
         spouseDayConflict: "",
+        needsChildcare: "",
       },
       {
         group: "Group A",
@@ -91,6 +94,7 @@ describe("buildGroupingMemberRows", () => {
         groupme: "",
         attendance: "",
         spouseDayConflict: "Yes",
+        needsChildcare: "No",
       },
     ]);
   });
@@ -108,13 +112,17 @@ describe("buildGroupingMemberRows", () => {
     expect(members?.getRow(1).getCell(2).value).toBe("Day");
     expect(members?.getRow(1).getCell(3).value).toBe("Location");
     expect(members?.getRow(1).getCell(15).value).toBe("Spouse Day Conflict");
+    expect(members?.getRow(1).getCell(16).value).toBe("Needs Childcare");
     expect(members?.getRow(2).getCell(2).value).toBe("Wednesday");
     expect(members?.getRow(2).getCell(3).value).toBe("Student Center");
     expect(members?.getRow(3).getCell(15).value).toBe("Yes");
+    expect(members?.getRow(3).getCell(16).value).toBe("No");
 
     const summary = workbook.getWorksheet("Summary");
     expect(summary?.getRow(8).getCell(1).value).toBe("Spouse day conflicts");
     expect(summary?.getRow(8).getCell(2).value).toBe(1);
+    expect(summary?.getRow(9).getCell(1).value).toBe("Needs childcare");
+    expect(summary?.getRow(9).getCell(2).value).toBe(0);
 
     const byGroup = workbook.getWorksheet("By Group");
     expect(String(byGroup?.getRow(1).getCell(1).value)).toContain("Wednesday");

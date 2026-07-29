@@ -30,6 +30,7 @@ import {
 import { readGroupingDragData, type GroupingDragEntity } from "@/lib/grouping-drag";
 import type { GroupingExportMember, GroupingExportSnapshot } from "@/lib/grouping-export";
 import { findSpouseDayConflicts } from "@/lib/grouping-spouse-day-conflicts";
+import { findSpouseChildcareConflicts } from "@/lib/grouping-spouse-childcare-conflicts";
 import AssociateRoleModal, { type StaffRoleOption } from "./AssociateRoleModal";
 import ContainerCard from "./ContainerCard";
 import ContainerInsertGap from "./ContainerInsertGap";
@@ -285,6 +286,15 @@ export default function GroupingEditor({
     [containers, staff]
   );
 
+  const spouseChildcareConflicts = useMemo(
+    () =>
+      findSpouseChildcareConflicts(
+        containers,
+        staff.map((member) => ({ id: member.id, spouseId: member.spouseId }))
+      ),
+    [containers, staff]
+  );
+
   const eventNameById = useMemo(() => {
     const map = new Map<number, string>();
     for (const event of events) {
@@ -314,6 +324,7 @@ export default function GroupingEditor({
         location: container.location,
         day: container.time,
         hasSpouseDayConflict: spouseDayConflicts.containerIndexes.has(containerIndex),
+        hasChildcareConflict: spouseChildcareConflicts.containerIndexes.has(containerIndex),
         members: container.items.flatMap((item): GroupingExportMember[] => {
           if (item.entity === "student") {
             const student = studentsFullById.get(item.id);
@@ -349,6 +360,7 @@ export default function GroupingEditor({
               groupme: null,
               attendanceCountInRange: null,
               hasSpouseDayConflict: spouseDayConflicts.staffIds.has(item.id),
+              hasChildcareConflict: spouseChildcareConflicts.staffIds.has(item.id),
             },
           ];
         }),
@@ -364,6 +376,8 @@ export default function GroupingEditor({
     grouping.viewName,
     grouping.viewTo,
     includeNewsletterContacts,
+    spouseChildcareConflicts.containerIndexes,
+    spouseChildcareConflicts.staffIds,
     spouseDayConflicts.containerIndexes,
     spouseDayConflicts.staffIds,
     staffById,
@@ -1001,6 +1015,8 @@ export default function GroupingEditor({
                     }
                     spouseDayConflictStaffIds={spouseDayConflicts.staffIds}
                     hasSpouseDayConflict={spouseDayConflicts.containerIndexes.has(index)}
+                    childcareConflictStaffIds={spouseChildcareConflicts.staffIds}
+                    hasChildcareConflict={spouseChildcareConflicts.containerIndexes.has(index)}
                     isContainerDragging={containerDragFromIndex === index}
                     isContainerReorderActive={() => containerDragFromIndexRef.current != null}
                     onContainerReorderDragStart={beginContainerReorder}

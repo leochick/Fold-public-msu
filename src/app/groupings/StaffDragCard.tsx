@@ -22,6 +22,7 @@ export default function StaffDragCard({
   associatedRoleName,
   onAssociateWithRole,
   hasSpouseDayConflict = false,
+  hasChildcareConflict = false,
 }: {
   staff: StaffCardData;
   dragMeta: GroupingDragMeta;
@@ -36,7 +37,10 @@ export default function StaffDragCard({
   onAssociateWithRole?: () => void;
   /** When true, outlines the card for a spouse day-of-week conflict. */
   hasSpouseDayConflict?: boolean;
+  /** When true, outlines the card when both spouses are scheduled the same day. */
+  hasChildcareConflict?: boolean;
 }) {
+  const hasConflictOutline = hasSpouseDayConflict || hasChildcareConflict;
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuPos, setMenuPos] = useState<{ top: number; right: number }>({ top: 0, right: 0 });
   const [mounted, setMounted] = useState(false);
@@ -150,7 +154,7 @@ export default function StaffDragCard({
           onDropOnCard(event);
         }}
         className={`rounded-lg border p-2 cursor-grab active:cursor-grabbing shadow-sm bg-black/[0.03] dark:bg-white/[0.04] ${
-          hasSpouseDayConflict ? "border-dotted border-red-500 dark:border-red-400" : ""
+          hasConflictOutline ? "border-dotted border-red-500 dark:border-red-400" : ""
         }`}
       >
         <div className="flex items-start gap-1">
@@ -191,7 +195,12 @@ export default function StaffDragCard({
       </div>
       {hasSpouseDayConflict ? (
         <p className="mt-1 px-0.5 text-[10px] leading-tight text-red-600 dark:text-red-400">
-          Conflicting day with spouse
+          Spouse busy with another group on a different day of the week
+        </p>
+      ) : null}
+      {hasChildcareConflict ? (
+        <p className="mt-1 px-0.5 text-[10px] leading-tight text-red-600 dark:text-red-400">
+          Will need childcare
         </p>
       ) : null}
     </div>

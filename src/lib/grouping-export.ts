@@ -19,6 +19,8 @@ export type GroupingExportMember = {
   attendanceCountInRange: number | null;
   /** Staff only — true when this staff member has a spouse day conflict. */
   hasSpouseDayConflict?: boolean;
+  /** Staff only — true when both spouses are scheduled on the same day. */
+  hasChildcareConflict?: boolean;
 };
 
 export type GroupingExportGroup = {
@@ -29,6 +31,8 @@ export type GroupingExportGroup = {
   location?: string;
   /** True when any staff in this group has a spouse day conflict. */
   hasSpouseDayConflict?: boolean;
+  /** True when any staff in this group has a same-day spouse childcare conflict. */
+  hasChildcareConflict?: boolean;
   members: GroupingExportMember[];
 };
 
@@ -75,6 +79,7 @@ const MEMBER_HEADERS = [
   "GroupMe",
   "Attendance in Semester",
   "Spouse Day Conflict",
+  "Needs Childcare",
 ] as const;
 
 function formatYesNo(value: boolean | null): string {
@@ -136,6 +141,7 @@ function byGroupHeaderLabel(group: GroupingExportGroup, index: number): string {
   if (group.day?.trim()) details.push(group.day.trim());
   if (group.location?.trim()) details.push(group.location.trim());
   if (group.hasSpouseDayConflict) details.push("Spouse day conflict");
+  if (group.hasChildcareConflict) details.push("Needs childcare");
   if (details.length === 0) return title;
   return `${title}\n${details.join(" · ")}`;
 }
@@ -157,6 +163,7 @@ export function buildGroupingMemberRows(snapshot: GroupingExportSnapshot) {
     groupme: string;
     attendance: number | string;
     spouseDayConflict: string;
+    needsChildcare: string;
   }> = [];
 
   snapshot.groups.forEach((group, groupIndex) => {
@@ -185,6 +192,7 @@ export function buildGroupingMemberRows(snapshot: GroupingExportSnapshot) {
           : member.hasSpouseDayConflict
             ? "Yes"
             : "No",
+        needsChildcare: isStudent ? "" : member.hasChildcareConflict ? "Yes" : "No",
       });
     });
   });
@@ -221,6 +229,14 @@ export async function buildGroupingWorkbook(snapshot: GroupingExportSnapshot): P
       ).length,
     0
   );
+  const childcareConflictStaffCount = snapshot.groups.reduce(
+    (count, group) =>
+      count +
+      group.members.filter(
+        (member) => member.entity === "staff" && member.hasChildcareConflict
+      ).length,
+    0
+  );
 
   const summary = workbook.addWorksheet("Summary", {
     views: [{ showGridLines: false }],
@@ -239,6 +255,7 @@ export async function buildGroupingWorkbook(snapshot: GroupingExportSnapshot): P
     ["Students assigned", studentCount],
     ["Staff assigned", staffCount],
     ["Spouse day conflicts", spouseDayConflictStaffCount],
+    ["Needs childcare", childcareConflictStaffCount],
     ["Exported at", exportedAt],
   ];
 
@@ -268,6 +285,7 @@ export async function buildGroupingWorkbook(snapshot: GroupingExportSnapshot): P
     { key: "groupme", width: 12 },
     { key: "attendance", width: 16 },
     { key: "spouseDayConflict", width: 18 },
+    { key: "needsChildcare", width: 16 },
   ];
 
   const headerRow = members.getRow(1);
@@ -282,7 +300,7 @@ export async function buildGroupingWorkbook(snapshot: GroupingExportSnapshot): P
   };
 
   const memberRows = buildGroupingMemberRows(snapshot);
-  const centeredColumns = new Set([4, 5, 8, 12, 13, 15]);
+  const centeredColumns = new Set([4, 5, 8, 12, 13, 15, 16]);
   memberRows.forEach((data, index) => {
     const row = members.getRow(index + 2);
     row.values = [
@@ -301,6 +319,7 @@ export async function buildGroupingWorkbook(snapshot: GroupingExportSnapshot): P
       data.groupme,
       data.attendance,
       data.spouseDayConflict,
+      data.needsChildcare,
     ];
     row.eachCell({ includeEmpty: true }, (cell, colNumber) => {
       styleDataCell(cell, {

@@ -39,6 +39,8 @@ export default function ContainerCard({
   onAssociateStaffRole,
   spouseDayConflictStaffIds,
   hasSpouseDayConflict,
+  childcareConflictStaffIds,
+  hasChildcareConflict,
   isContainerDragging,
   isContainerReorderActive,
   onContainerReorderDragStart,
@@ -66,6 +68,8 @@ export default function ContainerCard({
   onAssociateStaffRole: (containerIndex: number, staffId: number) => void;
   spouseDayConflictStaffIds: Set<number>;
   hasSpouseDayConflict: boolean;
+  childcareConflictStaffIds: Set<number>;
+  hasChildcareConflict: boolean;
   isContainerDragging: boolean;
   /** May read a ref — call inside event handlers so dragover works before re-render. */
   isContainerReorderActive: () => boolean;
@@ -195,6 +199,7 @@ export default function ContainerCard({
             associatedRoleName={item.associatedRoleName}
             onAssociateWithRole={() => onAssociateStaffRole(containerIndex, item.id)}
             hasSpouseDayConflict={spouseDayConflictStaffIds.has(item.id)}
+            hasChildcareConflict={childcareConflictStaffIds.has(item.id)}
           />
         </div>
       );
@@ -291,12 +296,12 @@ export default function ContainerCard({
         {showTimeInput ? (
           <select
             className={`input flex-1 min-w-[8rem] text-xs py-1 ${
-              hasSpouseDayConflict
+              hasSpouseDayConflict || hasChildcareConflict
                 ? "!border-dotted !border-red-500 dark:!border-red-400 focus:!ring-red-500/40"
                 : ""
             }`}
             aria-label={`Day for ${container.title.trim() || `container ${containerIndex + 1}`}`}
-            aria-invalid={hasSpouseDayConflict || undefined}
+            aria-invalid={hasSpouseDayConflict || hasChildcareConflict || undefined}
             value={container.time ?? ""}
             autoFocus={editingTime}
             onChange={(event) => onTimeChange(containerIndex, event.target.value)}
