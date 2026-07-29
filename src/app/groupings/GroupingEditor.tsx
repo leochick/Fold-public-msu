@@ -290,7 +290,11 @@ export default function GroupingEditor({
     () =>
       findSpouseChildcareConflicts(
         containers,
-        staff.map((member) => ({ id: member.id, spouseId: member.spouseId }))
+        staff.map((member) => ({
+          id: member.id,
+          spouseId: member.spouseId,
+          hasChildren: member.hasChildren,
+        }))
       ),
     [containers, staff]
   );

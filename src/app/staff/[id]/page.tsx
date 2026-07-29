@@ -6,6 +6,7 @@ import { asc, eq } from "drizzle-orm";
 import StaffForm from "./StaffForm";
 import { parseStaff } from "@/lib/parse-staff";
 import { requireUser } from "@/lib/auth";
+import { updateStaffMember } from "@/server/staff";
 
 export const dynamic = "force-dynamic";
 
@@ -33,7 +34,7 @@ export default async function StaffMemberPage({ params }: { params: Promise<{ id
     "use server";
     await requireUser();
     const data = parseStaff(formData);
-    await db.update(staff).set({ ...data, updatedAt: new Date() }).where(eq(staff.id, id));
+    await updateStaffMember(id, data);
     redirect(`/staff/${id}`);
   }
 

@@ -54,6 +54,8 @@ export type GroupingStaffItem = {
   lastName: string | null;
   gender: "M" | "F" | null;
   spouseId: number | null;
+  /** True when this staff member has one or more children recorded. */
+  hasChildren: boolean;
   startingDate: Date | null;
   endingDate: Date | null;
   /** True when staff dates overlap the current semester (for unassigned pool filtering). */
@@ -384,16 +386,22 @@ export async function getStudentsForView(viewId: number): Promise<GroupingStuden
 }
 
 export async function getAllStaff(): Promise<Omit<GroupingStaffItem, "activeInView">[]> {
-  return db
+  const rows = await db
     .select({
       id: staff.id,
       firstName: staff.firstName,
       lastName: staff.lastName,
       gender: staff.gender,
       spouseId: staff.spouseId,
+      children: staff.children,
       startingDate: staff.startingDate,
       endingDate: staff.endingDate,
     })
     .from(staff)
     .orderBy(staff.firstName);
+
+  return rows.map(({ children, ...member }) => ({
+    ...member,
+    hasChildren: Array.isArray(children) && children.length > 0,
+  }));
 }

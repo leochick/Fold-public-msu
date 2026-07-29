@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { staff } from "../../../../drizzle/schema";
 import { parseStaff } from "@/lib/parse-staff";
 import { requireUser } from "@/lib/auth";
+import { createStaffMember } from "@/server/staff";
 import { asc } from "drizzle-orm";
 
 export const dynamic = "force-dynamic";
@@ -27,7 +28,7 @@ export default async function NewStaffPage() {
     await requireUser();
     const data = parseStaff(formData);
     if (!data.firstName) redirect("/staff/new");
-    const [row] = await db.insert(staff).values(data).returning();
+    const row = await createStaffMember(data);
     redirect(`/staff/${row.id}`);
   }
 
