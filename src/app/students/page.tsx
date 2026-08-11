@@ -70,9 +70,16 @@ export default async function StudentsPage() {
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-8 space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-3">
         <h1 className="text-2xl font-semibold">Students</h1>
-        <Link href="/students/new" className="btn-primary">+ New student</Link>
+        <div className="flex items-center gap-2">
+          <Link href="/students/export" className="btn btn-ghost">
+            Export
+          </Link>
+          <Link href="/students/new" className="btn-primary">
+            + New student
+          </Link>
+        </div>
       </div>
 
       <QuickAddStudents />
