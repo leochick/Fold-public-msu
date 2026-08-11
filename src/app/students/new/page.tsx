@@ -8,20 +8,23 @@ import { logStudentCreated } from "@/server/changelog";
 import { asc, desc, and, gte, lte } from "drizzle-orm";
 import { resolveDashboardDateRange } from "@/lib/dashboard-date-range";
 import { formatStaffActiveLabel } from "@/lib/staff-active";
+import { springEndsFromAcademicYears } from "@/lib/class-year";
+import { listAcademicYearDetails } from "@/server/academic-calendar";
 import { getActiveDashboardView } from "@/server/dashboard-views";
 
 export default async function NewStudentPage() {
   async function create(formData: FormData) {
     "use server";
     const user = await requireUser();
-    const data = parseStudent(formData);
+    const springEndsByYear = springEndsFromAcademicYears(await listAcademicYearDetails());
+    const data = parseStudent(formData, { springEndsByYear });
     if (!data.firstName) redirect("/students/new");
     const [row] = await db.insert(students).values({ ...data, addedByUserId: user.id }).returning();
     await logStudentCreated(user.id, row);
     redirect(`/students/${row.id}`);
   }
 
-  const [rosterRows, staffRows, activeView] = await Promise.all([
+  const [rosterRows, staffRows, activeView, academicYears] = await Promise.all([
     db
       .select({
         id: students.id,
@@ -41,7 +44,9 @@ export default async function NewStudentPage() {
       .from(staff)
       .orderBy(asc(staff.firstName)),
     getActiveDashboardView(),
+    listAcademicYearDetails(),
   ]);
+  const springEndsByYear = springEndsFromAcademicYears(academicYears);
 
   const { from, to } = resolveDashboardDateRange(
     activeView ? { from: activeView.from, to: activeView.to } : {}
@@ -83,7 +88,12 @@ export default async function NewStudentPage() {
   return (
     <div className="max-w-3xl mx-auto px-4 py-8 space-y-4">
       <h1 className="text-2xl font-semibold">New student</h1>
-      <StudentForm action={create} people={people} events={eventOptions} />
+      <StudentForm
+        action={create}
+        people={people}
+        events={eventOptions}
+        springEndsByYear={springEndsByYear}
+      />
     </div>
   );
 }

@@ -1,4 +1,11 @@
+import { deriveClassYearFromGraduationYear } from "@/lib/class-year";
+
 export type PersonRefEntity = "student" | "staff";
+
+export type ParseStudentOptions = {
+  today?: Date;
+  springEndsByYear?: Readonly<Record<number, string>>;
+};
 
 function parsePersonRef(raw: string | null): {
   studentId: number | null;
@@ -35,7 +42,7 @@ export function formatDateInput(d: Date | string | null | undefined): string {
   return d.toISOString().slice(0, 10);
 }
 
-export function parseStudent(f: FormData) {
+export function parseStudent(f: FormData, options: ParseStudentOptions = {}) {
   const v = (k: string) => {
     const x = f.get(k);
     return x == null || x === "" ? null : String(x);
@@ -48,16 +55,22 @@ export function parseStudent(f: FormData) {
 
   const graduationYearRaw = v("graduationYear");
   const graduationYearNum = graduationYearRaw == null ? null : Number(graduationYearRaw);
+  const graduationYear =
+    graduationYearNum != null && Number.isFinite(graduationYearNum)
+      ? Math.trunc(graduationYearNum)
+      : null;
 
   return {
     firstName: v("firstName") ?? "",
     lastName: v("lastName"),
     gender: (v("gender") as "M" | "F" | null) ?? null,
-    year: (v("year") as never) ?? null,
-    graduationYear:
-      graduationYearNum != null && Number.isFinite(graduationYearNum)
-        ? Math.trunc(graduationYearNum)
-        : null,
+    // Year is derived from Graduation Year (form Year control is read-only).
+    year: deriveClassYearFromGraduationYear(
+      graduationYear,
+      options.today,
+      options.springEndsByYear
+    ) as never,
+    graduationYear,
     phone: v("phone"),
     email: v("email"),
     igHandle: v("igHandle")?.replace(/^@/, "") ?? null,

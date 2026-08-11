@@ -5,8 +5,10 @@ import { students } from "../../../drizzle/schema";
 import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth";
+import { springEndsFromAcademicYears } from "@/lib/class-year";
 import { pickStudentFields } from "@/lib/changelog";
 import { parseStudent } from "@/lib/parse-student";
+import { listAcademicYearDetails } from "@/server/academic-calendar";
 import { logStudentDeleted, logStudentUpdated } from "@/server/changelog";
 
 export async function updateStudentAction(id: number, formData: FormData) {
@@ -16,7 +18,8 @@ export async function updateStudentAction(id: number, formData: FormData) {
   const [existing] = await db.select().from(students).where(eq(students.id, id)).limit(1);
   if (!existing) throw new Error("Student not found");
 
-  const data = parseStudent(formData);
+  const springEndsByYear = springEndsFromAcademicYears(await listAcademicYearDetails());
+  const data = parseStudent(formData, { springEndsByYear });
   const before = pickStudentFields(existing as Record<string, unknown>);
   const after = pickStudentFields({ ...existing, ...data, updatedAt: new Date() });
   await db.update(students).set({ ...data, updatedAt: new Date() }).where(eq(students.id, id));

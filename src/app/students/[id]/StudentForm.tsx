@@ -1,7 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import type { Student } from "../../../../drizzle/schema";
+import {
+  classYearLabel,
+  deriveClassYearFromGraduationYear,
+} from "@/lib/class-year";
 import { COURSE_MATERIAL_OPTIONS } from "@/lib/courses";
 import { formatDateInput, formatPersonRef } from "@/lib/parse-student";
 import { updateStudentAction } from "../actions";
@@ -25,11 +29,14 @@ export default function StudentForm({
   student,
   people = [],
   events = [],
+  springEndsByYear = {},
 }: {
   action?: (fd: FormData) => Promise<void>;
   student?: Student;
   people?: PersonOption[];
   events?: EventOption[];
+  /** Spring calendar year → finals end (YYYY-MM-DD) from academic calendar. */
+  springEndsByYear?: Record<number, string>;
 }) {
   const s = student ?? ({} as Partial<Student>);
   const studentId = student?.id;
@@ -39,6 +46,19 @@ export default function StudentForm({
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
   const [saveError, setSaveError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const [graduationYearInput, setGraduationYearInput] = useState(
+    s.graduationYear != null ? String(s.graduationYear) : ""
+  );
+
+  const derivedYear = useMemo(() => {
+    const raw = graduationYearInput.trim();
+    const num = raw === "" ? null : Number(raw);
+    return deriveClassYearFromGraduationYear(
+      num != null && Number.isFinite(num) ? Math.trunc(num) : null,
+      new Date(),
+      springEndsByYear
+    );
+  }, [graduationYearInput, springEndsByYear]);
 
   useEffect(() => {
     return () => {
@@ -120,15 +140,19 @@ export default function StudentForm({
       </div>
       <div className="grid grid-cols-3 gap-3">
         <Select label="Gender" name="gender" defaultValue={s.gender ?? ""} options={[["", "—"], ["M", "Male"], ["F", "Female"]]} />
-        <Select
-          label="Year"
-          name="year"
-          defaultValue={s.year ?? ""}
-          options={[
-            ["", "—"], ["freshman", "Freshman"], ["sophomore", "Sophomore"],
-            ["junior", "Junior"], ["senior", "Senior"], ["grad", "Grad"], ["other", "Other"],
-          ]}
-        />
+        <label className="block space-y-1">
+          <span className="label">Year</span>
+          <input
+            className="input bg-black/5 text-black/50 dark:bg-white/5 dark:text-white/45 cursor-not-allowed"
+            value={classYearLabel(derivedYear)}
+            readOnly
+            disabled
+            tabIndex={-1}
+            aria-readonly="true"
+            title="Set automatically from Graduation Year"
+          />
+          <input type="hidden" name="year" value={derivedYear ?? ""} />
+        </label>
         <Field
           label="Graduation Year"
           name="graduationYear"
@@ -136,8 +160,9 @@ export default function StudentForm({
           min={2000}
           max={2100}
           step={1}
-          defaultValue={s.graduationYear ?? ""}
+          value={graduationYearInput}
           placeholder="e.g. 2029"
+          onChange={(event) => setGraduationYearInput(event.target.value)}
         />
       </div>
       <div className="grid grid-cols-3 gap-3">

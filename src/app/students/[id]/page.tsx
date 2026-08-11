@@ -15,6 +15,8 @@ import { requireUser } from "@/lib/auth";
 import { logStudentDeleted } from "@/server/changelog";
 import { resolveDashboardDateRange } from "@/lib/dashboard-date-range";
 import { formatStaffActiveLabel } from "@/lib/staff-active";
+import { springEndsFromAcademicYears } from "@/lib/class-year";
+import { listAcademicYearDetails } from "@/server/academic-calendar";
 import { getActiveDashboardView } from "@/server/dashboard-views";
 import { toMergeStudentRecord } from "@/lib/student-merge";
 
@@ -50,7 +52,7 @@ export default async function StudentPage({ params }: { params: Promise<{ id: st
     })
     .from(students)
     .orderBy(asc(students.firstName));
-  const [staffRows, activeView] = await Promise.all([
+  const [staffRows, activeView, academicYears] = await Promise.all([
     db
       .select({
         id: staff.id,
@@ -62,7 +64,9 @@ export default async function StudentPage({ params }: { params: Promise<{ id: st
       .from(staff)
       .orderBy(asc(staff.firstName)),
     getActiveDashboardView(),
+    listAcademicYearDetails(),
   ]);
+  const springEndsByYear = springEndsFromAcademicYears(academicYears);
 
   const { from, to } = resolveDashboardDateRange(
     activeView ? { from: activeView.from, to: activeView.to } : {}
@@ -183,7 +187,12 @@ export default async function StudentPage({ params }: { params: Promise<{ id: st
         </div>
       </div>
 
-      <StudentForm student={s} people={people} events={eventOptions} />
+      <StudentForm
+        student={s}
+        people={people}
+        events={eventOptions}
+        springEndsByYear={springEndsByYear}
+      />
 
       {myHealth && (
         <section className="card space-y-2 border-accent/20">
