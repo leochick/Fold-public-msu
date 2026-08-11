@@ -157,7 +157,9 @@ export default function HelpPage() {
         <p>
           Fold uses per-person email and password accounts. Each advisor signs up at{" "}
           <Link href="/signup" className="underline">/signup</Link> with their own email. There
-          is no shared org login.
+          is no shared org login. Open{" "}
+          <Link href="/account" className="underline">Account</Link> from your name in the header
+          to view your details or change your password.
         </p>
         <ul className="list-disc pl-5 space-y-1">
           <li>Sessions last 30 days; you&apos;ll re-sign-in after that.</li>

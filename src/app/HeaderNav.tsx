@@ -180,7 +180,12 @@ export default function HeaderNav({
       </nav>
       <div className="ml-auto hidden md:flex items-center gap-3 text-sm">
         <ViewsMenu views={views} activeView={activeView} />
-        <span className="text-black/60 dark:text-white/60">{displayName}</span>
+        <Link
+          href="/account"
+          className="text-black/60 dark:text-white/60 hover:underline"
+        >
+          {displayName}
+        </Link>
         <form action={signOutAction}>
           <button className="btn-ghost" type="submit">Sign out</button>
         </form>
@@ -221,7 +226,13 @@ export default function HeaderNav({
             <div className="border-t border-black/5 dark:border-white/10 pt-3 flex flex-col gap-3">
               <ViewsMenu views={views} activeView={activeView} />
               <div className="flex items-center gap-3">
-                <span className="text-black/60 dark:text-white/60">{displayName}</span>
+                <Link
+                  href="/account"
+                  onClick={close}
+                  className="text-black/60 dark:text-white/60 hover:underline"
+                >
+                  {displayName}
+                </Link>
                 <form action={signOutAction} className="ml-auto">
                   <button className="btn-ghost" type="submit">Sign out</button>
                 </form>
