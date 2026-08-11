@@ -1,8 +1,9 @@
-import { betterAuth } from "better-auth";
+import { betterAuth, APIError } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { db } from "./db";
 import * as schema from "../../drizzle/schema";
 import { nextCookies } from "better-auth/next-js";
+import { isAllowedSignupEmail, signupDomainErrorMessage } from "./signup-domain";
 
 const baseURL =
   process.env.BETTER_AUTH_URL
@@ -37,6 +38,19 @@ export const auth = betterAuth({
     enabled: true,
     minPasswordLength: 12,
     autoSignIn: true,
+  },
+  databaseHooks: {
+    user: {
+      create: {
+        before: async (user) => {
+          if (!isAllowedSignupEmail(String(user.email ?? ""))) {
+            throw new APIError("BAD_REQUEST", {
+              message: signupDomainErrorMessage(),
+            });
+          }
+        },
+      },
+    },
   },
   advanced: {
     cookiePrefix: "fold",

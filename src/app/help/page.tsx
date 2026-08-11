@@ -163,7 +163,7 @@ export default function HelpPage() {
         </p>
         <ul className="list-disc pl-5 space-y-1">
           <li>Sessions last 30 days; you&apos;ll re-sign-in after that.</li>
-          <li>If signups are locked to a domain, ask whoever set up your instance to add your email.</li>
+          <li>New accounts require an @acts2.network email. Personal addresses (Gmail, etc.) cannot sign up.</li>
           <li>Forgot password? There&apos;s no self-serve reset yet — message your admin to reset it from the database.</li>
         </ul>
       </Section>
