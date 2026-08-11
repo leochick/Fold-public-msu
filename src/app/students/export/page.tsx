@@ -22,9 +22,11 @@ export default async function StudentsExportPage() {
         lastName: students.lastName,
         gender: students.gender,
         year: students.year,
+        graduationYear: students.graduationYear,
         newsletter: students.newsletter,
         courseMaterial: students.courseMaterial,
         salvationDecisionAt: students.salvationDecisionAt,
+        baptismDate: students.baptismDate,
         ledToChristByStudentId: students.ledToChristByStudentId,
         ledToChristByStaffId: students.ledToChristByStaffId,
       })
@@ -46,11 +48,13 @@ export default async function StudentsExportPage() {
     lastName: row.lastName,
     gender: row.gender,
     year: row.year,
+    graduationYear: row.graduationYear,
     newsletter: row.newsletter,
     courseMaterial: row.courseMaterial,
     salvationDecisionAt: row.salvationDecisionAt
       ? formatDashboardDate(row.salvationDecisionAt)
       : null,
+    baptismDate: row.baptismDate ? formatDashboardDate(row.baptismDate) : null,
     ledToChristByStudentId: row.ledToChristByStudentId,
     ledToChristByStaffId: row.ledToChristByStaffId,
   }));

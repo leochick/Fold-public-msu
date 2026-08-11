@@ -9,6 +9,7 @@ export type MergeStudentRecord = Pick<
   | "studentId"
   | "gender"
   | "year"
+  | "graduationYear"
   | "phone"
   | "email"
   | "igHandle"
@@ -28,6 +29,7 @@ export type MergeStudentRecord = Pick<
   | "salvationDecisionAt"
   | "salvationDecisionType"
   | "salvationDecisionNotes"
+  | "baptismDate"
 > & {
   invitedByLabel?: string | null;
   ledToChristByLabel?: string | null;
@@ -56,6 +58,7 @@ export type MergePreviewValues = {
   studentId: string | null;
   gender: Student["gender"];
   year: Student["year"];
+  graduationYear: number | null;
   memberStatus: Student["memberStatus"];
   primaryContact: string | null;
   goals: string | null;
@@ -72,6 +75,7 @@ export type MergePreviewValues = {
   salvationDecisionAt: Date | null;
   salvationDecisionType: Student["salvationDecisionType"];
   salvationDecisionNotes: string | null;
+  baptismDate: Date | null;
 };
 
 export type MergePreviewResult = {
@@ -221,6 +225,7 @@ export function toMergeStudentRecord(
     | "studentId"
     | "gender"
     | "year"
+    | "graduationYear"
     | "phone"
     | "email"
     | "igHandle"
@@ -240,6 +245,7 @@ export function toMergeStudentRecord(
     | "salvationDecisionAt"
     | "salvationDecisionType"
     | "salvationDecisionNotes"
+    | "baptismDate"
   >,
   studentNames: Map<number, string>,
   staffNames: Map<number, string>,
@@ -272,6 +278,7 @@ export function toMergeStudentRecord(
     studentId: student.studentId,
     gender: student.gender,
     year: student.year,
+    graduationYear: student.graduationYear,
     phone: student.phone,
     email: student.email,
     igHandle: student.igHandle,
@@ -291,6 +298,7 @@ export function toMergeStudentRecord(
     salvationDecisionAt: student.salvationDecisionAt,
     salvationDecisionType: student.salvationDecisionType,
     salvationDecisionNotes: student.salvationDecisionNotes,
+    baptismDate: student.baptismDate,
     invitedByLabel,
     ledToChristByLabel,
     eventInvitedToLabel,
@@ -310,11 +318,13 @@ export function buildMergePreview(
   const studentId = pickText(keep.studentId, merge.studentId);
   const gender = pickText(keep.gender, merge.gender);
   const year = pickText(keep.year, merge.year);
+  const graduationYear = pickNumber(keep.graduationYear, merge.graduationYear);
   const memberStatus = pickText(keep.memberStatus, merge.memberStatus);
   const primaryContact = pickText(keep.primaryContact, merge.primaryContact);
   const goals = pickText(keep.goals, merge.goals);
   const decisionType = pickText(keep.salvationDecisionType, merge.salvationDecisionType);
   const decisionAt = pickDate(keep.salvationDecisionAt, merge.salvationDecisionAt);
+  const baptismDate = pickDate(keep.baptismDate, merge.baptismDate);
   const eventInvited = pickNumber(keep.eventInvitedToId, merge.eventInvitedToId);
 
   const keepInvitedRef = personRef(keep.invitedByStudentId, keep.invitedByStaffId);
@@ -359,6 +369,7 @@ export function buildMergePreview(
     studentId: studentId.value,
     gender: (gender.value as Student["gender"]) ?? null,
     year: (year.value as Student["year"]) ?? null,
+    graduationYear: graduationYear.value,
     memberStatus: (memberStatus.value as Student["memberStatus"]) ?? null,
     primaryContact: primaryContact.value,
     goals: goals.value,
@@ -375,6 +386,7 @@ export function buildMergePreview(
     salvationDecisionAt: decisionAt.value,
     salvationDecisionType: (decisionType.value as Student["salvationDecisionType"]) ?? null,
     salvationDecisionNotes: mergedDecisionNotes,
+    baptismDate: baptismDate.value,
   };
 
   const fields: MergePreviewField[] = [
@@ -384,6 +396,14 @@ export function buildMergePreview(
     previewTextField("email", "Email", keep.email, merge.email, resolvedEmail, email.conflict),
     previewTextField("igHandle", "Instagram", keep.igHandle, merge.igHandle, ig.value, ig.conflict),
     previewTextField("year", "Year", keep.year, merge.year, year.value, year.conflict),
+    previewTextField(
+      "graduationYear",
+      "Graduation year",
+      keep.graduationYear != null ? String(keep.graduationYear) : null,
+      merge.graduationYear != null ? String(merge.graduationYear) : null,
+      graduationYear.value != null ? String(graduationYear.value) : null,
+      graduationYear.conflict
+    ),
     previewTextField("gender", "Gender", keep.gender, merge.gender, gender.value, gender.conflict),
     previewTextField(
       "invitedBy",
@@ -434,6 +454,15 @@ export function buildMergePreview(
       mergedDecisionNotes,
       false
     ),
+    {
+      key: "baptismDate",
+      label: "Baptism date",
+      left: formatDateDisplay(keep.baptismDate),
+      right: formatDateDisplay(merge.baptismDate),
+      value: formatDateDisplay(baptismDate.value),
+      conflict: baptismDate.conflict,
+      editable: false,
+    },
     previewTextField("goals", "Goals", keep.goals, merge.goals, goals.value, goals.conflict),
     previewTextField("notes", "Notes", keep.notes, merge.notes, mergedNotes, false),
     {

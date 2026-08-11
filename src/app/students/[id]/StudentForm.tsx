@@ -118,7 +118,7 @@ export default function StudentForm({
         <Field label="First name" name="firstName" defaultValue={s.firstName ?? ""} required />
         <Field label="Last name" name="lastName" defaultValue={s.lastName ?? ""} />
       </div>
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-3 gap-3">
         <Select label="Gender" name="gender" defaultValue={s.gender ?? ""} options={[["", "—"], ["M", "Male"], ["F", "Female"]]} />
         <Select
           label="Year"
@@ -128,6 +128,16 @@ export default function StudentForm({
             ["", "—"], ["freshman", "Freshman"], ["sophomore", "Sophomore"],
             ["junior", "Junior"], ["senior", "Senior"], ["grad", "Grad"], ["other", "Other"],
           ]}
+        />
+        <Field
+          label="Graduation Year"
+          name="graduationYear"
+          type="number"
+          min={2000}
+          max={2100}
+          step={1}
+          defaultValue={s.graduationYear ?? ""}
+          placeholder="e.g. 2029"
         />
       </div>
       <div className="grid grid-cols-3 gap-3">
@@ -221,6 +231,14 @@ export default function StudentForm({
           label="Salvation Decision Notes"
           name="salvationDecisionNotes"
           defaultValue={s.salvationDecisionNotes ?? ""}
+        />
+      </div>
+      <div className="grid grid-cols-3 gap-3">
+        <Field
+          label="Baptism Date"
+          name="baptismDate"
+          type="date"
+          defaultValue={formatDateInput(s.baptismDate)}
         />
       </div>
       <Textarea label="Goals" name="goals" defaultValue={s.goals ?? ""} />

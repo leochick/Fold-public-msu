@@ -155,6 +155,7 @@ export async function mergeStudents(
         studentId: values.studentId,
         gender: values.gender,
         year: values.year,
+        graduationYear: values.graduationYear,
         memberStatus: values.memberStatus,
         primaryContact: values.primaryContact,
         goals: values.goals,
@@ -171,6 +172,7 @@ export async function mergeStudents(
         salvationDecisionAt: values.salvationDecisionAt,
         salvationDecisionType: values.salvationDecisionType,
         salvationDecisionNotes: values.salvationDecisionNotes,
+        baptismDate: values.baptismDate,
         updatedAt: new Date(),
       })
       .where(eq(students.id, keepId));

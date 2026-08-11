@@ -4,6 +4,7 @@ export const STUDENT_FIELD_LABELS: Record<string, string> = {
   studentId: "Student ID",
   gender: "Gender",
   year: "Year",
+  graduationYear: "Graduation year",
   phone: "Phone",
   email: "Email",
   igHandle: "IG handle",
@@ -23,6 +24,7 @@ export const STUDENT_FIELD_LABELS: Record<string, string> = {
   salvationDecisionAt: "Salvation decision date",
   salvationDecisionType: "Salvation decision type",
   salvationDecisionNotes: "Salvation decision notes",
+  baptismDate: "Baptism date",
 };
 
 export const EVENT_FIELD_LABELS: Record<string, string> = {

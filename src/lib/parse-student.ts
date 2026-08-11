@@ -46,11 +46,18 @@ export function parseStudent(f: FormData) {
   const eventInvitedRaw = v("eventInvitedToId");
   const eventInvitedNum = eventInvitedRaw == null ? null : Number(eventInvitedRaw);
 
+  const graduationYearRaw = v("graduationYear");
+  const graduationYearNum = graduationYearRaw == null ? null : Number(graduationYearRaw);
+
   return {
     firstName: v("firstName") ?? "",
     lastName: v("lastName"),
     gender: (v("gender") as "M" | "F" | null) ?? null,
     year: (v("year") as never) ?? null,
+    graduationYear:
+      graduationYearNum != null && Number.isFinite(graduationYearNum)
+        ? Math.trunc(graduationYearNum)
+        : null,
     phone: v("phone"),
     email: v("email"),
     igHandle: v("igHandle")?.replace(/^@/, "") ?? null,
@@ -68,5 +75,6 @@ export function parseStudent(f: FormData) {
     salvationDecisionAt: parseDate(v("salvationDecisionAt")),
     salvationDecisionType: (v("salvationDecisionType") as "salvation" | "lordship" | null) ?? null,
     salvationDecisionNotes: v("salvationDecisionNotes"),
+    baptismDate: parseDate(v("baptismDate")),
   };
 }

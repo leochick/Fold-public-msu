@@ -63,9 +63,11 @@ const students: CampusExportStudent[] = [
     lastName: "Lovelace",
     gender: "F",
     year: "junior",
+    graduationYear: 2028,
     newsletter: false,
     courseMaterial: ["Course 101", "Student Leader"],
     salvationDecisionAt: "2025-09-15",
+    baptismDate: "2025-11-01",
     ledToChristByStudentId: null,
     ledToChristByStaffId: 2,
   },
@@ -75,9 +77,11 @@ const students: CampusExportStudent[] = [
     lastName: "Bitdiddle",
     gender: "M",
     year: "freshman",
+    graduationYear: null,
     newsletter: true,
     courseMaterial: [],
     salvationDecisionAt: null,
+    baptismDate: null,
     ledToChristByStudentId: null,
     ledToChristByStaffId: null,
   },
@@ -129,13 +133,15 @@ describe("buildCampusExportRows", () => {
     expect(ada.status).toBe("student_leader");
     expect(ada.values.Name).toBe("Ada Lovelace");
     expect(ada.values.Gender).toBe("Female");
-    expect(ada.values["Graduating Year"]).toBe(2027);
+    expect(ada.values["Graduating Year"]).toBe(2028);
     expect(ada.values["Faith Status"]).toBe("Christian");
     expect(ada.values.Playbook).toBe("Unknown");
     expect(ada.values["Became Christian"]).toBe("Fall 2025");
     expect(ada.values.Engagement).toBe("SWS, Midweek Bible Study");
     expect(ada.values["Student Lead"]).toBe(true);
     expect(ada.values["C101 Status"]).toBe("Completed");
+    expect(ada.values.Baptized).toBe(true);
+    expect(ada.values["Baptized Date"]).toBe("11/2025");
 
     const ben = rows.find((row) => row.studentId === 2)!;
     expect(ben.status).toBe("outreach");

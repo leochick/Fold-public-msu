@@ -65,9 +65,11 @@ export type CampusExportStudent = {
   lastName: string | null;
   gender: "M" | "F" | null;
   year: string | null;
+  graduationYear: number | null;
   newsletter: boolean;
   courseMaterial: string[] | null;
   salvationDecisionAt: string | null;
+  baptismDate: string | null;
   ledToChristByStudentId: number | null;
   ledToChristByStaffId: number | null;
 };
@@ -267,6 +269,14 @@ export function formatBecameChristian(isoDate: string | null | undefined): strin
   return `Spring ${year}`;
 }
 
+/** Template baptism date format: MM/YYYY. */
+export function formatBaptizedDate(isoDate: string | null | undefined): string {
+  if (!isoDate) return "";
+  const match = /^(\d{4})-(\d{2})/.exec(isoDate.slice(0, 10));
+  if (!match) return "";
+  return `${match[2]}/${match[1]}`;
+}
+
 export function formatC101Status(courseMaterial: string[] | null | undefined): string {
   if (courseMaterial?.includes("Course 101")) return "Completed";
   return "Not started";
@@ -325,18 +335,24 @@ export function buildCampusExportRows(params: {
       }) ?? matchedStatuses[0];
     if (!status) continue;
 
+    const graduatingYear =
+      student.graduationYear != null && Number.isFinite(student.graduationYear)
+        ? student.graduationYear
+        : inferGraduatingYear(student.year, refYear);
+    const baptizedDate = formatBaptizedDate(student.baptismDate);
+
     const values: Record<CampusExportColumn, string | number | boolean> = {
       Name: formatStudentName(student.firstName, student.lastName),
       Gender: formatGender(student.gender),
-      "Graduating Year": inferGraduatingYear(student.year, refYear),
+      "Graduating Year": graduatingYear,
       "Faith Status": formatFaithStatus(student),
       Playbook: "Unknown",
       "Became Christian": formatBecameChristian(student.salvationDecisionAt),
       Engagement: formatEngagementLabels(eventTypes),
       "Student Lead": Boolean(student.courseMaterial?.includes("Student Leader")),
       "C101 Status": formatC101Status(student.courseMaterial),
-      Baptized: false,
-      "Baptized Date": "",
+      Baptized: Boolean(student.baptismDate),
+      "Baptized Date": baptizedDate,
       "Applied to CPI?": false,
       "Testimony Completed": false,
       "Plans to Stay in A2N": false,

@@ -9,6 +9,7 @@ describe("buildMergePreview", () => {
     studentId: null,
     gender: null,
     year: null,
+    graduationYear: null,
     phone: null,
     email: "old@msu.edu",
     igHandle: null,
@@ -28,6 +29,7 @@ describe("buildMergePreview", () => {
     salvationDecisionAt: new Date(Date.UTC(2026, 0, 5)),
     salvationDecisionType: "salvation" as const,
     salvationDecisionNotes: "At retreat",
+    baptismDate: null,
     invitedByLabel: "Aaron (staff)",
     ledToChristByLabel: null,
     eventInvitedToLabel: "Welcome Night (1/10/2026)",
@@ -40,6 +42,7 @@ describe("buildMergePreview", () => {
     studentId: null,
     gender: null,
     year: "sophomore" as const,
+    graduationYear: 2029,
     phone: "555-123-4567",
     email: "morefie3@msu.edu",
     igHandle: null,
@@ -59,6 +62,7 @@ describe("buildMergePreview", () => {
     salvationDecisionAt: null,
     salvationDecisionType: "lordship" as const,
     salvationDecisionNotes: "Follow-up",
+    baptismDate: new Date(Date.UTC(2025, 8, 12)),
     invitedByLabel: "Sam",
     ledToChristByLabel: "Jordan",
     eventInvitedToLabel: null,
@@ -71,6 +75,8 @@ describe("buildMergePreview", () => {
     expect(preview.values.newsletter).toBe(true);
     expect(preview.values.groupme).toBe(true);
     expect(preview.values.year).toBe("sophomore");
+    expect(preview.values.graduationYear).toBe(2029);
+    expect(preview.values.baptismDate).toEqual(new Date(Date.UTC(2025, 8, 12)));
     expect(preview.values.courseMaterial).toEqual(["Course 101", "ERT"]);
   });
 

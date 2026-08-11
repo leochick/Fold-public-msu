@@ -128,6 +128,7 @@ export const students = sqliteTable("students", {
   studentId: text("student_id"),
   gender: text("gender", { enum: ["M", "F"] }),
   year: text("year", { enum: ["freshman", "sophomore", "junior", "senior", "grad", "other"] }),
+  graduationYear: integer("graduation_year"),
   phone: text("phone"),
   email: text("email"),
   igHandle: text("ig_handle"),
@@ -164,6 +165,7 @@ export const students = sqliteTable("students", {
   salvationDecisionAt: integer("salvation_decision_at", { mode: "timestamp" }),
   salvationDecisionType: text("salvation_decision_type", { enum: ["salvation", "lordship"] }),
   salvationDecisionNotes: text("salvation_decision_notes"),
+  baptismDate: integer("baptism_date", { mode: "timestamp" }),
   // --- /HEALTH METRICS ---
   createdAt: integer("created_at", { mode: "timestamp" })
     .notNull()
