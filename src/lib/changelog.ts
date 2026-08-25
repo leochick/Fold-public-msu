@@ -3,6 +3,7 @@ export const STUDENT_FIELD_LABELS: Record<string, string> = {
   lastName: "Last name",
   studentId: "Student ID",
   gender: "Gender",
+  birthday: "Birthday",
   year: "Year",
   graduationYear: "Graduation year",
   phone: "Phone",

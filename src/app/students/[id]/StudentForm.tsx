@@ -7,7 +7,7 @@ import {
   deriveClassYearFromGraduationYear,
 } from "@/lib/class-year";
 import { COURSE_MATERIAL_OPTIONS } from "@/lib/courses";
-import { formatDateInput, formatPersonRef } from "@/lib/parse-student";
+import { formatBirthdayInput, formatDateInput, formatPersonRef } from "@/lib/parse-student";
 import { updateStudentAction } from "../actions";
 
 export type PersonOption = {
@@ -138,8 +138,15 @@ export default function StudentForm({
         <Field label="First name" name="firstName" defaultValue={s.firstName ?? ""} required />
         <Field label="Last name" name="lastName" defaultValue={s.lastName ?? ""} />
       </div>
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <Select label="Gender" name="gender" defaultValue={s.gender ?? ""} options={[["", "—"], ["M", "Male"], ["F", "Female"]]} />
+        <Field
+          label="Birthday"
+          name="birthday"
+          type="date"
+          defaultValue={formatBirthdayInput(s.birthday)}
+          title="Month and day only — year is not saved"
+        />
         <label className="block space-y-1">
           <span className="label">Year</span>
           <input

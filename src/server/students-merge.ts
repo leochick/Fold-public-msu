@@ -154,6 +154,7 @@ export async function mergeStudents(
         igHandle: values.igHandle,
         studentId: values.studentId,
         gender: values.gender,
+        birthday: values.birthday,
         year: values.year,
         graduationYear: values.graduationYear,
         memberStatus: values.memberStatus,

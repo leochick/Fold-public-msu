@@ -8,6 +8,7 @@ export type MergeStudentRecord = Pick<
   | "lastName"
   | "studentId"
   | "gender"
+  | "birthday"
   | "year"
   | "graduationYear"
   | "phone"
@@ -57,6 +58,7 @@ export type MergePreviewValues = {
   igHandle: string | null;
   studentId: string | null;
   gender: Student["gender"];
+  birthday: string | null;
   year: Student["year"];
   graduationYear: number | null;
   memberStatus: Student["memberStatus"];
@@ -224,6 +226,7 @@ export function toMergeStudentRecord(
     | "lastName"
     | "studentId"
     | "gender"
+    | "birthday"
     | "year"
     | "graduationYear"
     | "phone"
@@ -277,6 +280,7 @@ export function toMergeStudentRecord(
     lastName: student.lastName,
     studentId: student.studentId,
     gender: student.gender,
+    birthday: student.birthday,
     year: student.year,
     graduationYear: student.graduationYear,
     phone: student.phone,
@@ -317,6 +321,7 @@ export function buildMergePreview(
   const ig = pickText(keep.igHandle, merge.igHandle);
   const studentId = pickText(keep.studentId, merge.studentId);
   const gender = pickText(keep.gender, merge.gender);
+  const birthday = pickText(keep.birthday, merge.birthday);
   const year = pickText(keep.year, merge.year);
   const graduationYear = pickNumber(keep.graduationYear, merge.graduationYear);
   const memberStatus = pickText(keep.memberStatus, merge.memberStatus);
@@ -368,6 +373,7 @@ export function buildMergePreview(
     igHandle: ig.value,
     studentId: studentId.value,
     gender: (gender.value as Student["gender"]) ?? null,
+    birthday: birthday.value,
     year: (year.value as Student["year"]) ?? null,
     graduationYear: graduationYear.value,
     memberStatus: (memberStatus.value as Student["memberStatus"]) ?? null,
@@ -405,6 +411,14 @@ export function buildMergePreview(
       graduationYear.conflict
     ),
     previewTextField("gender", "Gender", keep.gender, merge.gender, gender.value, gender.conflict),
+    previewTextField(
+      "birthday",
+      "Birthday",
+      keep.birthday,
+      merge.birthday,
+      birthday.value,
+      birthday.conflict
+    ),
     previewTextField(
       "invitedBy",
       "Invited by",

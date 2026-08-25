@@ -127,6 +127,8 @@ export const students = sqliteTable("students", {
   lastName: text("last_name"),
   studentId: text("student_id"),
   gender: text("gender", { enum: ["M", "F"] }),
+  /** Month and day only, stored as MM-DD (no year). */
+  birthday: text("birthday"),
   year: text("year", { enum: ["freshman", "sophomore", "junior", "senior", "grad", "other"] }),
   graduationYear: integer("graduation_year"),
   phone: text("phone"),

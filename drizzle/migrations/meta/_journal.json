@@ -267,6 +267,13 @@
       "when": 1782300000000,
       "tag": "0037_student_baptism_graduation",
       "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "6",
+      "when": 1782400000000,
+      "tag": "0038_student_birthday",
+      "breakpoints": true
     }
   ]
 }

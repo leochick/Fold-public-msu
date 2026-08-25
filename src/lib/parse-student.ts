@@ -28,6 +28,32 @@ function parseDate(raw: string | null): Date | null {
   return Number.isNaN(d.getTime()) ? null : d;
 }
 
+/** Leap-year sentinel so Feb 29 is valid in `<input type="date">`. */
+const BIRTHDAY_INPUT_YEAR = 2000;
+
+function daysInMonth(month: number, year = BIRTHDAY_INPUT_YEAR): number {
+  return new Date(Date.UTC(year, month, 0)).getUTCDate();
+}
+
+/** Accept YYYY-MM-DD (from date input) or MM-DD; persist month/day only. */
+export function parseBirthday(raw: string | null): string | null {
+  if (!raw) return null;
+  const full = /^(\d{4})-(\d{2})-(\d{2})$/.exec(raw);
+  const md = full ? [full[2], full[3]] : /^(\d{2})-(\d{2})$/.exec(raw)?.slice(1);
+  if (!md) return null;
+  const month = Number(md[0]);
+  const day = Number(md[1]);
+  if (!Number.isInteger(month) || month < 1 || month > 12) return null;
+  if (!Number.isInteger(day) || day < 1 || day > daysInMonth(month)) return null;
+  return `${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+
+/** Format stored MM-DD for a date input (year is ignored / not stored). */
+export function formatBirthdayInput(birthday: string | null | undefined): string {
+  const md = parseBirthday(birthday ?? null);
+  return md ? `${BIRTHDAY_INPUT_YEAR}-${md}` : "";
+}
+
 export function formatPersonRef(
   entity: PersonRefEntity | null | undefined,
   id: number | null | undefined
@@ -64,6 +90,7 @@ export function parseStudent(f: FormData, options: ParseStudentOptions = {}) {
     firstName: v("firstName") ?? "",
     lastName: v("lastName"),
     gender: (v("gender") as "M" | "F" | null) ?? null,
+    birthday: parseBirthday(v("birthday")),
     // Year is derived from Graduation Year (form Year control is read-only).
     year: deriveClassYearFromGraduationYear(
       graduationYear,
