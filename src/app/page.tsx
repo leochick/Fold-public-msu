@@ -11,7 +11,6 @@ import {
 } from "@/lib/dashboard-engagement";
 import { getActiveDashboardView } from "@/server/dashboard-views";
 import DashboardCharts from "./DashboardCharts";
-import QuickAdd from "./events/QuickAdd";
 
 export const dynamic = "force-dynamic";
 
@@ -291,8 +290,6 @@ export default async function DashboardPage() {
   return (
     <div className="max-w-6xl mx-auto px-4 py-8 space-y-8">
       <h1 className="text-2xl font-semibold">Dashboard</h1>
-
-      <QuickAdd />
 
       <section className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <Stat label="Events" value={snapshot.events} />
