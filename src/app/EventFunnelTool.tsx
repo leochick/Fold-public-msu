@@ -3,12 +3,15 @@
 import { useEffect, useMemo, useState } from "react";
 import type { EventFunnelPayload, EventFunnelSource } from "@/lib/event-funnel";
 
-const CURRENT_COLORS = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#4a3aa7", "#0ea5e9", "#c026d3"];
+const CURRENT_COLORS = ["#2a78d6", "#eb6834", "#eda100", "#4a3aa7", "#0ea5e9", "#c026d3"];
+const NEW_STUDENTS_COLOR = "#1baf7a";
 const RETURNING_COLOR = "#64748b";
 const DEST_COLOR = "#7c3aed";
 
 function sourceColor(source: EventFunnelSource, currentIndex: number): string {
-  return source.returning ? RETURNING_COLOR : CURRENT_COLORS[currentIndex % CURRENT_COLORS.length];
+  if (source.newStudents) return NEW_STUDENTS_COLOR;
+  if (source.returning) return RETURNING_COLOR;
+  return CURRENT_COLORS[currentIndex % CURRENT_COLORS.length];
 }
 
 function truncateLabel(label: string, max = 34): string {
@@ -69,7 +72,7 @@ function EventFunnelSankey({
     let currentIndex = 0;
     return sources.map((source) => {
       const color = sourceColor(source, currentIndex);
-      if (!source.returning) currentIndex += 1;
+      if (!source.returning && !source.newStudents) currentIndex += 1;
       return { ...source, color };
     });
   }, [sources]);
@@ -283,6 +286,10 @@ export default function EventFunnelTool({ payload }: { payload: EventFunnelPaylo
           />
 
           <div className="flex flex-wrap gap-x-5 gap-y-2 text-xs text-black/60 dark:text-white/60">
+            <span className="inline-flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: NEW_STUDENTS_COLOR }} />
+              New Students
+            </span>
             <span className="inline-flex items-center gap-1.5">
               <span className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: DEST_COLOR }} />
               Selected event

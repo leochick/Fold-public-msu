@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  NEW_STUDENTS_LABEL,
   PREVIOUS_SEMESTER_FALLBACK,
   buildEventFunnelPayload,
   buildSourcesForEvent,
@@ -38,6 +39,14 @@ describe("semesterNameForDate / sourceLabel", () => {
       `Mystery (${PREVIOUS_SEMESTER_FALLBACK})`
     );
     expect(sourceLabel({ eventName: "Tabling", returning: false, semesterName: null })).toBe("Tabling");
+    expect(
+      sourceLabel({
+        eventName: "Anchor Large Group Kickoff",
+        returning: false,
+        newStudents: true,
+        semesterName: null,
+      })
+    ).toBe(NEW_STUDENTS_LABEL);
   });
 });
 
@@ -65,6 +74,29 @@ describe("buildSourcesForEvent", () => {
       { label: "Unknown Past (previous semester)", count: 1, returning: true },
       { label: "Fall Retreat (2025 Fall Semester)", count: 1, returning: true },
       { label: "Large Group (2026 Spring Semester)", count: 1, returning: true },
+    ]);
+  });
+
+  it("puts the selected event itself at the top as New Students", () => {
+    const firstByStudent = pickFirstEvents([
+      { studentId: 1, eventId: 20, name: "Anchor Large Group Kickoff", startMs: Date.UTC(2026, 8, 3) },
+      { studentId: 2, eventId: 20, name: "Anchor Large Group Kickoff", startMs: Date.UTC(2026, 8, 3) },
+      { studentId: 3, eventId: 10, name: "Sparticipation", startMs: Date.UTC(2026, 7, 30) },
+      { studentId: 4, eventId: 2, name: "Fall Retreat", startMs: Date.UTC(2025, 9, 4) },
+    ]);
+
+    const sources = buildSourcesForEvent(
+      [1, 2, 3, 4],
+      firstByStudent,
+      FALL_2026,
+      SEMESTERS,
+      20
+    );
+
+    expect(sources.map((s) => ({ label: s.label, count: s.count, newStudents: s.newStudents }))).toEqual([
+      { label: NEW_STUDENTS_LABEL, count: 2, newStudents: true },
+      { label: "Sparticipation", count: 1, newStudents: false },
+      { label: "Fall Retreat (2025 Fall Semester)", count: 1, newStudents: false },
     ]);
   });
 });
@@ -110,26 +142,28 @@ describe("buildEventFunnelPayload", () => {
     });
     expect(withDupes.byEventId["20"]).toMatchObject({
       total: 1,
-      sources: [{ label: "Anchor Large Group", count: 1 }],
+      sources: [{ label: NEW_STUDENTS_LABEL, count: 1, newStudents: true }],
     });
     expect(payload.byEventId["20"]).toEqual({
       total: 3,
       sources: [
+        {
+          key: "new",
+          eventId: 20,
+          label: NEW_STUDENTS_LABEL,
+          count: 1,
+          returning: false,
+          newStudents: true,
+          startMs: Date.UTC(2026, 8, 3),
+        },
         {
           key: "c:10",
           eventId: 10,
           label: "Sparticipation",
           count: 1,
           returning: false,
+          newStudents: false,
           startMs: Date.UTC(2026, 7, 30),
-        },
-        {
-          key: "c:20",
-          eventId: 20,
-          label: "Anchor Large Group",
-          count: 1,
-          returning: false,
-          startMs: Date.UTC(2026, 8, 3),
         },
         {
           key: "r:2",
@@ -137,6 +171,7 @@ describe("buildEventFunnelPayload", () => {
           label: "Fall Retreat (2025 Fall Semester)",
           count: 1,
           returning: true,
+          newStudents: false,
           startMs: Date.UTC(2025, 9, 4),
         },
       ],
