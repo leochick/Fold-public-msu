@@ -9,13 +9,14 @@ import {
   buildEngagementFunnelData,
   type RangeEngagementStage,
 } from "@/lib/dashboard-engagement";
-import { getActiveDashboardView } from "@/server/dashboard-views";
+import { getSemestersContext } from "@/server/dashboard-views";
+import { loadEventFunnelPayload } from "@/server/event-funnel";
 import DashboardCharts from "./DashboardCharts";
 
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
-  const activeView = await getActiveDashboardView();
+  const { active: activeView, semesters } = await getSemestersContext();
   const { from, to } = resolveDashboardDateRange(
     activeView ? { from: activeView.from, to: activeView.to } : {}
   );
@@ -36,6 +37,7 @@ export default async function DashboardPage() {
     newStudentsInRange,
     uniqueAttendeesInRange,
     hotRows,
+    eventFunnel,
   ] = await Promise.all([
     db
       .select({
@@ -107,6 +109,7 @@ export default async function DashboardPage() {
       .innerJoin(events, eq(attendances.eventId, events.id))
       .where(eventDateRange)
       .groupBy(attendances.studentId),
+    loadEventFunnelPayload({ from, to, semesters }),
   ]);
 
   const overTimeData = overTime.map((r) => ({
@@ -307,6 +310,7 @@ export default async function DashboardPage() {
         notOnNewsletter={notOnNewsletter}
         notOnGroupme={notOnGroupme}
         rangeLabel={rangeLabel}
+        eventFunnel={eventFunnel}
       />
 
       <section className="card overflow-x-auto">

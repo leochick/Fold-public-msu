@@ -7,6 +7,8 @@ import {
   BarChart, Bar, CartesianGrid, PieChart, Pie, Cell, Legend,
 } from "recharts";
 import { ENGAGEMENT_STAGE_LABELS } from "@/lib/dashboard-engagement";
+import type { EventFunnelPayload } from "@/lib/event-funnel";
+import EventFunnelTool from "./EventFunnelTool";
 
 const COLORS = ["#7c3aed", "#10b981", "#f59e0b", "#ef4444", "#3b82f6", "#a855f7"];
 
@@ -37,6 +39,7 @@ interface DashboardChartsProps {
   notOnNewsletter: AttendeeListStudent[];
   notOnGroupme: AttendeeListStudent[];
   rangeLabel: string;
+  eventFunnel: EventFunnelPayload;
 }
 
 export default function DashboardCharts({
@@ -48,6 +51,7 @@ export default function DashboardCharts({
   notOnNewsletter,
   notOnGroupme,
   rangeLabel,
+  eventFunnel,
 }: DashboardChartsProps) {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -82,6 +86,8 @@ export default function DashboardCharts({
           </ResponsiveContainer>
         )}
       </div>
+
+      <EventFunnelTool payload={eventFunnel} />
 
       <SearchableStudentList
         title="Completed or Taking Course 101"
