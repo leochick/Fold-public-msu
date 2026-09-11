@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
 import type { EventFunnelPayload, EventFunnelSource } from "@/lib/event-funnel";
 
 const CURRENT_COLORS = ["#2a78d6", "#eb6834", "#eda100", "#4a3aa7", "#0ea5e9", "#c026d3"];
@@ -68,6 +68,10 @@ function EventFunnelSankey({
   destLabel: string;
   destCount: number;
 }) {
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const [hoveredKey, setHoveredKey] = useState<string | null>(null);
+  const [tooltip, setTooltip] = useState<{ x: number; y: number } | null>(null);
+
   const colored = useMemo(() => {
     let currentIndex = 0;
     return sources.map((source) => {
@@ -76,6 +80,22 @@ function EventFunnelSankey({
       return { ...source, color };
     });
   }, [sources]);
+
+  const hovered = colored.find((source) => source.key === hoveredKey) ?? null;
+
+  function onStreamMove(event: MouseEvent<SVGGElement>, key: string) {
+    const rect = wrapRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    setHoveredKey(key);
+    const x = Math.min(Math.max(event.clientX - rect.left + 14, 8), Math.max(8, rect.width - 268));
+    const y = Math.min(Math.max(event.clientY - rect.top + 14, 8), Math.max(8, rect.height - 16));
+    setTooltip({ x, y });
+  }
+
+  function clearHover() {
+    setHoveredKey(null);
+    setTooltip(null);
+  }
 
   const W = 1000;
   const left = 250;
@@ -127,61 +147,19 @@ function EventFunnelSankey({
   });
 
   return (
-    <svg
-      viewBox={`0 0 ${W} ${H}`}
-      className="w-full h-auto"
-      role="img"
-      aria-label={`First events for ${destCount} students at ${destLabel}`}
-    >
-      {flows.map((flow) => (
-        <g key={flow.key}>
-          <path
-            d={ribbonPath(left + nodeW, flow.sy0, flow.sy1, right, flow.ty0, flow.ty1)}
-            fill={flow.color}
-            opacity={flow.returning ? 0.38 : 0.5}
-          />
-          {flow.count > 0 && (
-            <FlowCount
-              x={(left + nodeW + right) / 2}
-              y={(flow.sy0 + flow.sy1 + flow.ty0 + flow.ty1) / 4}
-              value={flow.count}
-            />
-          )}
-        </g>
-      ))}
+    <div ref={wrapRef} className="relative" onMouseLeave={clearHover}>
+      <svg
+        viewBox={`0 0 ${W} ${H}`}
+        className="w-full h-auto"
+        role="group"
+        aria-label={`First events for ${destCount} students at ${destLabel}`}
+      >
+        <defs>
+          <filter id="event-funnel-glow" x="-20%" y="-20%" width="140%" height="140%">
+            <feDropShadow dx="0" dy="0" stdDeviation="3.5" floodColor="#111827" floodOpacity="0.28" />
+          </filter>
+        </defs>
 
-      {leftNodes.map((node) => {
-        const mid = (node.y0 + node.y1) / 2;
-        return (
-          <g key={node.key}>
-            <title>{`${node.label}: ${node.count}`}</title>
-            <rect x={left} y={node.y0} width={nodeW} height={node.h} rx="2" fill={node.color} />
-            <text
-              x={left - 10}
-              y={mid - 5}
-              textAnchor="end"
-              className="fill-ink dark:fill-paper"
-              fontSize="13"
-              fontWeight="600"
-            >
-              {truncateLabel(node.label)}
-            </text>
-            <text
-              x={left - 10}
-              y={mid + 11}
-              textAnchor="end"
-              className="fill-black/50 dark:fill-white/50"
-              fontSize="12"
-              fontFamily="ui-monospace, SFMono-Regular, Menlo, monospace"
-            >
-              {node.count}
-            </text>
-          </g>
-        );
-      })}
-
-      <g>
-        <title>{`${destLabel}: ${destCount}`}</title>
         <rect x={right} y={rightNode.y0} width={nodeW} height={rightNode.h} rx="2" fill={DEST_COLOR} />
         <text
           x={right + nodeW + 10}
@@ -201,8 +179,105 @@ function EventFunnelSankey({
         >
           {destCount}
         </text>
-      </g>
-    </svg>
+
+        {flows.map((flow) => {
+          const mid = (flow.y0 + flow.y1) / 2;
+          const active = hoveredKey === flow.key;
+          const dimmed = hoveredKey != null && !active;
+          const baseOpacity = flow.returning ? 0.38 : 0.5;
+          return (
+            <g
+              key={flow.key}
+              className="cursor-pointer"
+              opacity={dimmed ? 0.16 : 1}
+              filter={active ? "url(#event-funnel-glow)" : undefined}
+              onMouseEnter={(event) => onStreamMove(event, flow.key)}
+              onMouseMove={(event) => onStreamMove(event, flow.key)}
+              aria-label={`${flow.label}: ${flow.students.map((student) => student.name).join(", ")}`}
+            >
+              <rect
+                x={8}
+                y={flow.y0 - 4}
+                width={left + nodeW - 8}
+                height={flow.h + 8}
+                fill="transparent"
+              />
+              <path
+                d={ribbonPath(left + nodeW, flow.sy0, flow.sy1, right, flow.ty0, flow.ty1)}
+                fill={flow.color}
+                opacity={active ? 0.92 : baseOpacity}
+              />
+              <rect
+                x={left}
+                y={flow.y0}
+                width={nodeW}
+                height={flow.h}
+                rx="2"
+                fill={flow.color}
+                stroke={active ? "#111827" : "transparent"}
+                strokeWidth={active ? 2 : 0}
+              />
+              <rect
+                x={right}
+                y={flow.ty0}
+                width={nodeW}
+                height={Math.max(flow.ty1 - flow.ty0, 2)}
+                rx="2"
+                fill={active ? flow.color : DEST_COLOR}
+                opacity={active ? 1 : 0}
+                stroke={active ? "#111827" : "transparent"}
+                strokeWidth={active ? 2 : 0}
+              />
+              <text
+                x={left - 10}
+                y={mid - 5}
+                textAnchor="end"
+                className="fill-ink dark:fill-paper"
+                fontSize="13"
+                fontWeight={active ? 700 : 600}
+              >
+                {truncateLabel(flow.label)}
+              </text>
+              <text
+                x={left - 10}
+                y={mid + 11}
+                textAnchor="end"
+                className="fill-black/50 dark:fill-white/50"
+                fontSize="12"
+                fontFamily="ui-monospace, SFMono-Regular, Menlo, monospace"
+              >
+                {flow.count}
+              </text>
+              {flow.count > 0 && (
+                <FlowCount
+                  x={(left + nodeW + right) / 2}
+                  y={(flow.sy0 + flow.sy1 + flow.ty0 + flow.ty1) / 4}
+                  value={flow.count}
+                />
+              )}
+            </g>
+          );
+        })}
+      </svg>
+
+      {hovered && tooltip && (
+        <div
+          className="absolute z-20 w-64 max-h-72 overflow-y-auto rounded-lg border border-black/10 dark:border-white/10 bg-white dark:bg-ink px-3 py-2.5 shadow-md pointer-events-none"
+          style={{ left: tooltip.x, top: tooltip.y }}
+          role="tooltip"
+        >
+          <div className="font-semibold text-sm">{hovered.label}</div>
+          <div className="text-[11px] text-black/50 dark:text-white/50 mb-1.5">
+            {hovered.count} {hovered.count === 1 ? "student" : "students"}
+          </div>
+          <ul className="space-y-0.5 text-xs">
+            {hovered.students.map((student) => (
+              <li key={student.id}>{student.name}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
   );
 }
 

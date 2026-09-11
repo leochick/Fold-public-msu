@@ -99,6 +99,31 @@ describe("buildSourcesForEvent", () => {
       { label: "Fall Retreat (2025 Fall Semester)", count: 1, newStudents: false },
     ]);
   });
+
+  it("attaches sorted student names to each stream", () => {
+    const firstByStudent = pickFirstEvents([
+      { studentId: 2, eventId: 10, name: "Sparticipation", startMs: Date.UTC(2026, 7, 30) },
+      { studentId: 1, eventId: 10, name: "Sparticipation", startMs: Date.UTC(2026, 7, 30) },
+    ]);
+    const names = new Map([
+      [1, "Zoe Ames"],
+      [2, "Amy Bell"],
+    ]);
+
+    const sources = buildSourcesForEvent(
+      [2, 1],
+      firstByStudent,
+      FALL_2026,
+      SEMESTERS,
+      20,
+      names
+    );
+
+    expect(sources[0]?.students).toEqual([
+      { id: 2, name: "Amy Bell" },
+      { id: 1, name: "Zoe Ames" },
+    ]);
+  });
 });
 
 describe("buildEventFunnelPayload", () => {
@@ -122,6 +147,11 @@ describe("buildEventFunnelPayload", () => {
       current: FALL_2026,
       semesters: SEMESTERS,
       dateLabel: (startMs) => new Date(startMs).toISOString().slice(0, 10),
+      studentNames: new Map([
+        [1, "Alex Chen"],
+        [2, "Blake Diaz"],
+        [3, "Casey Ng"],
+      ]),
     });
 
     expect(payload.events.map((e) => e.id)).toEqual([10, 20]);
@@ -155,6 +185,7 @@ describe("buildEventFunnelPayload", () => {
           returning: false,
           newStudents: true,
           startMs: Date.UTC(2026, 8, 3),
+          students: [{ id: 2, name: "Blake Diaz" }],
         },
         {
           key: "c:10",
@@ -164,6 +195,7 @@ describe("buildEventFunnelPayload", () => {
           returning: false,
           newStudents: false,
           startMs: Date.UTC(2026, 7, 30),
+          students: [{ id: 1, name: "Alex Chen" }],
         },
         {
           key: "r:2",
@@ -173,6 +205,7 @@ describe("buildEventFunnelPayload", () => {
           returning: true,
           newStudents: false,
           startMs: Date.UTC(2025, 9, 4),
+          students: [{ id: 3, name: "Casey Ng" }],
         },
       ],
     });

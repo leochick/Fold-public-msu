@@ -22,6 +22,11 @@ export type EventFunnelFirstEvent = {
   startMs: number;
 };
 
+export type EventFunnelStudent = {
+  id: number;
+  name: string;
+};
+
 export type EventFunnelSource = {
   key: string;
   eventId: number;
@@ -30,6 +35,7 @@ export type EventFunnelSource = {
   returning: boolean;
   newStudents: boolean;
   startMs: number;
+  students: EventFunnelStudent[];
 };
 
 export type EventFunnelOption = {
@@ -95,12 +101,25 @@ export function sourceLabel(params: {
   return `${params.eventName} (${params.semesterName ?? PREVIOUS_SEMESTER_FALLBACK})`;
 }
 
+function resolveStudentName(studentId: number, studentNames?: Map<number, string>): string {
+  const name = studentNames?.get(studentId)?.trim();
+  return name || `Student ${studentId}`;
+}
+
+function sortStudents(students: EventFunnelStudent[]): EventFunnelStudent[] {
+  return [...students].sort((a, b) => {
+    const byName = a.name.localeCompare(b.name);
+    return byName !== 0 ? byName : a.id - b.id;
+  });
+}
+
 export function buildSourcesForEvent(
   attendeeIds: number[],
   firstByStudent: Map<number, EventFunnelFirstEvent>,
   current: { fromMs: number; toMs: number },
   semesters: EventFunnelSemester[],
-  selectedEventId?: number
+  selectedEventId?: number,
+  studentNames?: Map<number, string>
 ): EventFunnelSource[] {
   const byKey = new Map<string, EventFunnelSource>();
 
@@ -112,9 +131,13 @@ export function buildSourcesForEvent(
     const returning = !newStudents && !isInRange(first.startMs, current.fromMs, current.toMs);
     const semesterName = returning ? semesterNameForDate(first.startMs, semesters) : null;
     const key = newStudents ? "new" : `${returning ? "r" : "c"}:${first.eventId}`;
+    const student = { id: studentId, name: resolveStudentName(studentId, studentNames) };
     const existing = byKey.get(key);
     if (existing) {
-      existing.count += 1;
+      if (!existing.students.some((row) => row.id === studentId)) {
+        existing.students.push(student);
+        existing.count = existing.students.length;
+      }
       continue;
     }
 
@@ -126,15 +149,18 @@ export function buildSourcesForEvent(
       returning,
       newStudents,
       startMs: first.startMs,
+      students: [student],
     });
   }
 
-  return [...byKey.values()].sort((a, b) => {
-    if (a.newStudents !== b.newStudents) return a.newStudents ? -1 : 1;
-    if (a.returning !== b.returning) return a.returning ? 1 : -1;
-    if (a.startMs !== b.startMs) return a.startMs - b.startMs;
-    return a.label.localeCompare(b.label);
-  });
+  return [...byKey.values()]
+    .map((source) => ({ ...source, students: sortStudents(source.students) }))
+    .sort((a, b) => {
+      if (a.newStudents !== b.newStudents) return a.newStudents ? -1 : 1;
+      if (a.returning !== b.returning) return a.returning ? 1 : -1;
+      if (a.startMs !== b.startMs) return a.startMs - b.startMs;
+      return a.label.localeCompare(b.label);
+    });
 }
 
 export function buildEventFunnelPayload(params: {
@@ -144,6 +170,7 @@ export function buildEventFunnelPayload(params: {
   current: { fromMs: number; toMs: number };
   semesters: EventFunnelSemester[];
   dateLabel: (startMs: number) => string;
+  studentNames?: Map<number, string>;
 }): EventFunnelPayload {
   const firstByStudent = pickFirstEvents(params.firstEvents);
   const attendeesByEvent = new Map<number, number[]>();
@@ -167,7 +194,8 @@ export function buildEventFunnelPayload(params: {
       firstByStudent,
       params.current,
       params.semesters,
-      event.id
+      event.id,
+      params.studentNames
     );
     byEventId[String(event.id)] = {
       total: attendeeIds.length,

@@ -1,6 +1,6 @@
 import { and, eq, gte, inArray, lte } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { attendances, events } from "../../drizzle/schema";
+import { attendances, events, students } from "../../drizzle/schema";
 import {
   parseDashboardDateEnd,
   parseDashboardDateStart,
@@ -87,6 +87,22 @@ export async function loadEventFunnelPayload(params: {
           startMs: toMs(row.startDate),
         }));
 
+  const nameRows =
+    studentIds.length === 0
+      ? []
+      : await db
+          .select({
+            id: students.id,
+            firstName: students.firstName,
+            lastName: students.lastName,
+          })
+          .from(students)
+          .where(inArray(students.id, studentIds));
+
+  const studentNames = new Map(
+    nameRows.map((row) => [row.id, `${row.firstName} ${row.lastName ?? ""}`.trim()])
+  );
+
   return buildEventFunnelPayload({
     events: semesterEvents.map((event) => ({
       id: event.id,
@@ -98,5 +114,6 @@ export async function loadEventFunnelPayload(params: {
     current: { fromMs: params.from.getTime(), toMs: params.to.getTime() },
     semesters: semesterWindowsFromViews(params.semesters),
     dateLabel: eventDateLabel,
+    studentNames,
   });
 }
