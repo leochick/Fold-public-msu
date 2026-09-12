@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
+  breakdownTooltipColumns,
+  breakdownTooltipSize,
   buildEventTypeBreakdown,
   buildGenderBreakdown,
   buildYearBreakdown,
@@ -61,6 +63,28 @@ describe("buildGenderBreakdown", () => {
         students: [{ id: 1, name: "Amy" }],
       },
     ]);
+  });
+});
+
+describe("breakdownTooltipColumns", () => {
+  it("keeps short lists in one column", () => {
+    expect(breakdownTooltipColumns(0)).toBe(1);
+    expect(breakdownTooltipColumns(12)).toBe(1);
+  });
+
+  it("adds columns instead of a tall scrolling list", () => {
+    expect(breakdownTooltipColumns(13)).toBe(2);
+    expect(breakdownTooltipColumns(24)).toBe(2);
+    expect(breakdownTooltipColumns(25)).toBe(3);
+    expect(breakdownTooltipColumns(100, 6)).toBe(6);
+  });
+});
+
+describe("breakdownTooltipSize", () => {
+  it("widens with column count", () => {
+    expect(breakdownTooltipSize(12).columns).toBe(1);
+    expect(breakdownTooltipSize(13).width).toBeGreaterThan(breakdownTooltipSize(12).width);
+    expect(breakdownTooltipSize(13).height).toBeLessThan(breakdownTooltipSize(13).width * 2);
   });
 });
 

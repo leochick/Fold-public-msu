@@ -46,6 +46,26 @@ function segmentsFromGroups(
     }));
 }
 
+export const BREAKDOWN_TOOLTIP_NAMES_PER_COLUMN = 12;
+export const BREAKDOWN_TOOLTIP_COLUMN_WIDTH = 148;
+export const BREAKDOWN_TOOLTIP_ROW_HEIGHT = 18;
+export const BREAKDOWN_TOOLTIP_HEADER_HEIGHT = 58;
+
+export function breakdownTooltipColumns(studentCount: number, maxColumns = 8): number {
+  if (studentCount <= 0) return 1;
+  return Math.min(maxColumns, Math.max(1, Math.ceil(studentCount / BREAKDOWN_TOOLTIP_NAMES_PER_COLUMN)));
+}
+
+export function breakdownTooltipSize(studentCount: number, maxColumns = 8) {
+  const columns = breakdownTooltipColumns(studentCount, maxColumns);
+  const rows = Math.max(1, Math.ceil(Math.max(studentCount, 1) / columns));
+  return {
+    columns,
+    width: Math.max(256, columns * BREAKDOWN_TOOLTIP_COLUMN_WIDTH + 24),
+    height: BREAKDOWN_TOOLTIP_HEADER_HEIGHT + rows * BREAKDOWN_TOOLTIP_ROW_HEIGHT,
+  };
+}
+
 export function genderBreakdownLabel(gender: string | null | undefined): string | null {
   if (gender === "M") return "Male";
   if (gender === "F") return "Female";

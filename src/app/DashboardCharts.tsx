@@ -6,7 +6,10 @@ import {
   LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer,
   BarChart, Bar, CartesianGrid, PieChart, Pie, Cell, Legend, Sector,
 } from "recharts";
-import type { BreakdownSegment } from "@/lib/dashboard-breakdowns";
+import {
+  breakdownTooltipSize,
+  type BreakdownSegment,
+} from "@/lib/dashboard-breakdowns";
 import { ENGAGEMENT_STAGE_LABELS } from "@/lib/dashboard-engagement";
 import type { EventFunnelPayload } from "@/lib/event-funnel";
 import EventFunnelTool from "./EventFunnelTool";
@@ -268,12 +271,18 @@ function SearchableStudentList({
   );
 }
 
-function tooltipPosition(wrap: HTMLDivElement | null, event: MouseEvent) {
-  const rect = wrap?.getBoundingClientRect();
-  if (!rect) return null;
+function tooltipPosition(event: MouseEvent, width: number, height: number) {
+  const pad = 8;
+  const offset = 14;
+  const maxX = window.innerWidth - width - pad;
+  const maxY = window.innerHeight - height - pad;
+  let x = event.clientX + offset;
+  let y = event.clientY + offset;
+  if (x > maxX) x = event.clientX - width - offset;
+  if (y > maxY) y = event.clientY - height - offset;
   return {
-    x: Math.min(Math.max(event.clientX - rect.left + 14, 8), Math.max(8, rect.width - 268)),
-    y: Math.min(Math.max(event.clientY - rect.top + 14, 8), Math.max(8, rect.height - 16)),
+    x: Math.min(Math.max(x, pad), Math.max(pad, maxX)),
+    y: Math.min(Math.max(y, pad), Math.max(pad, maxY)),
   };
 }
 
@@ -294,6 +303,10 @@ function renderInactivePieShape(props: any) {
   return <Sector {...props} fillOpacity={0.4} stroke="transparent" />;
 }
 
+function tooltipMaxColumns() {
+  return Math.max(2, Math.floor((window.innerWidth - 48) / 150));
+}
+
 function PieMini({ title, data }: { title: string; data: BreakdownSegment[] }) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const [hoveredName, setHoveredName] = useState<string | null>(null);
@@ -301,12 +314,15 @@ function PieMini({ title, data }: { title: string; data: BreakdownSegment[] }) {
   const hovered = data.find((segment) => segment.name === hoveredName) ?? null;
   const hoveredIndex = data.findIndex((segment) => segment.name === hoveredName);
   const activeIndex = hoveredIndex >= 0 ? hoveredIndex : undefined;
+  const tooltipLayout = hovered
+    ? breakdownTooltipSize(hovered.students.length, tooltipMaxColumns())
+    : null;
 
   function moveHover(name: string, event: MouseEvent) {
-    const next = tooltipPosition(wrapRef.current, event);
-    if (!next) return;
+    const segment = data.find((row) => row.name === name);
+    const layout = breakdownTooltipSize(segment?.students.length ?? 0, tooltipMaxColumns());
     setHoveredName(name);
-    setTooltip(next);
+    setTooltip(tooltipPosition(event, layout.width, layout.height));
   }
 
   function clearHover() {
@@ -352,10 +368,10 @@ function PieMini({ title, data }: { title: string; data: BreakdownSegment[] }) {
         </ResponsiveContainer>
       )}
 
-      {hovered && tooltip && (
+      {hovered && tooltip && tooltipLayout && (
         <div
-          className="absolute z-20 w-64 max-h-72 overflow-y-auto rounded-lg border border-black/10 dark:border-white/10 bg-white dark:bg-ink px-3 py-2.5 shadow-md pointer-events-none"
-          style={{ left: tooltip.x, top: tooltip.y }}
+          className="fixed z-50 rounded-lg border border-black/10 dark:border-white/10 bg-white dark:bg-ink px-3 py-2.5 shadow-md pointer-events-none"
+          style={{ left: tooltip.x, top: tooltip.y, width: tooltipLayout.width }}
           role="tooltip"
         >
           <div className="font-semibold text-sm">{hovered.name}</div>
@@ -368,9 +384,14 @@ function PieMini({ title, data }: { title: string; data: BreakdownSegment[] }) {
           {hovered.students.length === 0 ? (
             <p className="text-xs text-black/40 dark:text-white/40 italic">No attendance recorded</p>
           ) : (
-            <ul className="space-y-0.5 text-xs">
+            <ul
+              className="text-xs"
+              style={{ columnCount: tooltipLayout.columns, columnGap: "1rem" }}
+            >
               {hovered.students.map((student) => (
-                <li key={student.id}>{student.name}</li>
+                <li key={student.id} className="break-inside-avoid py-px">
+                  {student.name}
+                </li>
               ))}
             </ul>
           )}
