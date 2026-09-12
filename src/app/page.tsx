@@ -1,7 +1,6 @@
-import Link from "next/link";
 import { db } from "@/lib/db";
 import { students, events, attendances } from "../../drizzle/schema";
-import { sql, eq, and, gte, lte, isNotNull, inArray, or, isNull, notInArray } from "drizzle-orm";
+import { sql, eq, and, gte, lte, isNotNull, inArray, notInArray } from "drizzle-orm";
 import { dashboardDateRangeLabel, resolveDashboardDateRange } from "@/lib/dashboard-date-range";
 import {
   classifyEngagementInRange,
@@ -36,7 +35,6 @@ export default async function DashboardPage() {
     attendsInRange,
     newStudentsInRange,
     uniqueAttendeesInRange,
-    hotRows,
     eventFunnel,
   ] = await Promise.all([
     db
@@ -99,16 +97,6 @@ export default async function DashboardPage() {
       .from(attendances)
       .innerJoin(events, eq(attendances.eventId, events.id))
       .where(eventDateRange),
-    db
-      .select({
-        sid: attendances.studentId,
-        visits: sql<number>`count(*)`.as("v"),
-        lastSeen: sql<number>`max(${events.startDate})`.as("ls"),
-      })
-      .from(attendances)
-      .innerJoin(events, eq(attendances.eventId, events.id))
-      .where(eventDateRange)
-      .groupBy(attendances.studentId),
     loadEventFunnelPayload({ from, to, semesters }),
   ]);
 
@@ -253,43 +241,6 @@ export default async function DashboardPage() {
     newStudents: Number(newStudentsInRange[0]?.c ?? 0),
   };
 
-  const sortedHot = hotRows
-    .map((r) => ({ sid: r.sid, visits: Number(r.visits), lastSeen: Number(r.lastSeen) }))
-    .sort((a, b) => b.visits - a.visits);
-  const hotIds = sortedHot.map((r) => r.sid);
-  const hotStudents = hotIds.length
-    ? await db
-        .select()
-        .from(students)
-        .where(
-          and(
-            inArray(students.id, hotIds),
-            or(
-              eq(students.memberStatus, "prospect"),
-              eq(students.memberStatus, "member"),
-              isNull(students.memberStatus)
-            )
-          )
-        )
-    : [];
-  const hotById = new Map(hotStudents.map((s) => [s.id, s]));
-  const hotProspects = sortedHot
-    .filter((r) => hotById.has(r.sid))
-    .slice(0, 10)
-    .map((r) => {
-      const s = hotById.get(r.sid)!;
-      return {
-        id: s.id,
-        name: `${s.firstName} ${s.lastName ?? ""}`.trim(),
-        year: s.year,
-        gender: s.gender,
-        status: s.memberStatus,
-        primaryContact: s.primaryContact,
-        visits: r.visits,
-        lastSeen: new Date(Number(r.lastSeen) * 1000).toLocaleDateString("en-US", { timeZone: "UTC" }),
-      };
-    });
-
   return (
     <div className="max-w-6xl mx-auto px-4 py-8 space-y-8">
       <h1 className="text-2xl font-semibold">Dashboard</h1>
@@ -312,44 +263,6 @@ export default async function DashboardPage() {
         rangeLabel={rangeLabel}
         eventFunnel={eventFunnel}
       />
-
-      <section className="card overflow-x-auto">
-        <div className="flex items-center justify-between mb-3">
-          <div>
-            <h2 className="font-semibold">Active prospects</h2>
-            <p className="text-xs text-black/60">
-              Non-core members ranked by attendance from {rangeLabel}. Highest priority for follow-up.
-            </p>
-          </div>
-          <Link href="/students" className="text-xs text-black/60 hover:underline">all students →</Link>
-        </div>
-        {hotProspects.length === 0 ? (
-          <p className="text-sm text-black/50">No attendance in this date range yet.</p>
-        ) : (
-          <table>
-            <thead>
-              <tr>
-                <th>Name</th><th>Year</th><th>Status</th><th>Visits</th><th>Primary contact</th><th>Last seen</th>
-              </tr>
-            </thead>
-            <tbody>
-              {hotProspects.map((s) => (
-                <tr key={s.id} className="hover:bg-black/5 dark:hover:bg-white/5">
-                  <td>
-                    <Link href={`/students/${s.id}`} className="font-medium hover:underline">{s.name}</Link>
-                    <span className="ml-1 text-xs text-black/40">{s.gender === "M" ? "♂" : s.gender === "F" ? "♀" : ""}</span>
-                  </td>
-                  <td>{s.year ?? "—"}</td>
-                  <td>{s.status ? <span className="chip">{s.status}</span> : <span className="text-black/30">—</span>}</td>
-                  <td className="font-medium">{s.visits}</td>
-                  <td className="text-sm">{s.primaryContact ?? <span className="text-black/30">—</span>}</td>
-                  <td className="text-sm text-black/60">{s.lastSeen}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </section>
     </div>
   );
 }
