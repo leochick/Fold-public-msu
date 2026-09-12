@@ -1,6 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
+import {
+  breakdownTooltipSize,
+  studentListTooltipMaxColumns,
+  studentListTooltipPosition,
+} from "@/lib/dashboard-breakdowns";
 import type { EventFunnelPayload, EventFunnelSource } from "@/lib/event-funnel";
 
 const CURRENT_COLORS = ["#2a78d6", "#eb6834", "#eda100", "#4a3aa7", "#0ea5e9", "#c026d3"];
@@ -82,14 +87,15 @@ function EventFunnelSankey({
   }, [sources]);
 
   const hovered = colored.find((source) => source.key === hoveredKey) ?? null;
+  const tooltipLayout = hovered
+    ? breakdownTooltipSize(hovered.students.length, studentListTooltipMaxColumns())
+    : null;
 
   function onStreamMove(event: MouseEvent<SVGGElement>, key: string) {
-    const rect = wrapRef.current?.getBoundingClientRect();
-    if (!rect) return;
+    const source = colored.find((row) => row.key === key);
+    const layout = breakdownTooltipSize(source?.students.length ?? 0, studentListTooltipMaxColumns());
     setHoveredKey(key);
-    const x = Math.min(Math.max(event.clientX - rect.left + 14, 8), Math.max(8, rect.width - 268));
-    const y = Math.min(Math.max(event.clientY - rect.top + 14, 8), Math.max(8, rect.height - 16));
-    setTooltip({ x, y });
+    setTooltip(studentListTooltipPosition(event.clientX, event.clientY, layout.width, layout.height));
   }
 
   function clearHover() {
@@ -260,21 +266,30 @@ function EventFunnelSankey({
         })}
       </svg>
 
-      {hovered && tooltip && (
+      {hovered && tooltip && tooltipLayout && (
         <div
-          className="absolute z-20 w-64 max-h-72 overflow-y-auto rounded-lg border border-black/10 dark:border-white/10 bg-white dark:bg-ink px-3 py-2.5 shadow-md pointer-events-none"
-          style={{ left: tooltip.x, top: tooltip.y }}
+          className="fixed z-50 rounded-lg border border-black/10 dark:border-white/10 bg-white dark:bg-ink px-3 py-2.5 shadow-md pointer-events-none"
+          style={{ left: tooltip.x, top: tooltip.y, width: tooltipLayout.width }}
           role="tooltip"
         >
           <div className="font-semibold text-sm">{hovered.label}</div>
           <div className="text-[11px] text-black/50 dark:text-white/50 mb-1.5">
             {hovered.count} {hovered.count === 1 ? "student" : "students"}
           </div>
-          <ul className="space-y-0.5 text-xs">
-            {hovered.students.map((student) => (
-              <li key={student.id}>{student.name}</li>
-            ))}
-          </ul>
+          {hovered.students.length === 0 ? (
+            <p className="text-xs text-black/40 dark:text-white/40 italic">No students</p>
+          ) : (
+            <ul
+              className="text-xs"
+              style={{ columnCount: tooltipLayout.columns, columnGap: "1rem" }}
+            >
+              {hovered.students.map((student) => (
+                <li key={student.id} className="break-inside-avoid py-px">
+                  {student.name}
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       )}
     </div>

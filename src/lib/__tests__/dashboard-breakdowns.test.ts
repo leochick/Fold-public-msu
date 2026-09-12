@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   breakdownTooltipColumns,
   breakdownTooltipSize,
+  studentListTooltipMaxColumns,
+  studentListTooltipPosition,
   buildEventTypeBreakdown,
   buildGenderBreakdown,
   buildYearBreakdown,
@@ -85,6 +87,21 @@ describe("breakdownTooltipSize", () => {
     expect(breakdownTooltipSize(12).columns).toBe(1);
     expect(breakdownTooltipSize(13).width).toBeGreaterThan(breakdownTooltipSize(12).width);
     expect(breakdownTooltipSize(13).height).toBeLessThan(breakdownTooltipSize(13).width * 2);
+  });
+});
+
+describe("studentListTooltipMaxColumns / studentListTooltipPosition", () => {
+  it("allows more columns on a wide viewport", () => {
+    expect(studentListTooltipMaxColumns(400)).toBe(2);
+    expect(studentListTooltipMaxColumns(1200)).toBeGreaterThan(studentListTooltipMaxColumns(400));
+  });
+
+  it("flips the tooltip when it would overflow the viewport", () => {
+    const pos = studentListTooltipPosition(980, 760, 300, 200, { width: 1000, height: 800 });
+    expect(pos.x).toBeLessThan(980);
+    expect(pos.y).toBeLessThan(760);
+    expect(pos.x + 300).toBeLessThanOrEqual(1000);
+    expect(pos.y + 200).toBeLessThanOrEqual(800);
   });
 });
 

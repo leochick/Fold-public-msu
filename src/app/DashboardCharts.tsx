@@ -8,6 +8,8 @@ import {
 } from "recharts";
 import {
   breakdownTooltipSize,
+  studentListTooltipMaxColumns,
+  studentListTooltipPosition,
   type BreakdownSegment,
 } from "@/lib/dashboard-breakdowns";
 import { ENGAGEMENT_STAGE_LABELS } from "@/lib/dashboard-engagement";
@@ -271,21 +273,6 @@ function SearchableStudentList({
   );
 }
 
-function tooltipPosition(event: MouseEvent, width: number, height: number) {
-  const pad = 8;
-  const offset = 14;
-  const maxX = window.innerWidth - width - pad;
-  const maxY = window.innerHeight - height - pad;
-  let x = event.clientX + offset;
-  let y = event.clientY + offset;
-  if (x > maxX) x = event.clientX - width - offset;
-  if (y > maxY) y = event.clientY - height - offset;
-  return {
-    x: Math.min(Math.max(x, pad), Math.max(pad, maxX)),
-    y: Math.min(Math.max(y, pad), Math.max(pad, maxY)),
-  };
-}
-
 function renderActivePieShape(props: any) {
   return (
     <Sector
@@ -303,10 +290,6 @@ function renderInactivePieShape(props: any) {
   return <Sector {...props} fillOpacity={0.4} stroke="transparent" />;
 }
 
-function tooltipMaxColumns() {
-  return Math.max(2, Math.floor((window.innerWidth - 48) / 150));
-}
-
 function PieMini({ title, data }: { title: string; data: BreakdownSegment[] }) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const [hoveredName, setHoveredName] = useState<string | null>(null);
@@ -315,14 +298,14 @@ function PieMini({ title, data }: { title: string; data: BreakdownSegment[] }) {
   const hoveredIndex = data.findIndex((segment) => segment.name === hoveredName);
   const activeIndex = hoveredIndex >= 0 ? hoveredIndex : undefined;
   const tooltipLayout = hovered
-    ? breakdownTooltipSize(hovered.students.length, tooltipMaxColumns())
+    ? breakdownTooltipSize(hovered.students.length, studentListTooltipMaxColumns())
     : null;
 
   function moveHover(name: string, event: MouseEvent) {
     const segment = data.find((row) => row.name === name);
-    const layout = breakdownTooltipSize(segment?.students.length ?? 0, tooltipMaxColumns());
+    const layout = breakdownTooltipSize(segment?.students.length ?? 0, studentListTooltipMaxColumns());
     setHoveredName(name);
-    setTooltip(tooltipPosition(event, layout.width, layout.height));
+    setTooltip(studentListTooltipPosition(event.clientX, event.clientY, layout.width, layout.height));
   }
 
   function clearHover() {

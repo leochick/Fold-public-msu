@@ -66,6 +66,36 @@ export function breakdownTooltipSize(studentCount: number, maxColumns = 8) {
   };
 }
 
+export function studentListTooltipMaxColumns(viewportWidth?: number) {
+  const width = viewportWidth ?? (typeof window === "undefined" ? 1200 : window.innerWidth);
+  return Math.max(2, Math.floor((width - 48) / 150));
+}
+
+export function studentListTooltipPosition(
+  clientX: number,
+  clientY: number,
+  width: number,
+  height: number,
+  viewport?: { width: number; height: number }
+) {
+  const view = viewport ?? {
+    width: typeof window === "undefined" ? 1200 : window.innerWidth,
+    height: typeof window === "undefined" ? 800 : window.innerHeight,
+  };
+  const pad = 8;
+  const offset = 14;
+  const maxX = view.width - width - pad;
+  const maxY = view.height - height - pad;
+  let x = clientX + offset;
+  let y = clientY + offset;
+  if (x > maxX) x = clientX - width - offset;
+  if (y > maxY) y = clientY - height - offset;
+  return {
+    x: Math.min(Math.max(x, pad), Math.max(pad, maxX)),
+    y: Math.min(Math.max(y, pad), Math.max(pad, maxY)),
+  };
+}
+
 export function genderBreakdownLabel(gender: string | null | undefined): string | null {
   if (gender === "M") return "Male";
   if (gender === "F") return "Female";
