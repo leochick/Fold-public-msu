@@ -55,6 +55,16 @@ export default function DashboardCharts({
 }: DashboardChartsProps) {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className="card lg:col-span-2">
+        <h3 className="font-semibold mb-2">Breakdowns</h3>
+        <p className="text-xs text-black/50 mb-2">{rangeLabel}</p>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <PieMini title="By year" data={breakdowns.year} />
+          <PieMini title="By gender" data={breakdowns.gender} />
+          <PieMini title="By event type" data={breakdowns.eventType} />
+        </div>
+      </div>
+
       <div className="card">
         <h3 className="font-semibold mb-2">Attendance over time</h3>
         <p className="text-xs text-black/50 mb-2">{rangeLabel}</p>
@@ -134,16 +144,6 @@ export default function DashboardCharts({
         emptyMessage="Everyone who attended in this semester is in Groupme."
         linkToStudent
       />
-
-      <div className="card lg:col-span-2">
-        <h3 className="font-semibold mb-2">Breakdowns</h3>
-        <p className="text-xs text-black/50 mb-2">{rangeLabel}</p>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <PieMini title="By year" data={breakdowns.year} />
-          <PieMini title="By gender" data={breakdowns.gender} />
-          <PieMini title="By event type" data={breakdowns.eventType} />
-        </div>
-      </div>
     </div>
   );
 }
