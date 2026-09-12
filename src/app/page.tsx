@@ -10,6 +10,12 @@ import {
 } from "@/lib/dashboard-engagement";
 import { getSemestersContext } from "@/server/dashboard-views";
 import { loadEventFunnelPayload } from "@/server/event-funnel";
+import {
+  buildEventTypeBreakdown,
+  buildGenderBreakdown,
+  buildYearBreakdown,
+  formatBreakdownStudentName,
+} from "@/lib/dashboard-breakdowns";
 import DashboardCharts from "./DashboardCharts";
 
 export const dynamic = "force-dynamic";
@@ -28,8 +34,6 @@ export default async function DashboardPage() {
     overTime,
     repeatRows,
     attendanceTypeRows,
-    byYear,
-    byGender,
     byType,
     eventsInRange,
     attendsInRange,
@@ -63,20 +67,6 @@ export default async function DashboardPage() {
       .from(attendances)
       .innerJoin(events, eq(attendances.eventId, events.id))
       .where(eventDateRange),
-    db
-      .select({ year: students.year, c: sql<number>`count(distinct ${students.id})`.as("c") })
-      .from(students)
-      .innerJoin(attendances, eq(attendances.studentId, students.id))
-      .innerJoin(events, eq(attendances.eventId, events.id))
-      .where(and(eventDateRange, isNotNull(students.year)))
-      .groupBy(students.year),
-    db
-      .select({ gender: students.gender, c: sql<number>`count(distinct ${students.id})`.as("c") })
-      .from(students)
-      .innerJoin(attendances, eq(attendances.studentId, students.id))
-      .innerJoin(events, eq(attendances.eventId, events.id))
-      .where(and(eventDateRange, isNotNull(students.gender)))
-      .groupBy(students.gender),
     db
       .select({ type: events.type, c: sql<number>`count(*)`.as("c") })
       .from(events)
@@ -154,15 +144,6 @@ export default async function DashboardPage() {
       .map((row) => row.id),
   });
 
-  const breakdowns = {
-    year: byYear.map((r) => ({ name: r.year ?? "—", value: Number(r.c) })),
-    gender: byGender.map((r) => ({
-      name: r.gender === "M" ? "Male" : r.gender === "F" ? "Female" : "—",
-      value: Number(r.c),
-    })),
-    eventType: byType.map((r) => ({ name: r.type ?? "—", value: Number(r.c) })),
-  };
-
   const studentsActiveOrEngaged = repeatRows.filter((r) => isActiveOrEngagedInRange(Number(r.c)));
   const engagementByStudent = new Map<number, RangeEngagementStage>(
     studentsActiveOrEngaged.map((r) => [r.sid, classifyEngagementInRange(Number(r.c))!])
@@ -177,6 +158,8 @@ export default async function DashboardPage() {
             firstName: students.firstName,
             lastName: students.lastName,
             email: students.email,
+            year: students.year,
+            gender: students.gender,
             courseMaterial: students.courseMaterial,
           })
           .from(students)
@@ -223,6 +206,25 @@ export default async function DashboardPage() {
   const hasC101 = (courseMaterial: unknown) => {
     const materials = courseMaterial as string[] | null;
     return Array.isArray(materials) && materials.includes("Course 101");
+  };
+
+  const breakdownStudents = completedRaw.map((student) => ({
+    id: student.id,
+    name: formatBreakdownStudentName(student.firstName, student.lastName, student.id),
+    year: student.year,
+    gender: student.gender,
+  }));
+  const studentsById = new Map(
+    breakdownStudents.map((student) => [student.id, { id: student.id, name: student.name }])
+  );
+  const breakdowns = {
+    year: buildYearBreakdown(breakdownStudents),
+    gender: buildGenderBreakdown(breakdownStudents),
+    eventType: buildEventTypeBreakdown(
+      byType.map((row) => ({ type: row.type, count: Number(row.c) })),
+      attendanceTypeRows,
+      studentsById
+    ),
   };
 
   const completedStudents = completedRaw.filter((student) => hasC101(student.courseMaterial));

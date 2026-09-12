@@ -1,11 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState, type ReactNode } from "react";
+import { useMemo, useRef, useState, type MouseEvent, type ReactNode } from "react";
 import {
   LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer,
-  BarChart, Bar, CartesianGrid, PieChart, Pie, Cell, Legend,
+  BarChart, Bar, CartesianGrid, PieChart, Pie, Cell, Legend, Sector,
 } from "recharts";
+import type { BreakdownSegment } from "@/lib/dashboard-breakdowns";
 import { ENGAGEMENT_STAGE_LABELS } from "@/lib/dashboard-engagement";
 import type { EventFunnelPayload } from "@/lib/event-funnel";
 import EventFunnelTool from "./EventFunnelTool";
@@ -33,7 +34,11 @@ interface AttendeeListStudent {
 interface DashboardChartsProps {
   overTime: any; // update with your exact type definitions
   funnel: any;
-  breakdowns: any;
+  breakdowns: {
+    year: BreakdownSegment[];
+    gender: BreakdownSegment[];
+    eventType: BreakdownSegment[];
+  };
   completedC101: CompletedC101Student[];
   pendingC101: PendingC101Student[];
   notOnNewsletter: AttendeeListStudent[];
@@ -55,10 +60,10 @@ export default function DashboardCharts({
 }: DashboardChartsProps) {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-      <div className="card lg:col-span-2">
+      <div className="card lg:col-span-2 overflow-visible">
         <h3 className="font-semibold mb-2">Breakdowns</h3>
         <p className="text-xs text-black/50 mb-2">{rangeLabel}</p>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 overflow-visible">
           <PieMini title="By year" data={breakdowns.year} />
           <PieMini title="By gender" data={breakdowns.gender} />
           <PieMini title="By event type" data={breakdowns.eventType} />
@@ -263,19 +268,113 @@ function SearchableStudentList({
   );
 }
 
-function PieMini({ title, data }: { title: string; data: { name: string; value: number }[] }) {
+function tooltipPosition(wrap: HTMLDivElement | null, event: MouseEvent) {
+  const rect = wrap?.getBoundingClientRect();
+  if (!rect) return null;
+  return {
+    x: Math.min(Math.max(event.clientX - rect.left + 14, 8), Math.max(8, rect.width - 268)),
+    y: Math.min(Math.max(event.clientY - rect.top + 14, 8), Math.max(8, rect.height - 16)),
+  };
+}
+
+function renderActivePieShape(props: any) {
   return (
-    <div>
+    <Sector
+      {...props}
+      outerRadius={(props.outerRadius ?? 60) + 8}
+      stroke="#111827"
+      strokeWidth={2}
+      fillOpacity={1}
+      style={{ filter: "drop-shadow(0 0 5px rgba(17, 24, 39, 0.28))", cursor: "pointer", outline: "none" }}
+    />
+  );
+}
+
+function renderInactivePieShape(props: any) {
+  return <Sector {...props} fillOpacity={0.4} stroke="transparent" />;
+}
+
+function PieMini({ title, data }: { title: string; data: BreakdownSegment[] }) {
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const [hoveredName, setHoveredName] = useState<string | null>(null);
+  const [tooltip, setTooltip] = useState<{ x: number; y: number } | null>(null);
+  const hovered = data.find((segment) => segment.name === hoveredName) ?? null;
+  const hoveredIndex = data.findIndex((segment) => segment.name === hoveredName);
+  const activeIndex = hoveredIndex >= 0 ? hoveredIndex : undefined;
+
+  function moveHover(name: string, event: MouseEvent) {
+    const next = tooltipPosition(wrapRef.current, event);
+    if (!next) return;
+    setHoveredName(name);
+    setTooltip(next);
+  }
+
+  function clearHover() {
+    setHoveredName(null);
+    setTooltip(null);
+  }
+
+  return (
+    <div ref={wrapRef} className={`relative ${hovered ? "z-20" : ""}`} onMouseLeave={clearHover}>
       <div className="text-xs text-black/60 text-center mb-1">{title}</div>
       {data.length === 0 ? <Empty /> : (
-        <ResponsiveContainer width="100%" height={180}>
-          <PieChart>
-            <Pie data={data} dataKey="value" nameKey="name" outerRadius={60} label>
-              {data.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+        <ResponsiveContainer width="100%" height={200}>
+          <PieChart margin={{ top: 8, right: 8, bottom: 0, left: 8 }}>
+            <Pie
+              data={data}
+              dataKey="value"
+              nameKey="name"
+              outerRadius={60}
+              label
+              isAnimationActive={false}
+              activeIndex={activeIndex}
+              activeShape={renderActivePieShape}
+              inactiveShape={renderInactivePieShape}
+              onMouseEnter={(entry, _index, event) => moveHover(String(entry.name), event)}
+              onMouseMove={(entry, _index, event) => moveHover(String(entry.name), event)}
+            >
+              {data.map((segment, i) => (
+                <Cell
+                  key={segment.name}
+                  fill={COLORS[i % COLORS.length]}
+                  style={{ cursor: "pointer", outline: "none" }}
+                  onMouseEnter={(event) => moveHover(segment.name, event)}
+                  onMouseMove={(event) => moveHover(segment.name, event)}
+                />
+              ))}
             </Pie>
-            <Legend wrapperStyle={{ fontSize: 11 }} />
+            <Legend
+              wrapperStyle={{ fontSize: 11 }}
+              onMouseEnter={(payload, _index, event) => moveHover(String(payload.value), event)}
+              onMouseLeave={clearHover}
+            />
           </PieChart>
         </ResponsiveContainer>
+      )}
+
+      {hovered && tooltip && (
+        <div
+          className="absolute z-20 w-64 max-h-72 overflow-y-auto rounded-lg border border-black/10 dark:border-white/10 bg-white dark:bg-ink px-3 py-2.5 shadow-md pointer-events-none"
+          style={{ left: tooltip.x, top: tooltip.y }}
+          role="tooltip"
+        >
+          <div className="font-semibold text-sm">{hovered.name}</div>
+          <div className="text-[11px] text-black/50 dark:text-white/50 mb-1.5">
+            {hovered.students.length} {hovered.students.length === 1 ? "student" : "students"}
+            {hovered.value !== hovered.students.length
+              ? ` · ${hovered.value} ${hovered.value === 1 ? "event" : "events"}`
+              : ""}
+          </div>
+          {hovered.students.length === 0 ? (
+            <p className="text-xs text-black/40 dark:text-white/40 italic">No attendance recorded</p>
+          ) : (
+            <ul className="space-y-0.5 text-xs">
+              {hovered.students.map((student) => (
+                <li key={student.id}>{student.name}</li>
+              ))}
+            </ul>
+          )}
+        </div>
       )}
     </div>
   );
