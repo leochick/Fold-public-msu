@@ -3,6 +3,8 @@ import type { Config } from "tailwindcss";
 const config: Config = {
   content: ["./src/**/*.{ts,tsx}"],
   darkMode: "class",
+  // Regex character classes like `[-:–—]` are not Tailwind utilities.
+  blocklist: ["[-:–—]"],
   theme: {
     extend: {
       colors: {

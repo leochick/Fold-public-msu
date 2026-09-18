@@ -32,6 +32,7 @@ const navItems: NavItem[] = [
       { href: "/semester-planning", label: "Semester Planning" },
     ],
   },
+  { href: "/attendance-trends", label: "Attendance Trends" },
   { href: "/staff-allocation", label: "Staff Allocation" },
   { href: "/changelog", label: "Changelog" },
   { href: "/help", label: "Help" },
