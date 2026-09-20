@@ -5,6 +5,7 @@ import { events, attendances, students } from "../../../drizzle/schema";
 import { desc, sql, eq } from "drizzle-orm";
 import QuickAdd from "./QuickAdd";
 import RowActions from "../RowActions";
+import EventTypeCell from "./EventTypeCell";
 import { deleteEventAction } from "./actions";
 import EventAnalytics from "./EventAnalytics";
 import { extractFeatures, aggregate, type FeaturedEvent } from "@/lib/event-features";
@@ -38,7 +39,9 @@ function EventRows({ rows }: { rows: EventRow[] }) {
             <td>
               <Link href={`/events/${e.id}`} className="font-medium hover:underline">{e.name}</Link>
             </td>
-            <td>{e.type ?? <span className="text-black/30">—</span>}</td>
+            <td>
+              <EventTypeCell eventId={e.id} type={e.type} />
+            </td>
             <td>{new Date(e.startDate).toLocaleDateString()}</td>
             <td>{e.location ?? <span className="text-black/30">—</span>}</td>
             <td className={missingTotal ? "text-orange-600 font-medium tabular-nums" : "tabular-nums"}>
