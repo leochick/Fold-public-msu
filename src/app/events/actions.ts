@@ -26,6 +26,70 @@ export async function updateEventTypeAction(eventId: number, type: string) {
   revalidatePath("/");
 }
 
+function parseEventDate(date: string): Date {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new Error("Enter a valid date");
+  const [year, month, day] = date.split("-").map(Number);
+  const startDate = new Date(year, month - 1, day);
+  if (
+    Number.isNaN(startDate.getTime()) ||
+    startDate.getFullYear() !== year ||
+    startDate.getMonth() !== month - 1 ||
+    startDate.getDate() !== day
+  ) {
+    throw new Error("Enter a valid date");
+  }
+  return startDate;
+}
+
+function sameCalendarDay(a: Date, b: Date) {
+  return (
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate()
+  );
+}
+
+export async function updateEventDetailsAction(eventId: number, formData: FormData) {
+  const user = await requireUser();
+  if (!Number.isFinite(eventId)) throw new Error("Invalid event");
+
+  const [existing] = await db.select().from(events).where(eq(events.id, eventId)).limit(1);
+  if (!existing) throw new Error("Event not found");
+
+  const date = String(formData.get("date") || "").trim();
+  const type = String(formData.get("type") || "").trim();
+  const location = String(formData.get("location") || "").trim();
+  const notes = String(formData.get("notes") || "").trim();
+  const parsedDate = parseEventDate(date);
+  const existingDate = new Date(existing.startDate);
+  const startDate = sameCalendarDay(existingDate, parsedDate) ? existingDate : parsedDate;
+  const nextType = type || null;
+  const nextLocation = location || null;
+  const nextNotes = notes || null;
+
+  if (
+    startDate === existingDate &&
+    (existing.type ?? null) === nextType &&
+    (existing.location ?? null) === nextLocation &&
+    (existing.notes ?? null) === nextNotes
+  ) {
+    return;
+  }
+
+  const before = pickEventFields(existing as Record<string, unknown>);
+  const patch = {
+    startDate,
+    type: nextType,
+    location: nextLocation,
+    notes: nextNotes,
+  };
+  await db.update(events).set(patch).where(eq(events.id, eventId));
+  await logEventUpdated(user.id, eventId, before, { ...before, ...patch });
+  revalidatePath("/events");
+  revalidatePath(`/events/${eventId}`);
+  revalidatePath("/");
+}
+
 export async function deleteEventAction(formData: FormData) {
   const user = await requireUser();
   const id = Number(formData.get("id"));

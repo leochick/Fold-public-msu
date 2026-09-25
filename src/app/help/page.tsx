@@ -123,7 +123,7 @@ export default function HelpPage() {
 
       <Section id="insights" title="AI Insights">
         <p>
-          On the Dashboard and on individual event pages, the <em>Insights</em> panel asks
+          On the Dashboard and the Events page, the <em>Insights</em> panel asks
           Claude to look at the numbers and propose 3-5 short hypotheses for what drove
           attendance — &quot;events with food averaged 14 vs 6 without,&quot; that kind of
           thing.

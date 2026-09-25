@@ -2,8 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { events, attendances, students } from "../../../../drizzle/schema";
-import { eq, desc, and, lt, inArray } from "drizzle-orm";
-import EventInsights from "./EventInsights";
+import { and, eq, inArray, lt } from "drizzle-orm";
 import EventAttendeeDumper from "./EventAttendeeDumper";
 import TotalStudentsCard from "./TotalStudentsCard";
 import EditEventCard from "./EditEventCard";
@@ -13,6 +12,35 @@ import { logEventDeleted, logEventUpdated } from "@/server/changelog";
 
 export const dynamic = "force-dynamic";
 
+function formatDateForInput(d: Date) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+function attendeeName(student: { firstName: string; lastName: string | null }) {
+  return `${student.firstName} ${student.lastName ?? ""}`.trim();
+}
+
+function genderPill(gender: "M" | "F" | null) {
+  if (gender === "M") {
+    return (
+      <span className="inline-flex items-center rounded-full bg-blue-100 text-blue-900 dark:bg-blue-500/20 dark:text-blue-200 px-2 py-0.5 text-xs">
+        Male
+      </span>
+    );
+  }
+  if (gender === "F") {
+    return (
+      <span className="inline-flex items-center rounded-full bg-red-100 text-red-900 dark:bg-red-500/20 dark:text-red-200 px-2 py-0.5 text-xs">
+        Female
+      </span>
+    );
+  }
+  return null;
+}
+
 export default async function EventPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: idStr } = await params;
   const eventId = Number(idStr);
@@ -20,14 +48,16 @@ export default async function EventPage({ params }: { params: Promise<{ id: stri
   const [e] = await db.select().from(events).where(eq(events.id, eventId)).limit(1);
   if (!e) notFound();
 
-  const present = await db
+  const presentRows = await db
     .select({ a: attendances, s: students })
     .from(attendances)
     .innerJoin(students, eq(students.id, attendances.studentId))
-    .where(eq(attendances.eventId, eventId))
-    .orderBy(desc(attendances.recordedAt));
+    .where(eq(attendances.eventId, eventId));
 
-  // --- Compute stats for insights ---
+  const present = [...presentRows].sort((left, right) =>
+    attendeeName(left.s).localeCompare(attendeeName(right.s), undefined, { sensitivity: "base" })
+  );
+
   const studentIds = present.map(({ s }) => s.id);
   let firstTimerCount = present.length;
   if (studentIds.length > 0) {
@@ -57,27 +87,20 @@ export default async function EventPage({ params }: { params: Promise<{ id: stri
     if (s.invitedByStudentId) {
       const inviter = present.find(({ s: inv }) => inv.id === s.invitedByStudentId);
       const inviterName = inviter
-        ? `${inviter.s.firstName} ${inviter.s.lastName ?? ""}`.trim()
+        ? attendeeName(inviter.s)
         : `Student #${s.invitedByStudentId}`;
       const key = s.invitedByStudentId;
       if (!inviterMap.has(key)) {
         inviterMap.set(key, { name: inviterName, invitees: [] });
       }
-      inviterMap.get(key)!.invitees.push(`${s.firstName} ${s.lastName ?? ""}`.trim());
+      inviterMap.get(key)!.invitees.push(attendeeName(s));
     }
   }
-  const inviteChains = Array.from(inviterMap.values()).map((v) => ({
-    inviter: v.name,
-    invitees: v.invitees,
+  const inviteChains = Array.from(inviterMap.entries()).map(([id, chain]) => ({
+    id,
+    inviter: chain.name,
+    invitees: chain.invitees,
   }));
-
-  const eventStats = {
-    total: present.length,
-    firstTimers: firstTimerCount,
-    returners: present.length - firstTimerCount,
-    genderSplit,
-    inviteChains,
-  };
 
   async function removeAttendance(formData: FormData) {
     "use server";
@@ -108,38 +131,6 @@ export default async function EventPage({ params }: { params: Promise<{ id: stri
       before,
       { ...before, totalStudents: nextTotal }
     );
-    redirect(`/events/${eventId}`);
-  }
-
-  async function saveEventDetails(formData: FormData) {
-    "use server";
-    const user = await requireUser();
-    const date = String(formData.get("date") || "").trim();
-    const type = String(formData.get("type") || "").trim();
-    const location = String(formData.get("location") || "").trim();
-    const notes = String(formData.get("notes") || "").trim();
-
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-      redirect(`/events/${eventId}`);
-    }
-    const [y, m, day] = date.split("-").map(Number);
-    const startDate = new Date(y, m - 1, day);
-    if (isNaN(startDate.getTime())) {
-      redirect(`/events/${eventId}`);
-    }
-
-    const before = pickEventFields(e as Record<string, unknown>);
-    const patch = {
-        startDate,
-        type: type || null,
-        location: location || null,
-        notes: notes || null,
-      };
-    await db
-      .update(events)
-      .set(patch)
-      .where(eq(events.id, eventId));
-    await logEventUpdated(user.id, eventId, before, { ...before, ...patch });
     redirect(`/events/${eventId}`);
   }
 
@@ -174,15 +165,56 @@ export default async function EventPage({ params }: { params: Promise<{ id: stri
         saveAction={saveTotalStudents}
       />
 
-      {present.length > 0 && <EventInsights eventId={eventId} stats={eventStats} />}
+      {present.length > 0 && (
+        <div className="space-y-4">
+          <div className="grid grid-cols-3 gap-3">
+            <div className="card text-center">
+              <div className="text-2xl font-semibold">{firstTimerCount}</div>
+              <div className="text-xs text-black/60">First-timers</div>
+            </div>
+            <div className="card text-center">
+              <div className="text-2xl font-semibold">{present.length - firstTimerCount}</div>
+              <div className="text-xs text-black/60">Returners</div>
+            </div>
+            <div className="card text-center">
+              <div className="text-2xl font-semibold">
+                {genderSplit.M}M / {genderSplit.F}F
+                {genderSplit.unknown > 0 && (
+                  <span className="text-sm text-black/40"> +{genderSplit.unknown}</span>
+                )}
+              </div>
+              <div className="text-xs text-black/60">Gender split</div>
+            </div>
+          </div>
+
+          {inviteChains.length > 0 && (
+            <div className="card">
+              <h3 className="text-sm font-medium mb-2">Invite chains</h3>
+              <ul className="space-y-1">
+                {inviteChains.map((chain) => (
+                  <li key={chain.id} className="text-sm">
+                    <span className="font-medium">{chain.inviter}</span>
+                    <span className="text-black/60"> brought </span>
+                    {chain.invitees.map((name, j) => (
+                      <span key={`${chain.id}-${j}`}>
+                        {j > 0 && ", "}
+                        <span className="chip">{name}</span>
+                      </span>
+                    ))}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
 
       <EditEventCard
         eventId={eventId}
-        startDate={e.startDate}
+        dateValue={formatDateForInput(new Date(e.startDate))}
         type={e.type}
         location={e.location}
         notes={e.notes}
-        saveAction={saveEventDetails}
       />
 
       <EventAttendeeDumper eventId={eventId} />
@@ -194,10 +226,13 @@ export default async function EventPage({ params }: { params: Promise<{ id: stri
         ) : (
           <ul className="divide-y divide-black/5 dark:divide-white/5">
             {present.map(({ a, s }) => (
-              <li key={a.id} className="py-2 flex items-center justify-between">
-                <Link href={`/students/${s.id}`} className="hover:underline">
-                  {s.firstName} {s.lastName ?? ""}
-                  {s.year && <span className="ml-2 chip">{s.year}</span>}
+              <li key={a.id} className="py-2 flex items-center justify-between gap-3">
+                <Link href={`/students/${s.id}`} className="inline-flex items-center gap-2 flex-wrap min-w-0">
+                  <span className="hover:underline">
+                    {s.firstName} {s.lastName ?? ""}
+                  </span>
+                  {s.year && <span className="chip">{s.year}</span>}
+                  {genderPill(s.gender)}
                 </Link>
                 <form action={removeAttendance}>
                   <input type="hidden" name="aid" value={a.id} />
