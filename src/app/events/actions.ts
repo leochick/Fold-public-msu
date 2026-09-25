@@ -41,6 +41,12 @@ function parseEventDate(date: string): Date {
   return startDate;
 }
 
+function parseTotalStudents(raw: string): number | null {
+  if (raw === "") return null;
+  if (!/^\d+$/.test(raw)) throw new Error("Enter a whole number of students");
+  return Number(raw);
+}
+
 function sameCalendarDay(a: Date, b: Date) {
   return (
     a.getFullYear() === b.getFullYear() &&
@@ -60,6 +66,7 @@ export async function updateEventDetailsAction(eventId: number, formData: FormDa
   const type = String(formData.get("type") || "").trim();
   const location = String(formData.get("location") || "").trim();
   const notes = String(formData.get("notes") || "").trim();
+  const nextTotal = parseTotalStudents(String(formData.get("totalStudents") || "").trim());
   const parsedDate = parseEventDate(date);
   const existingDate = new Date(existing.startDate);
   const startDate = sameCalendarDay(existingDate, parsedDate) ? existingDate : parsedDate;
@@ -71,7 +78,8 @@ export async function updateEventDetailsAction(eventId: number, formData: FormDa
     startDate === existingDate &&
     (existing.type ?? null) === nextType &&
     (existing.location ?? null) === nextLocation &&
-    (existing.notes ?? null) === nextNotes
+    (existing.notes ?? null) === nextNotes &&
+    (existing.totalStudents ?? null) === nextTotal
   ) {
     return;
   }
@@ -82,6 +90,7 @@ export async function updateEventDetailsAction(eventId: number, formData: FormDa
     type: nextType,
     location: nextLocation,
     notes: nextNotes,
+    totalStudents: nextTotal,
   };
   await db.update(events).set(patch).where(eq(events.id, eventId));
   await logEventUpdated(user.id, eventId, before, { ...before, ...patch });

@@ -4,11 +4,11 @@ import { db } from "@/lib/db";
 import { events, attendances, students } from "../../../../drizzle/schema";
 import { and, eq, inArray, lt } from "drizzle-orm";
 import EventAttendeeDumper from "./EventAttendeeDumper";
-import TotalStudentsCard from "./TotalStudentsCard";
 import EditEventCard from "./EditEventCard";
+import { EventFunnelChart } from "@/app/EventFunnelTool";
 import { requireUser } from "@/lib/auth";
-import { pickEventFields } from "@/lib/changelog";
-import { logEventDeleted, logEventUpdated } from "@/server/changelog";
+import { logEventDeleted } from "@/server/changelog";
+import { loadEventFunnelForEvent } from "@/server/event-funnel";
 
 export const dynamic = "force-dynamic";
 
@@ -48,11 +48,14 @@ export default async function EventPage({ params }: { params: Promise<{ id: stri
   const [e] = await db.select().from(events).where(eq(events.id, eventId)).limit(1);
   if (!e) notFound();
 
-  const presentRows = await db
-    .select({ a: attendances, s: students })
-    .from(attendances)
-    .innerJoin(students, eq(students.id, attendances.studentId))
-    .where(eq(attendances.eventId, eventId));
+  const [presentRows, funnel] = await Promise.all([
+    db
+      .select({ a: attendances, s: students })
+      .from(attendances)
+      .innerJoin(students, eq(students.id, attendances.studentId))
+      .where(eq(attendances.eventId, eventId)),
+    loadEventFunnelForEvent({ id: e.id, name: e.name, startDate: e.startDate }),
+  ]);
 
   const present = [...presentRows].sort((left, right) =>
     attendeeName(left.s).localeCompare(attendeeName(right.s), undefined, { sensitivity: "base" })
@@ -111,29 +114,6 @@ export default async function EventPage({ params }: { params: Promise<{ id: stri
     redirect(`/events/${eventId}`);
   }
 
-  async function saveTotalStudents(formData: FormData) {
-    "use server";
-    const user = await requireUser();
-    const raw = String(formData.get("totalStudents") || "").trim();
-    const totalStudents = raw === "" ? null : Number(raw);
-    if (raw !== "" && (!Number.isFinite(totalStudents) || totalStudents! < 0)) {
-      redirect(`/events/${eventId}`);
-    }
-    const before = pickEventFields(e as Record<string, unknown>);
-    const nextTotal = raw === "" ? null : totalStudents;
-    await db
-      .update(events)
-      .set({ totalStudents: nextTotal })
-      .where(eq(events.id, eventId));
-    await logEventUpdated(
-      user.id,
-      eventId,
-      before,
-      { ...before, totalStudents: nextTotal }
-    );
-    redirect(`/events/${eventId}`);
-  }
-
   async function deleteEvent() {
     "use server";
     const user = await requireUser();
@@ -159,12 +139,6 @@ export default async function EventPage({ params }: { params: Promise<{ id: stri
         </p>
       </div>
 
-      <TotalStudentsCard
-        eventId={eventId}
-        totalStudents={e.totalStudents}
-        saveAction={saveTotalStudents}
-      />
-
       {present.length > 0 && (
         <div className="space-y-4">
           <div className="grid grid-cols-3 gap-3">
@@ -186,6 +160,17 @@ export default async function EventPage({ params }: { params: Promise<{ id: stri
               <div className="text-xs text-black/60">Gender split</div>
             </div>
           </div>
+
+          <EventFunnelChart
+            title="Event Funnel"
+            description="Of the students who attended this event, ribbons show the first event each person came from. Previous-semester sources share one color — those are returning students."
+            sources={funnel.sources}
+            destLabel={e.name}
+            total={funnel.total}
+            showChart={funnel.total > 0}
+            emptyLabel="no attendance recorded for this event"
+            destLegendLabel="This event"
+          />
 
           {inviteChains.length > 0 && (
             <div className="card">
@@ -214,6 +199,7 @@ export default async function EventPage({ params }: { params: Promise<{ id: stri
         dateValue={formatDateForInput(new Date(e.startDate))}
         type={e.type}
         location={e.location}
+        totalStudents={e.totalStudents}
         notes={e.notes}
       />
 

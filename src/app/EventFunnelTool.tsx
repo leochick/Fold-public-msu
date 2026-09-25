@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
+import { useEffect, useId, useMemo, useRef, useState, type MouseEvent, type ReactNode } from "react";
 import {
   breakdownTooltipSize,
   studentListTooltipMaxColumns,
@@ -74,6 +74,7 @@ function EventFunnelSankey({
   destCount: number;
 }) {
   const wrapRef = useRef<HTMLDivElement>(null);
+  const filterId = useId().replace(/:/g, "");
   const [hoveredKey, setHoveredKey] = useState<string | null>(null);
   const [tooltip, setTooltip] = useState<{ x: number; y: number } | null>(null);
 
@@ -161,7 +162,7 @@ function EventFunnelSankey({
         aria-label={`First events for ${destCount} students at ${destLabel}`}
       >
         <defs>
-          <filter id="event-funnel-glow" x="-20%" y="-20%" width="140%" height="140%">
+          <filter id={filterId} x="-20%" y="-20%" width="140%" height="140%">
             <feDropShadow dx="0" dy="0" stdDeviation="3.5" floodColor="#111827" floodOpacity="0.28" />
           </filter>
         </defs>
@@ -196,7 +197,7 @@ function EventFunnelSankey({
               key={flow.key}
               className="cursor-pointer"
               opacity={dimmed ? 0.16 : 1}
-              filter={active ? "url(#event-funnel-glow)" : undefined}
+              filter={active ? `url(#${filterId})` : undefined}
               onMouseEnter={(event) => onStreamMove(event, flow.key)}
               onMouseMove={(event) => onStreamMove(event, flow.key)}
               aria-label={`${flow.label}: ${flow.students.map((student) => student.name).join(", ")}`}
@@ -296,6 +297,83 @@ function EventFunnelSankey({
   );
 }
 
+export function EventFunnelChart({
+  title,
+  description,
+  sources,
+  destLabel,
+  total,
+  showChart,
+  emptyLabel,
+  destLegendLabel = "Selected event",
+  headerAside,
+  className,
+}: {
+  title: string;
+  description: string;
+  sources: EventFunnelSource[];
+  destLabel: string;
+  total: number;
+  showChart: boolean;
+  emptyLabel: string;
+  destLegendLabel?: string;
+  headerAside?: ReactNode;
+  className?: string;
+}) {
+  const returningCount = sources.filter((source) => source.returning).reduce((sum, source) => sum + source.count, 0);
+  const newCount = total - returningCount;
+
+  return (
+    <div className={`card space-y-4 ${className ?? ""}`.trim()}>
+      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
+        <div>
+          <h3 className="font-semibold">{title}</h3>
+          <p className="text-xs text-black/50 dark:text-white/50 mt-1 max-w-2xl">{description}</p>
+        </div>
+        {headerAside}
+      </div>
+
+      {showChart ? (
+        <>
+          <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-black/60 dark:text-white/60">
+            <span>
+              <span className="font-semibold tabular-nums text-ink dark:text-paper">{total}</span>{" "}
+              attended
+            </span>
+            <span>
+              <span className="font-semibold tabular-nums text-ink dark:text-paper">{newCount}</span>{" "}
+              first event this semester
+            </span>
+            <span>
+              <span className="font-semibold tabular-nums text-ink dark:text-paper">{returningCount}</span>{" "}
+              returning
+            </span>
+          </div>
+
+          <EventFunnelSankey sources={sources} destLabel={destLabel} destCount={total} />
+
+          <div className="flex flex-wrap gap-x-5 gap-y-2 text-xs text-black/60 dark:text-white/60">
+            <span className="inline-flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: NEW_STUDENTS_COLOR }} />
+              New Students
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: DEST_COLOR }} />
+              {destLegendLabel}
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: RETURNING_COLOR }} />
+              Returning students (previous semester)
+            </span>
+          </div>
+        </>
+      ) : (
+        <div className="h-[200px] flex items-center justify-center text-xs text-black/40">{emptyLabel}</div>
+      )}
+    </div>
+  );
+}
+
 export default function EventFunnelTool({ payload }: { payload: EventFunnelPayload }) {
   const defaultEventId = payload.events.at(-1)?.id ?? null;
   const [selectedId, setSelectedId] = useState<number | null>(defaultEventId);
@@ -309,20 +387,22 @@ export default function EventFunnelTool({ payload }: { payload: EventFunnelPaylo
   const breakdown = selected ? payload.byEventId[String(selected.id)] : undefined;
   const sources = breakdown?.sources ?? [];
   const total = breakdown?.total ?? 0;
-  const returningCount = sources.filter((s) => s.returning).reduce((sum, s) => sum + s.count, 0);
-  const newCount = total - returningCount;
 
   return (
-    <div className="card lg:col-span-2 space-y-4">
-      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
-        <div>
-          <h3 className="font-semibold">Event Funnel Tool</h3>
-          <p className="text-xs text-black/50 dark:text-white/50 mt-1 max-w-2xl">
-            Of the students who attended the selected event, ribbons show the first event each
-            person came from. Previous-semester sources share one color — those are returning
-            students.
-          </p>
-        </div>
+    <EventFunnelChart
+      className="lg:col-span-2"
+      title="Event Funnel Tool"
+      description="Of the students who attended the selected event, ribbons show the first event each person came from. Previous-semester sources share one color — those are returning students."
+      sources={sources}
+      destLabel={selected?.name ?? "Event"}
+      total={total}
+      showChart={payload.events.length > 0 && total > 0}
+      emptyLabel={
+        payload.events.length === 0
+          ? "no events in this semester yet"
+          : "no attendance recorded for this event"
+      }
+      headerAside={
         <label className="sm:w-80 shrink-0">
           <span className="label block mb-1">Event</span>
           <select
@@ -342,55 +422,7 @@ export default function EventFunnelTool({ payload }: { payload: EventFunnelPaylo
             )}
           </select>
         </label>
-      </div>
-
-      {payload.events.length === 0 ? (
-        <div className="h-[200px] flex items-center justify-center text-xs text-black/40">
-          no events in this semester yet
-        </div>
-      ) : total === 0 ? (
-        <div className="h-[200px] flex items-center justify-center text-xs text-black/40">
-          no attendance recorded for this event
-        </div>
-      ) : (
-        <>
-          <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-black/60 dark:text-white/60">
-            <span>
-              <span className="font-semibold tabular-nums text-ink dark:text-paper">{total}</span>{" "}
-              attended
-            </span>
-            <span>
-              <span className="font-semibold tabular-nums text-ink dark:text-paper">{newCount}</span>{" "}
-              first event this semester
-            </span>
-            <span>
-              <span className="font-semibold tabular-nums text-ink dark:text-paper">{returningCount}</span>{" "}
-              returning
-            </span>
-          </div>
-
-          <EventFunnelSankey
-            sources={sources}
-            destLabel={selected?.name ?? "Event"}
-            destCount={total}
-          />
-
-          <div className="flex flex-wrap gap-x-5 gap-y-2 text-xs text-black/60 dark:text-white/60">
-            <span className="inline-flex items-center gap-1.5">
-              <span className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: NEW_STUDENTS_COLOR }} />
-              New Students
-            </span>
-            <span className="inline-flex items-center gap-1.5">
-              <span className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: DEST_COLOR }} />
-              Selected event
-            </span>
-            <span className="inline-flex items-center gap-1.5">
-              <span className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: RETURNING_COLOR }} />
-              Returning students (previous semester)
-            </span>
-          </div>
-        </>
-      )}
-    </div>
+      }
+    />
   );
 }

@@ -7,6 +7,7 @@ type Fields = {
   date: string;
   type: string;
   location: string;
+  totalStudents: string;
   notes: string;
 };
 
@@ -18,12 +19,24 @@ function readFields(form: HTMLFormElement): Fields {
     date: String(data.get("date") || "").trim(),
     type: String(data.get("type") || "").trim(),
     location: String(data.get("location") || "").trim(),
+    totalStudents: String(data.get("totalStudents") || "").trim(),
     notes: String(data.get("notes") || "").trim(),
   };
 }
 
 function sameFields(a: Fields, b: Fields) {
-  return a.date === b.date && a.type === b.type && a.location === b.location && a.notes === b.notes;
+  return (
+    a.date === b.date &&
+    a.type === b.type &&
+    a.location === b.location &&
+    a.totalStudents === b.totalStudents &&
+    a.notes === b.notes
+  );
+}
+
+function totalStudentsError(raw: string): string | null {
+  if (raw === "" || /^\d+$/.test(raw)) return null;
+  return "Enter a whole number of students";
 }
 
 export default function EditEventCard({
@@ -31,12 +44,14 @@ export default function EditEventCard({
   dateValue,
   type,
   location,
+  totalStudents,
   notes,
 }: {
   eventId: number;
   dateValue: string;
   type: string | null;
   location: string | null;
+  totalStudents: number | null;
   notes: string | null;
 }) {
   const formRef = useRef<HTMLFormElement>(null);
@@ -45,6 +60,7 @@ export default function EditEventCard({
     date: dateValue,
     type: (type ?? "").trim(),
     location: (location ?? "").trim(),
+    totalStudents: totalStudents == null ? "" : String(totalStudents),
     notes: (notes ?? "").trim(),
   });
   const inFlightRef = useRef(false);
@@ -67,6 +83,15 @@ export default function EditEventCard({
       if (showDateError) {
         setSaveStatus("error");
         setSaveError("Enter a valid date");
+      }
+      return;
+    }
+
+    const headcountError = totalStudentsError(next.totalStudents);
+    if (headcountError) {
+      if (showDateError || next.totalStudents !== "") {
+        setSaveStatus("error");
+        setSaveError(headcountError);
       }
       return;
     }
@@ -200,6 +225,21 @@ export default function EditEventCard({
             defaultValue={location ?? ""}
           />
         </div>
+      </div>
+      <div className="max-w-xs">
+        <label className="label" htmlFor={`totalStudents-${eventId}`}>
+          Total # of Students
+        </label>
+        <input
+          id={`totalStudents-${eventId}`}
+          name="totalStudents"
+          type="number"
+          min={0}
+          step={1}
+          className="input"
+          placeholder="Headcount for this event"
+          defaultValue={totalStudents ?? ""}
+        />
       </div>
       <div>
         <label className="label" htmlFor={`notes-${eventId}`}>
