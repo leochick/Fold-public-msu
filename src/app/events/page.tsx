@@ -7,9 +7,6 @@ import QuickAdd from "./QuickAdd";
 import RowActions from "../RowActions";
 import EventTypeCell from "./EventTypeCell";
 import { deleteEventAction } from "./actions";
-import EventAnalytics from "./EventAnalytics";
-import { extractFeatures, aggregate, type FeaturedEvent } from "@/lib/event-features";
-import { perEventHealth, topInviters, type StudentLite, type AttendanceLite } from "@/lib/health-metrics";
 import { requireUser } from "@/lib/auth";
 import { logEventCreated } from "@/server/changelog";
 import { resolveDashboardDateRange } from "@/lib/dashboard-date-range";
@@ -80,64 +77,13 @@ export default async function EventsPage() {
   const inViewRows = rows.filter(({ e }) => eventInRange(e.startDate, from, to));
   const outOfViewRows = rows.filter(({ e }) => !eventInRange(e.startDate, from, to));
 
-  // Pull attendances + students for health metrics on events in the active view.
-  const eventIds = inViewRows.map(({ e }) => e.id);
-  const allAttendanceRows =
-    eventIds.length > 0
-      ? await db
-          .select({
-            studentId: attendances.studentId,
-            eventId: attendances.eventId,
-            recordedAt: attendances.recordedAt,
-          })
-          .from(attendances)
-      : [];
   const studentLiteRows = await db
     .select({
       id: students.id,
       firstName: students.firstName,
       lastName: students.lastName,
-      invitedByStudentId: students.invitedByStudentId,
     })
     .from(students);
-  const studentsForHealth: StudentLite[] = studentLiteRows.map((s) => ({
-    id: s.id,
-    firstName: s.firstName,
-    lastName: s.lastName,
-    invitedByStudentId: s.invitedByStudentId ?? null,
-  }));
-  const attendancesForHealth: AttendanceLite[] = allAttendanceRows.map((a) => ({
-    studentId: a.studentId,
-    eventId: a.eventId,
-    recordedAt: new Date(a.recordedAt),
-  }));
-
-  const featured: FeaturedEvent[] = inViewRows.map(({ e, count }) => {
-    const startDate = new Date(e.startDate);
-    const health = perEventHealth(
-      { id: e.id, startDate },
-      attendancesForHealth,
-      studentsForHealth
-    );
-    return {
-      id: e.id,
-      name: e.name,
-      startDate,
-      count: Number(count),
-      features: extractFeatures({
-        name: e.name,
-        type: e.type,
-        location: e.location,
-        notes: e.notes,
-        startDate,
-      }),
-      newAttendees: health.newAttendees,
-      invitedNewAttendees: health.invitedNewAttendees,
-      inviteRatio: health.inviteRatio,
-    };
-  });
-  const aggregates = aggregate(featured);
-  const inviters = topInviters(studentsForHealth, attendancesForHealth);
 
   const roster = studentLiteRows
     .slice()
@@ -204,8 +150,6 @@ export default async function EventsPage() {
           <button type="submit" className="btn-primary">+ Create event</button>
         </div>
       </form>
-
-      {featured.length >= 3 && <EventAnalytics aggregates={aggregates} topInviters={inviters} />}
 
       <div className="card overflow-x-auto">
         <table>

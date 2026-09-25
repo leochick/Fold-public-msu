@@ -21,7 +21,6 @@ export default function HelpPage() {
           <li><a href="#events" className="hover:underline">Events & attendance</a></li>
           <li><a href="#students" className="hover:underline">Students</a></li>
           <li><a href="#intake" className="hover:underline">Smart Intake</a></li>
-          <li><a href="#insights" className="hover:underline">AI Insights</a></li>
           <li><a href="#modify" className="hover:underline">Modify (bulk edits)</a></li>
           <li><a href="#account" className="hover:underline">Your account</a></li>
           <li><a href="#faq" className="hover:underline">FAQ</a></li>
@@ -57,8 +56,7 @@ export default function HelpPage() {
           <li>Open the event and use the quick-add form to mark people present.</li>
           <li>
             After 3+ events, the{" "}
-            <Link href="/" className="underline">Dashboard</Link> charts and AI Insights start to
-            be useful.
+            <Link href="/" className="underline">Dashboard</Link> charts start to be useful.
           </li>
         </ol>
       </Section>
@@ -121,24 +119,6 @@ export default function HelpPage() {
         </ul>
       </Section>
 
-      <Section id="insights" title="AI Insights">
-        <p>
-          On the Dashboard and the Events page, the <em>Insights</em> panel asks
-          Claude to look at the numbers and propose 3-5 short hypotheses for what drove
-          attendance — &quot;events with food averaged 14 vs 6 without,&quot; that kind of
-          thing.
-        </p>
-        <ul className="list-disc pl-5 space-y-1">
-          <li>Needs at least 3 events worth of data — otherwise it&apos;ll say so and skip.</li>
-          <li>Cites bucket sizes so you can see when the signal is weak.</li>
-          <li>Hit <em>regenerate</em> to ask again; results vary slightly each time.</li>
-        </ul>
-        <p className="text-xs text-black/60">
-          The food / on-campus / month flags are heuristic regex inferences on event names, not
-          hard data. Treat Insights as starting hypotheses, not conclusions.
-        </p>
-      </Section>
-
       <Section id="modify" title="Modify — bulk edits in plain English">
         <p>
           <Link href="/modify" className="underline">Modify</Link> lets you describe a batch of
@@ -170,11 +150,6 @@ export default function HelpPage() {
 
       <section id="faq" className="space-y-3">
         <h2 className="text-lg font-semibold">FAQ</h2>
-
-        <Faq q="The Insights panel says 'not enough events for insights'.">
-          You need 3 or more events in the aggregate window. Add more events (or wait for them
-          to happen) and the panel will start working.
-        </Faq>
 
         <Faq q="Are the AI features on the public demo real?">
           Yes — the demo calls the real Anthropic API so Smart Intake, Modify, and Insights

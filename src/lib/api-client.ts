@@ -50,13 +50,6 @@ export const api = {
       post<Awaited<ReturnType<typeof svEvents.parseEventBatch>>>("/api/parse-event-batch", b),
     commitBatch: (b: In<typeof events.commitEventBatchBody>) =>
       post<Awaited<ReturnType<typeof svEvents.commitEventBatch>>>("/api/commit-event-batch", b),
-    insights: (b: In<typeof events.eventInsightsBody>) =>
-      post<Awaited<ReturnType<typeof svEvents.aggregatesInsights>>>("/api/event-insights", b),
-    insightsSingle: (b: In<typeof events.eventInsightsSingleBody>) =>
-      post<Awaited<ReturnType<typeof svEvents.singleEventInsights>>>(
-        "/api/event-insights/single",
-        b
-      ),
   },
   students: {
     parseUpdate: (b: In<typeof students.parseUpdateBody>) =>

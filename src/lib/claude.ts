@@ -267,37 +267,6 @@ export const UPDATE_STUDENTS_TOOL: Anthropic.Tool = {
   },
 };
 
-export const EVENT_INSIGHTS_TOOL: Anthropic.Tool = {
-  name: "report_event_insights",
-  description:
-    "Produce 3-5 short bullet hypotheses for what drove attendance. Anchor each bullet in the supplied numbers (cite avg attendance gaps and bucket sizes). Do not invent factors not present in the data. If a bucket has too few events, say so or skip it.",
-  input_schema: {
-    type: "object",
-    properties: {
-      insights: {
-        type: "array",
-        minItems: 3,
-        maxItems: 5,
-        items: {
-          type: "object",
-          properties: {
-            headline: {
-              type: "string",
-              description: "Punchy one-line claim (e.g., 'Free food correlates with +8 attendees on average').",
-            },
-            evidence: {
-              type: "string",
-              description: "One short sentence citing the numbers from the aggregate (e.g., 'avg 14 with food vs 6 without across 5 vs 3 events').",
-            },
-          },
-          required: ["headline", "evidence"],
-        },
-      },
-    },
-    required: ["insights"],
-  },
-};
-
 export const STAFF_ALLOCATION_INSIGHTS_TOOL: Anthropic.Tool = {
   name: "report_staff_allocation_insights",
   description:

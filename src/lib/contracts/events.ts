@@ -40,20 +40,3 @@ export const commitEventBatchBody = z.discriminatedUnion("mode", [
   }),
 ]);
 export type CommitEventBatchBody = z.infer<typeof commitEventBatchBody>;
-
-export const eventInsightsBody = z.object({
-  aggregates: z.object({ totalEvents: z.number() }).passthrough(),
-});
-
-export const eventInsightsSingleBody = z.object({
-  eventId: z.number().int().positive(),
-  stats: z
-    .object({
-      total: z.number(),
-      firstTimers: z.number(),
-      returners: z.number(),
-      genderSplit: z.object({ M: z.number(), F: z.number(), unknown: z.number() }),
-      inviteChains: z.array(z.object({ inviter: z.string(), invitees: z.array(z.string()) })),
-    })
-    .passthrough(),
-});

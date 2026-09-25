@@ -1,9 +1,7 @@
 import { db } from "@/lib/db";
 import { events, students, attendances } from "../../drizzle/schema";
-import { anthropic, HAIKU, MODEL, PROPOSE_EVENT_BATCH_TOOL, PROPOSE_EVENT_BATCH_LIST_TOOL, EVENT_INSIGHTS_TOOL } from "@/lib/claude";
+import { anthropic, MODEL, PROPOSE_EVENT_BATCH_TOOL, PROPOSE_EVENT_BATCH_LIST_TOOL } from "@/lib/claude";
 import { buildParseEventBatchSystem, buildParseEventBatchUserMsg } from "@/lib/prompts/parse-event-batch";
-import { EVENT_INSIGHTS_SYSTEM } from "@/lib/prompts/event-insights";
-import { EVENT_INSIGHTS_SINGLE_SYSTEM } from "@/lib/prompts/event-insights-single";
 import { httpErr } from "@/lib/http";
 import { loadBasicRoster, formatRosterCompact, fuzzyMatchInviter } from "./roster";
 import { callClaudeOrThrow } from "./attendance";
@@ -336,40 +334,4 @@ export async function commitEventBatch(userId: string, body: CommitEventBatchBod
   }
 
   return { ok: true, mode: "single" as const, eventId: evt.id, created, marked };
-}
-
-export async function aggregatesInsights(aggregates: unknown) {
-  const userMsg = JSON.stringify(aggregates, null, 2);
-  const resp = await callClaudeOrThrow(() =>
-    anthropic.messages.create({
-      model: HAIKU,
-      max_tokens: 600,
-      system: EVENT_INSIGHTS_SYSTEM,
-      tools: [EVENT_INSIGHTS_TOOL],
-      tool_choice: { type: "tool", name: EVENT_INSIGHTS_TOOL.name },
-      messages: [{ role: "user", content: `Aggregates:\n${userMsg}` }],
-    })
-  );
-  const tu = resp.content.find((b) => b.type === "tool_use");
-  if (!tu || tu.type !== "tool_use") throw httpErr.upstream("claude returned no tool use");
-  const out = tu.input as { insights: { headline: string; evidence: string }[] };
-  return { insights: out.insights ?? [] };
-}
-
-export async function singleEventInsights(stats: unknown) {
-  const userMsg = JSON.stringify(stats, null, 2);
-  const resp = await callClaudeOrThrow(() =>
-    anthropic.messages.create({
-      model: HAIKU,
-      max_tokens: 400,
-      system: EVENT_INSIGHTS_SINGLE_SYSTEM,
-      tools: [EVENT_INSIGHTS_TOOL],
-      tool_choice: { type: "tool", name: EVENT_INSIGHTS_TOOL.name },
-      messages: [{ role: "user", content: `Single event stats:\n${userMsg}` }],
-    })
-  );
-  const tu = resp.content.find((b) => b.type === "tool_use");
-  if (!tu || tu.type !== "tool_use") throw httpErr.upstream("no tool use returned");
-  const out = tu.input as { insights: { headline: string; evidence: string }[] };
-  return { insights: out.insights ?? [] };
 }

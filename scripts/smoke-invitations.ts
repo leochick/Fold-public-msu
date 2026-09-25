@@ -15,12 +15,10 @@ import { randomBytes } from "node:crypto";
 import * as schema from "../drizzle/schema";
 import {
   perStudentHealth,
-  perEventHealth,
-  topInviters,
   type StudentLite,
   type AttendanceLite,
 } from "../src/lib/health-metrics";
-const { users, sessions, students, attendances, events } = schema;
+const { users, sessions, students, attendances } = schema;
 
 const BASE = process.env.BASE_URL ?? "http://127.0.0.1:3010";
 const client = createClient({
@@ -158,23 +156,7 @@ async function main() {
     console.error("❌ expected Mike to have at least 1 friend brought");
     process.exit(1);
   }
-
-  const [evt] = await db.select().from(events).where(eq(events.id, cJson.eventId)).limit(1);
-  const eventHealth = perEventHealth({ id: evt.id, startDate: new Date(evt.startDate) }, aLite, sLite);
-  console.log(`Event ${evt.name} → newAttendees=${eventHealth.newAttendees}, invitedNew=${eventHealth.invitedNewAttendees}, ratio=${eventHealth.inviteRatio.toFixed(2)}`);
-  if (eventHealth.invitedNewAttendees < 1) {
-    console.error("❌ expected at least 1 invited new attendee");
-    process.exit(1);
-  }
-
-  const inviters = topInviters(sLite, aLite);
-  const mikeInList = inviters.find((i) => i.studentId === mike.id);
-  console.log(`Top inviters (last 90d):`, inviters.slice(0, 3).map((i) => `${i.name} (${i.count}, ${i.tier})`));
-  if (!mikeInList) {
-    console.error("❌ expected Mike in topInviters");
-    process.exit(1);
-  }
-  console.log("✅ all metric functions return expected values");
+  console.log("✅ per-student health returns expected values");
 
   console.log("\n🎉 Feature 2 smoke test passed.");
 
