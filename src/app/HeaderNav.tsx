@@ -32,7 +32,13 @@ const navItems: NavItem[] = [
       { href: "/semester-planning", label: "Semester Planning" },
     ],
   },
-  { href: "/attendance-trends", label: "Attendance Trends" },
+  {
+    label: "Attendance Trends",
+    items: [
+      { href: "/attendance-trends", label: "Year Over Year" },
+      { href: "/regulars", label: "Regulars (Current Semester)" },
+    ],
+  },
   { href: "/staff-allocation", label: "Staff Allocation" },
   { href: "/changelog", label: "Changelog" },
   { href: "/help", label: "Help" },
@@ -95,7 +101,7 @@ function NavDropdownMenu({
               key={item.href}
               href={item.href}
               role="menuitem"
-              className="block rounded-md px-3 py-2 hover:bg-black/5 dark:hover:bg-white/5"
+              className="block whitespace-nowrap rounded-md px-3 py-2 hover:bg-black/5 dark:hover:bg-white/5"
               onClick={() => {
                 setOpen(false);
                 onNavigate?.();

@@ -26,7 +26,7 @@ export default async function AttendanceTrendsPage({
   return (
     <div className="w-full px-4 py-8 space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Attendance Trends</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Year Over Year</h1>
         <p className="mt-1 text-sm text-black/60 dark:text-white/60">
           Compare weekly attendance across {season === "fall" ? "Fall" : "Spring"} semesters.
           This view is not limited to the current semester.

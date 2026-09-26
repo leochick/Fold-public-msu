@@ -28,12 +28,20 @@ import {
   toggleGroupingEvent,
 } from "@/lib/grouping-events";
 import { readGroupingDragData, type GroupingDragEntity } from "@/lib/grouping-drag";
+import {
+  createContainerKey,
+  dropInsertToIndex,
+  remapIndexAfterReorder,
+  reorderList,
+  shouldShowContainerInsertGap,
+} from "@/lib/container-board";
+import { isDragLeave } from "@/lib/drag-leave";
 import type { GroupingExportMember, GroupingExportSnapshot } from "@/lib/grouping-export";
 import { findSpouseDayConflicts } from "@/lib/grouping-spouse-day-conflicts";
 import { findSpouseChildcareConflicts } from "@/lib/grouping-spouse-childcare-conflicts";
 import AssociateRoleModal, { type StaffRoleOption } from "./AssociateRoleModal";
 import ContainerCard from "./ContainerCard";
-import ContainerInsertGap from "./ContainerInsertGap";
+import ContainerInsertGap from "@/components/drop-board/ContainerInsertGap";
 import DeleteContainerModal from "./DeleteContainerModal";
 import { useGroupingExport } from "./GroupingExport";
 import GroupingVersionsCard from "./GroupingVersionsCard";
@@ -43,11 +51,6 @@ import StudentFiltersCard from "./StudentFiltersCard";
 
 type SaveStatus = "idle" | "saving" | "saved" | "error";
 
-function isDragLeave(currentTarget: EventTarget & Element, relatedTarget: EventTarget | null) {
-  if (!relatedTarget || !(relatedTarget instanceof Node)) return true;
-  return !currentTarget.contains(relatedTarget);
-}
-
 function matchesNameSearch(
   person: Pick<StudentCardData | StaffCardData, "firstName" | "lastName">,
   query: string
@@ -56,21 +59,6 @@ function matchesNameSearch(
   if (!normalized) return true;
   const fullName = `${person.firstName} ${person.lastName ?? ""}`.trim().toLowerCase();
   return fullName.includes(normalized);
-}
-
-function createContainerKey() {
-  return `container-${Math.random().toString(36).slice(2, 10)}`;
-}
-
-function remapIndexAfterReorder(
-  index: number,
-  fromIndex: number,
-  toIndex: number
-): number {
-  if (index === fromIndex) return toIndex;
-  if (fromIndex < toIndex && index > fromIndex && index <= toIndex) return index - 1;
-  if (fromIndex > toIndex && index >= toIndex && index < fromIndex) return index + 1;
-  return index;
 }
 
 export type StaffRoleEntry = StaffRoleOption & {
@@ -670,34 +658,8 @@ export default function GroupingEditor({
 
   function reorderContainers(fromIndex: number, toIndex: number) {
     if (fromIndex === toIndex) return;
-    setContainers((current) => {
-      if (
-        fromIndex < 0 ||
-        toIndex < 0 ||
-        fromIndex >= current.length ||
-        toIndex >= current.length
-      ) {
-        return current;
-      }
-      const next = [...current];
-      const [moved] = next.splice(fromIndex, 1);
-      next.splice(toIndex, 0, moved);
-      return next;
-    });
-    setContainerKeys((current) => {
-      if (
-        fromIndex < 0 ||
-        toIndex < 0 ||
-        fromIndex >= current.length ||
-        toIndex >= current.length
-      ) {
-        return current;
-      }
-      const next = [...current];
-      const [moved] = next.splice(fromIndex, 1);
-      next.splice(toIndex, 0, moved);
-      return next;
-    });
+    setContainers((current) => reorderList(current, fromIndex, toIndex));
+    setContainerKeys((current) => reorderList(current, fromIndex, toIndex));
     setDeleteContainerIndex((current) =>
       current == null ? null : remapIndexAfterReorder(current, fromIndex, toIndex)
     );
@@ -717,17 +679,16 @@ export default function GroupingEditor({
       clearContainerReorderState();
       return;
     }
-    const toIndex = dropInsertIndex > fromIndex ? dropInsertIndex - 1 : dropInsertIndex;
+    const toIndex = dropInsertToIndex(fromIndex, dropInsertIndex);
     reorderContainers(fromIndex, toIndex);
     clearContainerReorderState();
   }
 
   const isContainerReorderActive = containerDragFromIndex != null;
-  const showContainerInsertGap =
-    containerDragFromIndex != null &&
-    containerDropInsertIndex != null &&
-    containerDropInsertIndex !== containerDragFromIndex &&
-    containerDropInsertIndex !== containerDragFromIndex + 1;
+  const showContainerInsertGap = shouldShowContainerInsertGap(
+    containerDragFromIndex,
+    containerDropInsertIndex
+  );
 
   const statusLabel =
     saveStatus === "saving" || isPending

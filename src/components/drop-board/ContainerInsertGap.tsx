@@ -11,7 +11,7 @@ export default function ContainerInsertGap({
   show: boolean;
   /** "before" sits on the leading edge; "after" on the trailing edge of the last card. */
   edge: "before" | "after";
-  /** When false, ignore drag events so person drops still reach the container. */
+  /** When false, ignore drag events so item drops still reach the container. */
   active: boolean;
   onDragOver?: (event: React.DragEvent<HTMLDivElement>) => void;
   onDrop?: (event: React.DragEvent<HTMLDivElement>) => void;

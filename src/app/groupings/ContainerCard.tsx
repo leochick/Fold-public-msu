@@ -1,22 +1,12 @@
 "use client";
 
-import { Fragment, useRef, useState, type DragEvent } from "react";
+import { useState, type DragEvent } from "react";
 import type { GroupingContainerData, GroupingContainerItem } from "../../../drizzle/schema";
-import {
-  isGroupingContainerDrag,
-  readGroupingDragData,
-  setGroupingContainerDragData,
-  type GroupingDragEntity,
-} from "@/lib/grouping-drag";
+import { readGroupingDragData, type GroupingDragEntity } from "@/lib/grouping-drag";
 import { countContainerItems, GROUPING_CONTAINER_DAYS } from "@/lib/grouping-containers";
+import DropContainerCard from "@/components/drop-board/DropContainerCard";
 import StudentDragCard, { type StudentCardData } from "./StudentDragCard";
 import StaffDragCard, { type StaffCardData } from "./StaffDragCard";
-import InsertionGap from "./InsertionGap";
-
-function isDragLeave(currentTarget: EventTarget & Element, relatedTarget: EventTarget | null) {
-  if (!relatedTarget || !(relatedTarget instanceof Node)) return true;
-  return !currentTarget.contains(relatedTarget);
-}
 
 export default function ContainerCard({
   container,
@@ -78,311 +68,157 @@ export default function ContainerCard({
   onContainerReorderDrop: () => void;
   onContainerReorderDragEnd: () => void;
 }) {
-  const cardRef = useRef<HTMLDivElement>(null);
-  const [insertAtIndex, setInsertAtIndex] = useState<number | null>(null);
-  const insertAtIndexRef = useRef<number | null>(null);
   const [editingLocation, setEditingLocation] = useState(false);
   const [editingTime, setEditingTime] = useState(false);
 
   const showLocationInput = editingLocation || Boolean(container.location?.trim());
   const showTimeInput = editingTime || Boolean(container.time?.trim());
-
   const { students: studentCount, staff: staffCount } = countContainerItems(container.items);
 
   function isItemVisible(item: GroupingContainerItem) {
     return item.entity === "staff" || visibleStudentIds.has(item.id);
   }
 
-  const hasVisibleItems = container.items.some(isItemVisible);
-  const isEmpty = container.items.length === 0;
-
-  function setInsertion(index: number) {
-    if (insertAtIndexRef.current === index) return;
-    insertAtIndexRef.current = index;
-    setInsertAtIndex(index);
-  }
-
-  function clearInsertion() {
-    if (insertAtIndexRef.current === null) return;
-    insertAtIndexRef.current = null;
-    setInsertAtIndex(null);
-  }
-
-  function handleContainerDragStart(entity: GroupingDragEntity) {
+  function beginItemDrag(entity: GroupingDragEntity, beginItemDragState: () => void) {
+    beginItemDragState();
     onDragEntityStart(entity);
-    clearInsertion();
     onDragStart();
     onDragEnter();
   }
 
-  function handleContainerDrop(event: DragEvent<HTMLDivElement>) {
-    event.preventDefault();
-    event.stopPropagation();
-
-    if (isContainerReorderActive() || isGroupingContainerDrag(event)) {
-      onContainerReorderDrop();
-      return;
-    }
-
+  function handleDropItem(event: DragEvent<HTMLDivElement>, insertAt: number) {
     const meta = readGroupingDragData(event);
-    if (!meta) return;
-
-    const insertAt = insertAtIndexRef.current ?? container.items.length;
+    if (!meta) return false;
     onDragEntityEnd();
-    clearInsertion();
-    onDragLeave();
-
     onInsertItemAt(containerIndex, { entity: meta.entity, id: meta.id }, insertAt);
-  }
-
-  function handleContainerReorderDragOver(event: DragEvent<HTMLDivElement>) {
-    if (!isContainerReorderActive() && !isGroupingContainerDrag(event)) return;
-    event.preventDefault();
-    event.stopPropagation();
-    event.dataTransfer.dropEffect = "move";
-    const rect = event.currentTarget.getBoundingClientRect();
-    const insertBefore =
-      rect.width >= rect.height
-        ? event.clientX < rect.left + rect.width / 2
-        : event.clientY < rect.top + rect.height / 2;
-    onContainerReorderDragOver(containerIndex, insertBefore);
-  }
-
-  function handleReorderHandleDragStart(event: DragEvent<HTMLSpanElement>) {
-    event.stopPropagation();
-    clearInsertion();
-    onDragLeave();
-
-    setGroupingContainerDragData(event, { fromIndex: containerIndex });
-
-    const card = cardRef.current;
-    if (card) {
-      const rect = card.getBoundingClientRect();
-      event.dataTransfer.setDragImage(
-        card,
-        Math.min(24, rect.width / 4),
-        Math.min(24, rect.height / 4)
-      );
-    }
-
-    onContainerReorderDragStart(containerIndex);
-  }
-
-  function showGap(index: number) {
-    return !isContainerReorderActive() && activeDragEntity !== null && insertAtIndex === index;
-  }
-
-  function handleCardHover(index: number, insertBefore: boolean) {
-    if (isContainerReorderActive()) return;
-    setInsertion(insertBefore ? index : index + 1);
-  }
-
-  const cardClassName = [
-    "card min-h-[10rem] w-full self-start isolate transition-opacity duration-150",
-    isContainerDragging ? "opacity-40" : "",
-  ]
-    .filter(Boolean)
-    .join(" ");
-
-  function renderItem(item: GroupingContainerItem, index: number) {
-    if (item.entity === "staff") {
-      const member = staffById.get(item.id);
-      if (!member) return null;
-      return (
-        <div className="relative z-10">
-          <StaffDragCard
-            staff={member}
-            dragMeta={{ entity: "staff", id: item.id, source: "container", containerIndex }}
-            onDragStart={() => handleContainerDragStart("staff")}
-            onDragEnd={onDragEntityEnd}
-            onDragEnterCard={(insertBefore) => handleCardHover(index, insertBefore)}
-            associatedRoleName={item.associatedRoleName}
-            onAssociateWithRole={() => onAssociateStaffRole(containerIndex, item.id)}
-            hasSpouseDayConflict={spouseDayConflictStaffIds.has(item.id)}
-            hasChildcareConflict={childcareConflictStaffIds.has(item.id)}
-          />
-        </div>
-      );
-    }
-
-    const student = studentsById.get(item.id);
-    if (!student) return null;
-    return (
-      <div className="relative z-10">
-        <StudentDragCard
-          student={student}
-          dragMeta={{ entity: "student", id: item.id, source: "container", containerIndex }}
-          onDragStart={() => handleContainerDragStart("student")}
-          onDragEnd={onDragEntityEnd}
-          onDragEnterCard={(insertBefore) => handleCardHover(index, insertBefore)}
-        />
-      </div>
-    );
-  }
-
-  function renderGap(index: number) {
-    return (
-      <InsertionGap
-        key={`gap-${index}`}
-        show={showGap(index)}
-        onDragEnter={() => setInsertion(index)}
-      />
-    );
+    return true;
   }
 
   return (
-    <div
-      ref={cardRef}
-      data-container-card
-      className={cardClassName}
-      onDragOver={handleContainerReorderDragOver}
-      onDrop={(event) => {
-        if (!isContainerReorderActive() && !isGroupingContainerDrag(event)) return;
-        event.preventDefault();
-        event.stopPropagation();
-        onContainerReorderDrop();
-      }}
-    >
-      <div className="flex items-center gap-1 mb-3">
-        <span
-          draggable
-          onDragStart={handleReorderHandleDragStart}
-          onDragEnd={onContainerReorderDragEnd}
-          className="inline-flex cursor-grab active:cursor-grabbing select-none px-1 py-1.5 text-black/40 dark:text-white/40 hover:text-black/70 dark:hover:text-white/70"
-          title="Drag to reorder"
-          aria-label={`Drag to reorder ${container.title.trim() || `container ${containerIndex + 1}`}`}
-        >
-          ⋮⋮
-        </span>
-        <input
-          type="text"
-          className="input flex-1 min-w-0"
-          placeholder="Container title"
-          value={container.title}
-          onChange={(event) => onTitleChange(containerIndex, event.target.value)}
-        />
-        <button
-          type="button"
-          className="btn-ghost shrink-0 px-1 py-0.5 text-[10px] leading-none text-black/40 dark:text-white/40 hover:text-black/70 dark:hover:text-white/70"
-          aria-label={`Delete container ${container.title.trim() || containerIndex + 1}`}
-          onClick={() => onRequestDelete(containerIndex)}
-        >
-          ✕
-        </button>
-      </div>
-      <div className="mb-3 flex flex-wrap items-center gap-2">
-        {showLocationInput ? (
-          <input
-            type="text"
-            className="input flex-1 min-w-[6rem] text-xs py-1"
-            placeholder="Location"
-            aria-label={`Location for ${container.title.trim() || `container ${containerIndex + 1}`}`}
-            value={container.location ?? ""}
-            autoFocus={editingLocation}
-            onChange={(event) => onLocationChange(containerIndex, event.target.value)}
-            onBlur={() => {
-              if (!container.location?.trim()) setEditingLocation(false);
-            }}
-          />
-        ) : (
-          <button
-            type="button"
-            className="btn-ghost px-1.5 py-0.5 text-xs leading-none text-black/50 dark:text-white/50 hover:text-black/70 dark:hover:text-white/70"
-            onClick={() => setEditingLocation(true)}
-          >
-            + Loc
-          </button>
-        )}
-        {showTimeInput ? (
-          <select
-            className={`input flex-1 min-w-[8rem] text-xs py-1 ${
-              hasSpouseDayConflict || hasChildcareConflict
-                ? "!border-dotted !border-red-500 dark:!border-red-400 focus:!ring-red-500/40"
-                : ""
-            }`}
-            aria-label={`Day for ${container.title.trim() || `container ${containerIndex + 1}`}`}
-            aria-invalid={hasSpouseDayConflict || hasChildcareConflict || undefined}
-            value={container.time ?? ""}
-            autoFocus={editingTime}
-            onChange={(event) => onTimeChange(containerIndex, event.target.value)}
-            onBlur={() => {
-              if (!container.time?.trim()) setEditingTime(false);
-            }}
-          >
-            <option value="">Day</option>
-            {GROUPING_CONTAINER_DAYS.map((day) => (
-              <option key={day} value={day}>
-                {day}
-              </option>
-            ))}
-          </select>
-        ) : (
-          <button
-            type="button"
-            className="btn-ghost px-1.5 py-0.5 text-xs leading-none text-black/50 dark:text-white/50 hover:text-black/70 dark:hover:text-white/70"
-            onClick={() => setEditingTime(true)}
-          >
-            + Day
-          </button>
-        )}
-      </div>
-      <div
-        className={`rounded-lg border border-dashed p-2 min-h-[6rem] transition-colors ${
-          isDragOver
-            ? "border-accent/50 bg-accent/5"
-            : "border-black/10 dark:border-white/15"
-        }`}
-        onDragOver={(event) => {
-          if (isContainerReorderActive() || isGroupingContainerDrag(event)) {
-            // Let the card-level handler manage container reorder.
-            handleContainerReorderDragOver(event);
-            return;
-          }
-          event.preventDefault();
-          event.dataTransfer.dropEffect = "move";
-        }}
-        onDragEnter={(event) => {
-          if (isContainerReorderActive() || isGroupingContainerDrag(event)) return;
-          event.preventDefault();
-          onDragEnter();
-          if (isEmpty && activeDragEntity) {
-            setInsertion(0);
-          }
-        }}
-        onDragLeave={(event) => {
-          if (isDragLeave(event.currentTarget, event.relatedTarget)) {
-            onDragLeave();
-            clearInsertion();
-          }
-        }}
-        onDropCapture={handleContainerDrop}
-      >
-        {!hasVisibleItems && (
-          <p className="text-xs text-black/40 dark:text-white/40 text-center py-4 pointer-events-none">
-            Drop students or staff here
-          </p>
-        )}
-
-        {renderGap(0)}
-        {container.items.map((item, index) => {
-          if (!isItemVisible(item)) return null;
+    <DropContainerCard
+      title={container.title}
+      containerIndex={containerIndex}
+      items={container.items}
+      itemKey={(item) => `${item.entity}-${item.id}`}
+      isItemVisible={isItemVisible}
+      activeDrag={activeDragEntity !== null}
+      emptyLabel="Drop students or staff here"
+      isDragOver={isDragOver}
+      onTitleChange={(title) => onTitleChange(containerIndex, title)}
+      onRequestDelete={() => onRequestDelete(containerIndex)}
+      onDragEnter={onDragEnter}
+      onDragLeave={onDragLeave}
+      onDropItem={handleDropItem}
+      isContainerDragging={isContainerDragging}
+      isContainerReorderActive={isContainerReorderActive}
+      onContainerReorderDragStart={onContainerReorderDragStart}
+      onContainerReorderDragOver={onContainerReorderDragOver}
+      onContainerReorderDrop={onContainerReorderDrop}
+      onContainerReorderDragEnd={onContainerReorderDragEnd}
+      headerExtra={
+        <div className="mb-3 flex flex-wrap items-center gap-2">
+          {showLocationInput ? (
+            <input
+              type="text"
+              className="input flex-1 min-w-[6rem] text-xs py-1"
+              placeholder="Location"
+              aria-label={`Location for ${container.title.trim() || `container ${containerIndex + 1}`}`}
+              value={container.location ?? ""}
+              autoFocus={editingLocation}
+              onChange={(event) => onLocationChange(containerIndex, event.target.value)}
+              onBlur={() => {
+                if (!container.location?.trim()) setEditingLocation(false);
+              }}
+            />
+          ) : (
+            <button
+              type="button"
+              className="btn-ghost px-1.5 py-0.5 text-xs leading-none text-black/50 dark:text-white/50 hover:text-black/70 dark:hover:text-white/70"
+              onClick={() => setEditingLocation(true)}
+            >
+              + Loc
+            </button>
+          )}
+          {showTimeInput ? (
+            <select
+              className={`input flex-1 min-w-[8rem] text-xs py-1 ${
+                hasSpouseDayConflict || hasChildcareConflict
+                  ? "!border-dotted !border-red-500 dark:!border-red-400 focus:!ring-red-500/40"
+                  : ""
+              }`}
+              aria-label={`Day for ${container.title.trim() || `container ${containerIndex + 1}`}`}
+              aria-invalid={hasSpouseDayConflict || hasChildcareConflict || undefined}
+              value={container.time ?? ""}
+              autoFocus={editingTime}
+              onChange={(event) => onTimeChange(containerIndex, event.target.value)}
+              onBlur={() => {
+                if (!container.time?.trim()) setEditingTime(false);
+              }}
+            >
+              <option value="">Day</option>
+              {GROUPING_CONTAINER_DAYS.map((day) => (
+                <option key={day} value={day}>
+                  {day}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <button
+              type="button"
+              className="btn-ghost px-1.5 py-0.5 text-xs leading-none text-black/50 dark:text-white/50 hover:text-black/70 dark:hover:text-white/70"
+              onClick={() => setEditingTime(true)}
+            >
+              + Day
+            </button>
+          )}
+        </div>
+      }
+      footer={
+        <p className="mt-2 text-xs text-black/50 dark:text-white/50 text-center">
+          {studentCount} {studentCount === 1 ? "student" : "students"}
+          {staffCount > 0 && (
+            <>
+              {" · "}
+              {staffCount} {staffCount === 1 ? "staff" : "staff"}
+            </>
+          )}
+        </p>
+      }
+      renderItem={(item, index, api) => {
+        if (item.entity === "staff") {
+          const member = staffById.get(item.id);
+          if (!member) return null;
           return (
-            <Fragment key={`${item.entity}-${item.id}`}>
-              {renderItem(item, index)}
-              {renderGap(index + 1)}
-            </Fragment>
+            <div className="relative z-10">
+              <StaffDragCard
+                staff={member}
+                dragMeta={{ entity: "staff", id: item.id, source: "container", containerIndex }}
+                onDragStart={() => beginItemDrag("staff", api.beginItemDrag)}
+                onDragEnd={onDragEntityEnd}
+                onDragEnterCard={(insertBefore) => api.hoverItem(insertBefore)}
+                associatedRoleName={item.associatedRoleName}
+                onAssociateWithRole={() => onAssociateStaffRole(containerIndex, item.id)}
+                hasSpouseDayConflict={spouseDayConflictStaffIds.has(item.id)}
+                hasChildcareConflict={childcareConflictStaffIds.has(item.id)}
+              />
+            </div>
           );
-        })}
-      </div>
-      <p className="mt-2 text-xs text-black/50 dark:text-white/50 text-center">
-        {studentCount} {studentCount === 1 ? "student" : "students"}
-        {staffCount > 0 && (
-          <>
-            {" · "}
-            {staffCount} {staffCount === 1 ? "staff" : "staff"}
-          </>
-        )}
-      </p>
-    </div>
+        }
+
+        const student = studentsById.get(item.id);
+        if (!student) return null;
+        return (
+          <div className="relative z-10">
+            <StudentDragCard
+              student={student}
+              dragMeta={{ entity: "student", id: item.id, source: "container", containerIndex }}
+              onDragStart={() => beginItemDrag("student", api.beginItemDrag)}
+              onDragEnd={onDragEntityEnd}
+              onDragEnterCard={(insertBefore) => api.hoverItem(insertBefore)}
+            />
+          </div>
+        );
+      }}
+    />
   );
 }
