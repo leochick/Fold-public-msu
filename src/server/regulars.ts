@@ -1,7 +1,11 @@
 import { db } from "@/lib/db";
 import type { RegularsPayload, RegularsStudent } from "@/lib/regulars";
-import { studentDisplayName } from "@/lib/regulars";
-import { attendances, students } from "../../drizzle/schema";
+import {
+  normalizeMinimumAttendance,
+  normalizeRegularsContainers,
+  studentDisplayName,
+} from "@/lib/regulars";
+import { attendances, regularsBoards, students } from "../../drizzle/schema";
 import { eq, inArray } from "drizzle-orm";
 import { getSemestersContext } from "./dashboard-views";
 import { getEventsForView } from "./groupings";
@@ -17,6 +21,22 @@ export async function getRegularsPayload(): Promise<RegularsPayload | null> {
     type: event.type,
     startDate: event.startDate.toISOString(),
   }));
+  const knownEventIds = new Set(events.map((event) => event.id));
+
+  const [board] = await db
+    .select({
+      minimumAttendance: regularsBoards.minimumAttendance,
+      containers: regularsBoards.containers,
+    })
+    .from(regularsBoards)
+    .where(eq(regularsBoards.viewId, active.id))
+    .limit(1);
+
+  const minimumAttendance = normalizeMinimumAttendance(board?.minimumAttendance ?? 2);
+  const containers = normalizeRegularsContainers(board?.containers).map((container) => ({
+    ...container,
+    eventIds: container.eventIds.filter((eventId) => knownEventIds.has(eventId)),
+  }));
 
   if (events.length === 0) {
     return {
@@ -25,6 +45,8 @@ export async function getRegularsPayload(): Promise<RegularsPayload | null> {
       events,
       students: [],
       attendances: [],
+      minimumAttendance,
+      containers,
     };
   }
 
@@ -34,6 +56,7 @@ export async function getRegularsPayload(): Promise<RegularsPayload | null> {
       firstName: students.firstName,
       lastName: students.lastName,
       gender: students.gender,
+      year: students.year,
       eventId: attendances.eventId,
     })
     .from(attendances)
@@ -54,6 +77,7 @@ export async function getRegularsPayload(): Promise<RegularsPayload | null> {
         firstName: row.firstName,
         lastName: row.lastName,
         gender: row.gender,
+        year: row.year,
       });
     }
     attendanceRows.push({ studentId: row.studentId, eventId: row.eventId });
@@ -69,5 +93,7 @@ export async function getRegularsPayload(): Promise<RegularsPayload | null> {
     events,
     students: studentList,
     attendances: attendanceRows,
+    minimumAttendance,
+    containers,
   };
 }

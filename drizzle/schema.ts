@@ -437,3 +437,32 @@ export const academicYears = sqliteTable(
 
 export type AcademicYear = typeof academicYears.$inferSelect;
 export type NewAcademicYear = typeof academicYears.$inferInsert;
+
+export type RegularsBoardContainer = {
+  title: string;
+  eventIds: number[];
+};
+
+/** One saved Regulars board per semester. */
+export const regularsBoards = sqliteTable(
+  "regulars_boards",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    viewId: integer("view_id")
+      .notNull()
+      .references(() => views.id, { onDelete: "cascade" }),
+    minimumAttendance: integer("minimum_attendance").notNull().default(2),
+    containers: text("containers", { mode: "json" })
+      .$type<RegularsBoardContainer[]>()
+      .notNull(),
+    updatedAt: integer("updated_at", { mode: "timestamp" })
+      .notNull()
+      .default(sql`(unixepoch())`),
+  },
+  (t) => ({
+    uniqView: uniqueIndex("uniq_regulars_board_view").on(t.viewId),
+  })
+);
+
+export type RegularsBoard = typeof regularsBoards.$inferSelect;
+export type NewRegularsBoard = typeof regularsBoards.$inferInsert;

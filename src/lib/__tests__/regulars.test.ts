@@ -9,16 +9,18 @@ import {
   genderGroups,
   groupEventsByType,
   insertEvent,
+  normalizeRegularsContainers,
   regularsForEvents,
   removeEvent,
+  yearGroups,
   type RegularsEvent,
   type RegularsStudent,
 } from "@/lib/regulars";
 
 const students: RegularsStudent[] = [
-  { id: 1, firstName: "Alex", lastName: "Kim", gender: "M" },
-  { id: 2, firstName: "Jordan", lastName: "Lee", gender: "F" },
-  { id: 3, firstName: "Sam", lastName: null, gender: null },
+  { id: 1, firstName: "Alex", lastName: "Kim", gender: "M", year: "freshman" },
+  { id: 2, firstName: "Jordan", lastName: "Lee", gender: "F", year: "senior" },
+  { id: 3, firstName: "Sam", lastName: null, gender: null, year: "grad" },
 ];
 
 const events: RegularsEvent[] = [
@@ -54,6 +56,32 @@ describe("regularsForEvents", () => {
   it("sorts regulars by name", () => {
     const regulars = regularsForEvents([10, 11, 12], students, attendances, 1);
     expect(regulars.map((student) => student.id)).toEqual([1, 2, 3]);
+  });
+});
+
+describe("yearGroups", () => {
+  it("counts the four class years and folds everyone else into other", () => {
+    const groups = yearGroups(students);
+    expect(groups.freshman.map((student) => student.id)).toEqual([1]);
+    expect(groups.sophomore).toEqual([]);
+    expect(groups.junior).toEqual([]);
+    expect(groups.senior.map((student) => student.id)).toEqual([2]);
+    expect(groups.other.map((student) => student.id)).toEqual([3]);
+  });
+});
+
+describe("normalizeRegularsContainers", () => {
+  it("drops invalid rows and keeps an event in only one container", () => {
+    expect(
+      normalizeRegularsContainers([
+        { title: "Weekly", eventIds: [1, 1, 2, "nope"] },
+        { title: "Social", eventIds: [2, 3] },
+        null,
+      ])
+    ).toEqual([
+      { title: "Weekly", eventIds: [1, 2] },
+      { title: "Social", eventIds: [3] },
+    ]);
   });
 });
 

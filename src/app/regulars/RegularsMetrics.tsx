@@ -4,8 +4,10 @@ import type { ReactNode } from "react";
 import {
   containerDisplayTitle,
   genderGroups,
+  REGULAR_YEAR_ROWS,
   regularsForEvents,
   studentDisplayName,
+  yearGroups,
   type RegularsAttendance,
   type RegularsContainer,
   type RegularsStudent,
@@ -64,22 +66,48 @@ export default function RegularsMetrics({
   students,
   attendances,
   minimumInput,
+  minimum,
   onMinimumInputChange,
   onMinimumBlur,
+  saveStatus,
+  saveError,
 }: {
   containers: RegularsContainer[];
   containerKeys: string[];
   students: RegularsStudent[];
   attendances: RegularsAttendance[];
   minimumInput: string;
+  minimum: number;
   onMinimumInputChange: (value: string) => void;
   onMinimumBlur: () => void;
+  saveStatus: "idle" | "saving" | "saved" | "error";
+  saveError: string | null;
 }) {
-  const minimum = minimumInput.trim() === "" ? 2 : Number(minimumInput);
+  const statusLabel =
+    saveStatus === "saving"
+      ? "Saving…"
+      : saveStatus === "saved"
+        ? "Saved"
+        : saveStatus === "error"
+          ? "Save failed"
+          : null;
 
   return (
     <div className="card">
-      <h2 className="text-sm font-semibold mb-3">Metrics</h2>
+      <div className="flex items-start justify-between gap-3 mb-3">
+        <h2 className="text-sm font-semibold">Metrics</h2>
+        {statusLabel && (
+          <p
+            className={`text-xs shrink-0 ${
+              saveStatus === "error"
+                ? "text-red-600 dark:text-red-400"
+                : "text-black/50 dark:text-white/50"
+            }`}
+          >
+            {statusLabel}
+          </p>
+        )}
+      </div>
       <div className="max-w-xs">
         <label htmlFor="regulars-minimum" className="label block mb-1">
           Minimum Attendance to be Considered a Regular
@@ -96,9 +124,10 @@ export default function RegularsMetrics({
           onBlur={onMinimumBlur}
         />
       </div>
+      {saveError && <p className="text-xs text-red-600 dark:text-red-400 mt-2">{saveError}</p>}
       <p className="text-xs text-black/50 dark:text-white/50 mt-2">
         A student counts as a regular in a container when they attended at least this many of its
-        events.
+        events. Changes save automatically for this semester.
       </p>
 
       {containers.length === 0 ? (
@@ -118,6 +147,19 @@ export default function RegularsMetrics({
             const groups = genderGroups(regulars);
             const regularNames = regulars.map(studentDisplayName);
             const summary = regularNames.length > 0 ? regularNames.join(", ") : "No students";
+            const years = yearGroups(regulars);
+            const yearSummary = [
+              ...REGULAR_YEAR_ROWS.map((row) =>
+                years[row.year].length
+                  ? `${row.label}: ${years[row.year].map(studentDisplayName).join(", ")}`
+                  : null
+              ),
+              years.other.length
+                ? `Other: ${years.other.map(studentDisplayName).join(", ")}`
+                : null,
+            ]
+              .filter(Boolean)
+              .join(". ");
             const genderSummary = [
               groups.male.length
                 ? `Male: ${groups.male.map(studentDisplayName).join(", ")}`
@@ -166,11 +208,57 @@ export default function RegularsMetrics({
                     )}
                   </div>
                 </CountCard>
+                <CountCard
+                  title={title}
+                  caption="Year"
+                  summary={yearSummary || "No students"}
+                  tooltip={<YearTooltip groups={years} />}
+                >
+                  <ul className="space-y-1 text-sm">
+                    {REGULAR_YEAR_ROWS.map((row) => (
+                      <li key={row.year} className="flex items-baseline justify-between gap-4">
+                        <span className="text-black/60 dark:text-white/60">{row.label}</span>
+                        <span className="font-semibold tabular-nums">{years[row.year].length}</span>
+                      </li>
+                    ))}
+                    {years.other.length > 0 && (
+                      <li className="flex items-baseline justify-between gap-4">
+                        <span className="text-black/60 dark:text-white/60">Other</span>
+                        <span className="font-semibold tabular-nums">{years.other.length}</span>
+                      </li>
+                    )}
+                  </ul>
+                </CountCard>
               </div>
             );
           })}
         </div>
       )}
+    </div>
+  );
+}
+
+function YearTooltip({ groups }: { groups: ReturnType<typeof yearGroups> }) {
+  const sections = [
+    ...REGULAR_YEAR_ROWS.map((row) => ({
+      label: row.label,
+      people: groups[row.year],
+    })),
+    { label: "Other", people: groups.other },
+  ].filter((section) => section.people.length > 0);
+
+  if (sections.length === 0) {
+    return <p className="text-black/50 dark:text-white/50">No students</p>;
+  }
+
+  return (
+    <div className="space-y-2">
+      {sections.map((section) => (
+        <div key={section.label}>
+          <p className="font-medium">{section.label}</p>
+          <NameList names={section.people.map(studentDisplayName)} />
+        </div>
+      ))}
     </div>
   );
 }

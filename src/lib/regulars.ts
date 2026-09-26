@@ -1,10 +1,20 @@
 export type RegularsGender = "M" | "F" | null;
 
+export type RegularsClassYear =
+  | "freshman"
+  | "sophomore"
+  | "junior"
+  | "senior"
+  | "grad"
+  | "other"
+  | null;
+
 export type RegularsStudent = {
   id: number;
   firstName: string;
   lastName: string | null;
   gender: RegularsGender;
+  year: RegularsClassYear;
 };
 
 export type RegularsEvent = {
@@ -25,6 +35,8 @@ export type RegularsPayload = {
   events: RegularsEvent[];
   students: RegularsStudent[];
   attendances: RegularsAttendance[];
+  minimumAttendance: number;
+  containers: RegularsContainer[];
 };
 
 export type RegularsContainer = {
@@ -150,4 +162,67 @@ export function removeEvent(containers: RegularsContainer[], eventId: number): R
 export function containerDisplayTitle(title: string, index: number): string {
   const trimmed = title.trim();
   return trimmed || `Container ${index + 1}`;
+}
+
+export const REGULAR_YEAR_ROWS = [
+  { year: "freshman", label: "Freshmen" },
+  { year: "sophomore", label: "Sophomores" },
+  { year: "junior", label: "Juniors" },
+  { year: "senior", label: "Seniors" },
+] as const;
+
+export type RegularYear = (typeof REGULAR_YEAR_ROWS)[number]["year"];
+
+export type YearGroups = Record<RegularYear, RegularsStudent[]> & {
+  other: RegularsStudent[];
+};
+
+export function yearGroups(regulars: RegularsStudent[]): YearGroups {
+  const groups: YearGroups = {
+    freshman: [],
+    sophomore: [],
+    junior: [],
+    senior: [],
+    other: [],
+  };
+  for (const student of regulars) {
+    if (
+      student.year === "freshman" ||
+      student.year === "sophomore" ||
+      student.year === "junior" ||
+      student.year === "senior"
+    ) {
+      groups[student.year].push(student);
+    } else {
+      groups.other.push(student);
+    }
+  }
+  return groups;
+}
+
+export function normalizeMinimumAttendance(value: unknown): number {
+  const parsed = typeof value === "number" ? value : Number(value);
+  if (!Number.isInteger(parsed) || parsed < 0) return 2;
+  return parsed;
+}
+
+export function normalizeRegularsContainers(raw: unknown): RegularsContainer[] {
+  if (!Array.isArray(raw)) return [];
+  const seen = new Set<number>();
+  const containers: RegularsContainer[] = [];
+  for (const item of raw) {
+    if (!item || typeof item !== "object") continue;
+    const record = item as { title?: unknown; eventIds?: unknown };
+    const title = typeof record.title === "string" ? record.title : "";
+    const eventIds: number[] = [];
+    if (Array.isArray(record.eventIds)) {
+      for (const id of record.eventIds) {
+        if (!Number.isInteger(id) || (id as number) <= 0 || seen.has(id as number)) continue;
+        seen.add(id as number);
+        eventIds.push(id as number);
+      }
+    }
+    containers.push({ title, eventIds });
+  }
+  return containers;
 }

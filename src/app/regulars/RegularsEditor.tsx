@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import ContainerInsertGap from "@/components/drop-board/ContainerInsertGap";
 import {
   createContainerKey,
@@ -13,20 +13,26 @@ import { isDragLeave } from "@/lib/drag-leave";
 import {
   groupEventsByType,
   insertEvent,
+  normalizeMinimumAttendance,
   removeEvent,
   type RegularsContainer,
   type RegularsPayload,
 } from "@/lib/regulars";
 import { readRegularsDragData } from "@/lib/regulars-drag";
+import { saveRegularsBoardAction } from "../regulars-actions";
 import DeleteContainerModal from "../groupings/DeleteContainerModal";
 import EventDragCard from "./EventDragCard";
 import RegularsContainerCard from "./RegularsContainerCard";
 import RegularsMetrics from "./RegularsMetrics";
 
+type SaveStatus = "idle" | "saving" | "saved" | "error";
+
 export default function RegularsEditor({ payload }: { payload: RegularsPayload }) {
-  const [minimumInput, setMinimumInput] = useState("2");
-  const [containers, setContainers] = useState<RegularsContainer[]>([]);
-  const [containerKeys, setContainerKeys] = useState<string[]>([]);
+  const [minimumInput, setMinimumInput] = useState(() => String(payload.minimumAttendance));
+  const [containers, setContainers] = useState<RegularsContainer[]>(payload.containers);
+  const [containerKeys, setContainerKeys] = useState<string[]>(() =>
+    payload.containers.map(() => createContainerKey())
+  );
   const [activeDrag, setActiveDrag] = useState(false);
   const [dragOverZone, setDragOverZone] = useState<string | null>(null);
   const [containerDragFromIndex, setContainerDragFromIndex] = useState<number | null>(null);
@@ -34,6 +40,52 @@ export default function RegularsEditor({ payload }: { payload: RegularsPayload }
   const containerDragFromIndexRef = useRef<number | null>(null);
   const containerDropInsertIndexRef = useRef<number | null>(null);
   const [deleteContainerIndex, setDeleteContainerIndex] = useState<number | null>(null);
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [, startTransition] = useTransition();
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const skipNextAutosaveRef = useRef(true);
+
+  const parsedMinimum = /^\d+$/.test(minimumInput)
+    ? normalizeMinimumAttendance(minimumInput)
+    : null;
+  const appliedMinimumRef = useRef(payload.minimumAttendance);
+  if (parsedMinimum != null) appliedMinimumRef.current = parsedMinimum;
+  const latestRef = useRef({ containers, minimum: appliedMinimumRef.current });
+  latestRef.current = { containers, minimum: appliedMinimumRef.current };
+
+  useEffect(() => {
+    if (parsedMinimum == null) return;
+    if (skipNextAutosaveRef.current) {
+      skipNextAutosaveRef.current = false;
+      return;
+    }
+
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    setSaveStatus("saving");
+    setSaveError(null);
+
+    saveTimerRef.current = setTimeout(() => {
+      const snapshot = latestRef.current;
+      startTransition(async () => {
+        try {
+          await saveRegularsBoardAction(
+            payload.semesterId,
+            snapshot.minimum,
+            snapshot.containers
+          );
+          setSaveStatus("saved");
+        } catch (error) {
+          setSaveStatus("error");
+          setSaveError(error instanceof Error ? error.message : "Could not save regulars");
+        }
+      });
+    }, 450);
+
+    return () => {
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    };
+  }, [payload.semesterId, containers, parsedMinimum]);
 
   const eventsById = useMemo(
     () => new Map(payload.events.map((event) => [event.id, event])),
@@ -137,11 +189,7 @@ export default function RegularsEditor({ payload }: { payload: RegularsPayload }
   }
 
   function onMinimumBlur() {
-    if (minimumInput.trim() === "" || !/^\d+$/.test(minimumInput)) {
-      setMinimumInput("2");
-      return;
-    }
-    setMinimumInput(String(Number(minimumInput)));
+    setMinimumInput(String(appliedMinimumRef.current));
   }
 
   const showContainerInsertGap = shouldShowContainerInsertGap(
@@ -160,8 +208,11 @@ export default function RegularsEditor({ payload }: { payload: RegularsPayload }
         students={payload.students}
         attendances={payload.attendances}
         minimumInput={minimumInput}
+        minimum={appliedMinimumRef.current}
         onMinimumInputChange={onMinimumInputChange}
         onMinimumBlur={onMinimumBlur}
+        saveStatus={saveStatus}
+        saveError={saveError}
       />
 
       <div className="flex gap-4 items-start min-w-0">
