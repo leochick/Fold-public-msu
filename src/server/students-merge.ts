@@ -60,6 +60,7 @@ export async function listMergeSuggestions(studentId: number) {
       id: students.id,
       firstName: students.firstName,
       lastName: students.lastName,
+      nickname: students.nickname,
       igHandle: students.igHandle,
       phone: students.phone,
       email: students.email,
@@ -149,6 +150,7 @@ export async function mergeStudents(
       .set({
         firstName: values.firstName,
         lastName: values.lastName,
+        nickname: values.nickname,
         phone: values.phone,
         email: values.email,
         igHandle: values.igHandle,
@@ -173,6 +175,7 @@ export async function mergeStudents(
         salvationDecisionAt: values.salvationDecisionAt,
         salvationDecisionType: values.salvationDecisionType,
         salvationDecisionNotes: values.salvationDecisionNotes,
+        christian: values.christian,
         baptismDate: values.baptismDate,
         updatedAt: new Date(),
       })

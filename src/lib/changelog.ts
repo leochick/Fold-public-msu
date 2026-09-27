@@ -1,6 +1,7 @@
 export const STUDENT_FIELD_LABELS: Record<string, string> = {
   firstName: "First name",
   lastName: "Last name",
+  nickname: "Nickname",
   studentId: "Student ID",
   gender: "Gender",
   birthday: "Birthday",
@@ -25,6 +26,7 @@ export const STUDENT_FIELD_LABELS: Record<string, string> = {
   salvationDecisionAt: "Salvation decision date",
   salvationDecisionType: "Salvation decision type",
   salvationDecisionNotes: "Salvation decision notes",
+  christian: "Christian",
   baptismDate: "Baptism date",
 };
 

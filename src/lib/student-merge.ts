@@ -6,6 +6,7 @@ export type MergeStudentRecord = Pick<
   | "id"
   | "firstName"
   | "lastName"
+  | "nickname"
   | "studentId"
   | "gender"
   | "birthday"
@@ -30,6 +31,7 @@ export type MergeStudentRecord = Pick<
   | "salvationDecisionAt"
   | "salvationDecisionType"
   | "salvationDecisionNotes"
+  | "christian"
   | "baptismDate"
 > & {
   invitedByLabel?: string | null;
@@ -53,6 +55,7 @@ export type MergePreviewField = {
 export type MergePreviewValues = {
   firstName: string;
   lastName: string | null;
+  nickname: string | null;
   phone: string | null;
   email: string | null;
   igHandle: string | null;
@@ -77,6 +80,7 @@ export type MergePreviewValues = {
   salvationDecisionAt: Date | null;
   salvationDecisionType: Student["salvationDecisionType"];
   salvationDecisionNotes: string | null;
+  christian: boolean;
   baptismDate: Date | null;
 };
 
@@ -224,6 +228,7 @@ export function toMergeStudentRecord(
     | "id"
     | "firstName"
     | "lastName"
+    | "nickname"
     | "studentId"
     | "gender"
     | "birthday"
@@ -248,6 +253,7 @@ export function toMergeStudentRecord(
     | "salvationDecisionAt"
     | "salvationDecisionType"
     | "salvationDecisionNotes"
+    | "christian"
     | "baptismDate"
   >,
   studentNames: Map<number, string>,
@@ -278,6 +284,7 @@ export function toMergeStudentRecord(
     id: student.id,
     firstName: student.firstName,
     lastName: student.lastName,
+    nickname: student.nickname,
     studentId: student.studentId,
     gender: student.gender,
     birthday: student.birthday,
@@ -302,6 +309,7 @@ export function toMergeStudentRecord(
     salvationDecisionAt: student.salvationDecisionAt,
     salvationDecisionType: student.salvationDecisionType,
     salvationDecisionNotes: student.salvationDecisionNotes,
+    christian: student.christian,
     baptismDate: student.baptismDate,
     invitedByLabel,
     ledToChristByLabel,
@@ -316,6 +324,7 @@ export function buildMergePreview(
 ): MergePreviewResult {
   const first = pickText(keep.firstName, merge.firstName);
   const last = pickText(keep.lastName, merge.lastName);
+  const nickname = pickText(keep.nickname, merge.nickname);
   const phone = pickText(keep.phone, merge.phone);
   const email = pickText(keep.email, merge.email);
   const ig = pickText(keep.igHandle, merge.igHandle);
@@ -330,6 +339,7 @@ export function buildMergePreview(
   const decisionType = pickText(keep.salvationDecisionType, merge.salvationDecisionType);
   const decisionAt = pickDate(keep.salvationDecisionAt, merge.salvationDecisionAt);
   const baptismDate = pickDate(keep.baptismDate, merge.baptismDate);
+  const christian = mergeBoolean(keep.christian, merge.christian);
   const eventInvited = pickNumber(keep.eventInvitedToId, merge.eventInvitedToId);
 
   const keepInvitedRef = personRef(keep.invitedByStudentId, keep.invitedByStaffId);
@@ -368,6 +378,7 @@ export function buildMergePreview(
   const values: MergePreviewValues = {
     firstName: resolvedFirst,
     lastName: resolvedLast,
+    nickname: nickname.value,
     phone: resolvedPhone,
     email: resolvedEmail,
     igHandle: ig.value,
@@ -392,12 +403,14 @@ export function buildMergePreview(
     salvationDecisionAt: decisionAt.value,
     salvationDecisionType: (decisionType.value as Student["salvationDecisionType"]) ?? null,
     salvationDecisionNotes: mergedDecisionNotes,
+    christian,
     baptismDate: baptismDate.value,
   };
 
   const fields: MergePreviewField[] = [
     previewTextField("firstName", "First name", keep.firstName, merge.firstName, resolvedFirst, first.conflict),
     previewTextField("lastName", "Last name", keep.lastName, merge.lastName, resolvedLast, last.conflict),
+    previewTextField("nickname", "Nickname", keep.nickname, merge.nickname, nickname.value, nickname.conflict),
     previewTextField("phone", "Phone", keep.phone, merge.phone, resolvedPhone, phone.conflict),
     previewTextField("email", "Email", keep.email, merge.email, resolvedEmail, email.conflict),
     previewTextField("igHandle", "Instagram", keep.igHandle, merge.igHandle, ig.value, ig.conflict),
@@ -468,6 +481,15 @@ export function buildMergePreview(
       mergedDecisionNotes,
       false
     ),
+    {
+      key: "christian",
+      label: "Christian",
+      left: keep.christian ? "Yes" : "No",
+      right: merge.christian ? "Yes" : "No",
+      value: values.christian ? "Yes" : "No",
+      conflict: keep.christian !== merge.christian,
+      editable: false,
+    },
     {
       key: "baptismDate",
       label: "Baptism date",

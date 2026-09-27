@@ -37,14 +37,14 @@ export async function loadRosterWithStatus() {
     .from(students);
 }
 
-export function formatRosterCompact(rows: RosterRow[]) {
+export function formatRosterCompact(rows: Array<RosterRow & { nickname?: string | null }>) {
   return rows
-    .map(
-      (r) =>
-        `${r.id}|${r.firstName}${r.lastName ? " " + r.lastName : ""}${
-          r.igHandle ? " (@" + r.igHandle + ")" : ""
-        }`
-    )
+    .map((r) => {
+      const name = `${r.firstName}${r.lastName ? " " + r.lastName : ""}`;
+      const nick = r.nickname?.trim() ? ` (${r.nickname.trim()})` : "";
+      const ig = r.igHandle ? ` (@${r.igHandle})` : "";
+      return `${r.id}|${name}${nick}${ig}`;
+    })
     .join("\n");
 }
 

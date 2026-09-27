@@ -102,6 +102,7 @@ export async function parseStudentsBatch(text: string) {
       id: students.id,
       firstName: students.firstName,
       lastName: students.lastName,
+      nickname: students.nickname,
       igHandle: students.igHandle,
       phone: students.phone,
       email: students.email,

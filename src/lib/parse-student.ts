@@ -89,6 +89,7 @@ export function parseStudent(f: FormData, options: ParseStudentOptions = {}) {
   return {
     firstName: v("firstName") ?? "",
     lastName: v("lastName"),
+    nickname: v("nickname"),
     gender: (v("gender") as "M" | "F" | null) ?? null,
     birthday: parseBirthday(v("birthday")),
     // Year is derived from Graduation Year (form Year control is read-only).
@@ -115,6 +116,7 @@ export function parseStudent(f: FormData, options: ParseStudentOptions = {}) {
     salvationDecisionAt: parseDate(v("salvationDecisionAt")),
     salvationDecisionType: (v("salvationDecisionType") as "salvation" | "lordship" | null) ?? null,
     salvationDecisionNotes: v("salvationDecisionNotes"),
+    christian: b("christian"),
     baptismDate: parseDate(v("baptismDate")),
   };
 }

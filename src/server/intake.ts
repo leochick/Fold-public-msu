@@ -23,6 +23,7 @@ export async function parseIntake(text: string): Promise<IntakePreview> {
       id: students.id,
       firstName: students.firstName,
       lastName: students.lastName,
+      nickname: students.nickname,
       gender: students.gender,
       year: students.year,
       igHandle: students.igHandle,
@@ -43,7 +44,8 @@ export async function parseIntake(text: string): Promise<IntakePreview> {
       if (r.year) tags.push(r.year);
       if (r.igHandle) tags.push(`@${r.igHandle}`);
       const tail = tags.length ? ` [${tags.join(", ")}]` : "";
-      return `${r.id}|${r.firstName}${r.lastName ? " " + r.lastName : ""}${tail}`;
+      const nick = r.nickname?.trim() ? ` (${r.nickname.trim()})` : "";
+      return `${r.id}|${r.firstName}${r.lastName ? " " + r.lastName : ""}${nick}${tail}`;
     })
     .join("\n");
 

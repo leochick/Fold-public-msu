@@ -172,13 +172,37 @@ export function extractNameListBodyLines(text: string): string[] {
     .filter((line) => !extractEmail(line) && !extractPhone(line));
 }
 
+function givenNames(student: RosterRow): string[] {
+  const names = [student.firstName, student.nickname]
+    .map((value) => value?.trim() ?? "")
+    .filter(Boolean);
+  return [...new Set(names)];
+}
+
+function fullNameForms(student: RosterRow): string[] {
+  const last = student.lastName?.trim() ?? "";
+  return givenNames(student).map((given) => (last ? `${given} ${last}` : given));
+}
+
+function matchesGivenName(student: RosterRow, token: string): boolean {
+  const norm = token.toLowerCase();
+  return givenNames(student).some((name) => name.toLowerCase() === norm);
+}
+
+function canonicalParsedName(student: RosterRow, rawText: string): ParsedName {
+  return {
+    firstName: student.firstName,
+    lastName: student.lastName ?? undefined,
+    rawText,
+  };
+}
+
 function matchesInitials(line: string, student: RosterRow): boolean {
   const token = line.trim().toLowerCase();
   if (token.length < 2 || token.length > 4 || /\s/.test(token)) return false;
-  const firstInitial = student.firstName?.[0]?.toLowerCase() ?? "";
   const lastInitial = student.lastName?.[0]?.toLowerCase() ?? "";
-  const initials = `${firstInitial}${lastInitial}`;
-  return token === initials;
+  if (!lastInitial) return false;
+  return givenNames(student).some((name) => `${name[0]?.toLowerCase() ?? ""}${lastInitial}` === token);
 }
 
 function resolveNameFromLine(line: string, roster: RosterRow[]): ParsedName | null {
@@ -188,9 +212,8 @@ function resolveNameFromLine(line: string, roster: RosterRow[]): ParsedName | nu
   const normLine = trimmed.toLowerCase();
 
   for (const student of roster) {
-    const full = `${student.firstName}${student.lastName ? ` ${student.lastName}` : ""}`.trim();
-    if (full.toLowerCase() === normLine) {
-      return { firstName: student.firstName, lastName: student.lastName ?? undefined, rawText: trimmed };
+    if (fullNameForms(student).some((form) => form.toLowerCase() === normLine)) {
+      return canonicalParsedName(student, trimmed);
     }
   }
 
@@ -200,43 +223,34 @@ function resolveNameFromLine(line: string, roster: RosterRow[]): ParsedName | nu
   if (parsed.lastName) {
     const exact = roster.filter(
       (student) =>
-        student.firstName.toLowerCase() === parsed.firstName.toLowerCase() &&
+        matchesGivenName(student, parsed.firstName) &&
         (student.lastName ?? "").toLowerCase() === parsed.lastName!.toLowerCase()
     );
     if (exact.length === 1) {
-      return {
-        firstName: exact[0].firstName,
-        lastName: exact[0].lastName ?? undefined,
-        rawText: trimmed,
-      };
+      return canonicalParsedName(exact[0], trimmed);
     }
   }
 
-  const byFirst = roster.filter(
-    (student) => student.firstName.toLowerCase() === parsed.firstName.toLowerCase()
-  );
-  if (byFirst.length === 1) {
-    return {
-      firstName: byFirst[0].firstName,
-      lastName: byFirst[0].lastName ?? undefined,
-      rawText: trimmed,
-    };
+  const byGiven = roster.filter((student) => matchesGivenName(student, parsed.firstName));
+  if (byGiven.length === 1) {
+    return canonicalParsedName(byGiven[0], trimmed);
   }
 
   const byInitials = roster.filter((student) => matchesInitials(trimmed, student));
   if (byInitials.length === 1) {
-    return {
-      firstName: byInitials[0].firstName,
-      lastName: byInitials[0].lastName ?? undefined,
-      rawText: trimmed,
-    };
+    return canonicalParsedName(byInitials[0], trimmed);
   }
 
   let best: { student: RosterRow; score: number } | null = null;
   for (const student of roster) {
-    const full = `${student.firstName}${student.lastName ? ` ${student.lastName}` : ""}`.trim().toLowerCase();
-    const fullDist = levenshtein(normLine, full);
-    const firstDist = levenshtein(parsed.firstName.toLowerCase(), student.firstName.toLowerCase());
+    const fullDist = Math.min(
+      ...fullNameForms(student).map((form) => levenshtein(normLine, form.toLowerCase()))
+    );
+    const firstDist = Math.min(
+      ...givenNames(student).map((name) =>
+        levenshtein(parsed.firstName.toLowerCase(), name.toLowerCase())
+      )
+    );
     const lastDist =
       parsed.lastName && student.lastName
         ? levenshtein(parsed.lastName.toLowerCase(), student.lastName.toLowerCase())
@@ -395,9 +409,7 @@ function resolveNameFromFragment(fragment: string, roster: RosterRow[]): ParsedN
   const parsed = parseNameToken(trimmed);
   if (!parsed) return null;
 
-  const rosterByFirst = roster.filter(
-    (student) => student.firstName.toLowerCase() === parsed.firstName.toLowerCase()
-  );
+  const rosterByFirst = roster.filter((student) => matchesGivenName(student, parsed.firstName));
   if (rosterByFirst.length === 1) {
     const match = rosterByFirst[0];
     return {
@@ -541,21 +553,17 @@ export function extractNamesFromBulkText(text: string, roster: RosterRow[] = [])
   const matched: ParsedName[] = [];
   const seen = new Set<string>();
   for (const student of roster) {
-    const full = student.lastName
-      ? `${student.firstName} ${student.lastName}`
-      : student.firstName;
-    const pattern = student.lastName
-      ? new RegExp(`\\b${escapeRegex(full)}\\b`, "i")
-      : new RegExp(`\\b${escapeRegex(student.firstName)}\\b`, "i");
-    if (!pattern.test(text)) continue;
-    const key = full.toLowerCase();
+    const forms = fullNameForms(student);
+    const nickname = student.nickname?.trim();
+    if (nickname && student.lastName?.trim() && !forms.some((form) => form.toLowerCase() === nickname.toLowerCase())) {
+      forms.push(nickname);
+    }
+    const hit = forms.find((form) => new RegExp(`\\b${escapeRegex(form)}\\b`, "i").test(text));
+    if (!hit) continue;
+    const key = `${student.firstName}|${student.lastName ?? ""}`.toLowerCase();
     if (seen.has(key)) continue;
     seen.add(key);
-    matched.push({
-      firstName: student.firstName,
-      lastName: student.lastName ?? undefined,
-      rawText: full,
-    });
+    matched.push(canonicalParsedName(student, hit));
   }
   return matched;
 }

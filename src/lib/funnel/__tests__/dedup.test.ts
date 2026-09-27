@@ -1,5 +1,6 @@
 import { test, expect } from "vitest";
 import {
+  findMergeSuggestions,
   findPossibleDuplicates,
   levenshtein,
   normalizeEmail,
@@ -14,11 +15,12 @@ const r = (
   id: number,
   firstName: string,
   lastName?: string,
-  extras: Partial<Pick<RosterRow, "igHandle" | "phone" | "email" | "createdAt">> = {}
+  extras: Partial<Pick<RosterRow, "igHandle" | "phone" | "email" | "createdAt" | "nickname">> = {}
 ): RosterRow => ({
   id,
   firstName,
   lastName: lastName ?? null,
+  nickname: extras.nickname ?? null,
   igHandle: extras.igHandle ?? null,
   phone: extras.phone ?? null,
   email: extras.email ?? null,
@@ -131,6 +133,34 @@ test("'Sam Taylor' vs 'Mary Taylor' NOT flagged (first-name dist > 2)", () => {
     NOW
   );
   expect(out).toHaveLength(0);
+});
+
+test("nickname matches an incoming first name when last names agree", () => {
+  const out = findPossibleDuplicates(
+    { firstName: "Bobby", lastName: "Smith" },
+    [r(1, "Robert", "Smith", { nickname: "Bobby" })],
+    NOW
+  );
+  expect(out).toHaveLength(1);
+  expect(out[0].reasons).toContain("name_fuzzy");
+  expect(out[0].confidence).toBe("high");
+});
+
+test("nickname does not match a different last name", () => {
+  const out = findPossibleDuplicates(
+    { firstName: "Bobby", lastName: "Jones" },
+    [r(1, "Robert", "Smith", { nickname: "Bobby" })],
+    NOW
+  );
+  expect(out).toHaveLength(0);
+});
+
+test("merge suggestions match a stored nickname against the other student's first name", () => {
+  const out = findMergeSuggestions(
+    { id: 2, firstName: "Robert", lastName: "Smith", nickname: "Bobby" },
+    [r(1, "Bobby", "Smith"), r(2, "Robert", "Smith", { nickname: "Bobby" })]
+  );
+  expect(out.map((match) => match.studentId)).toEqual([1]);
 });
 
 test("Multiple candidates returned, sorted desc by score", () => {

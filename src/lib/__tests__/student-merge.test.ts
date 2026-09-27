@@ -6,6 +6,8 @@ describe("buildMergePreview", () => {
     id: 1,
     firstName: "Nyah",
     lastName: "Morefield",
+    nickname: null,
+    christian: false,
     studentId: null,
     gender: null,
     birthday: null,
@@ -40,6 +42,8 @@ describe("buildMergePreview", () => {
     id: 2,
     firstName: "Nyah",
     lastName: "Moorfield",
+    nickname: "Nye",
+    christian: true,
     studentId: null,
     gender: null,
     birthday: null,
@@ -79,6 +83,8 @@ describe("buildMergePreview", () => {
     expect(preview.values.year).toBe("sophomore");
     expect(preview.values.graduationYear).toBe(2029);
     expect(preview.values.baptismDate).toEqual(new Date(Date.UTC(2025, 8, 12)));
+    expect(preview.values.nickname).toBe("Nye");
+    expect(preview.values.christian).toBe(true);
     expect(preview.values.courseMaterial).toEqual(["Course 101", "ERT"]);
   });
 

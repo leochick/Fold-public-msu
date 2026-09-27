@@ -3,6 +3,7 @@ export type RosterRow = {
   id: number;
   firstName: string;
   lastName?: string | null;
+  nickname?: string | null;
   igHandle?: string | null;
   phone?: string | null;
   email?: string | null;
@@ -59,11 +60,34 @@ export function levenshtein(a: string, b: string): number {
   return row[a.length];
 }
 
+function normalizedName(value: string | null | undefined): string {
+  return (value ?? "").toLowerCase().trim();
+}
+
+/** First name plus nickname, so either given name can match the other person. */
+function givenNames(firstName: string | null | undefined, nickname: string | null | undefined): string[] {
+  const names = [normalizedName(firstName), normalizedName(nickname)].filter(Boolean);
+  return [...new Set(names)];
+}
+
+function bestGivenNameDistance(left: string[], right: string[]): number {
+  if (left.length === 0 || right.length === 0) return Number.POSITIVE_INFINITY;
+  let best = Number.POSITIVE_INFINITY;
+  for (const a of left) {
+    for (const b of right) {
+      const dist = a === b ? 0 : levenshtein(a, b);
+      if (dist < best) best = dist;
+    }
+  }
+  return best;
+}
+
 // 2. Updated multi-match duplicate discovery algorithm
 export function findPossibleDuplicates(
   incoming: {
     firstName: string;
     lastName?: string | null;
+    nickname?: string | null;
     igHandle?: string | null;
     phone?: string | null;
     email?: string | null;
@@ -73,15 +97,17 @@ export function findPossibleDuplicates(
 ): DedupCandidate[] {
   const matches: DedupCandidate[] = [];
   
-  const normInFirst = incoming.firstName.toLowerCase().trim();
   const normInLast = incoming.lastName?.toLowerCase().trim() || "";
+  const inGiven = givenNames(incoming.firstName, incoming.nickname);
 
   for (const student of roster) {
     let score = 0;
     const reasons: string[] = [];
 
-    const normRowFirst = student.firstName.toLowerCase().trim();
     const normRowLast = student.lastName?.toLowerCase().trim() || "";
+    const rowGiven = givenNames(student.firstName, student.nickname);
+    const givenDist = bestGivenNameDistance(inGiven, rowGiven);
+    const givenExact = givenDist === 0;
 
     // Exact phone match verification
     if (incoming.phone && student.phone) {
@@ -109,8 +135,8 @@ export function findPossibleDuplicates(
       }
     }
 
-    // Smart first name fallback rules
-    if (normInFirst && normInFirst === normRowFirst) {
+    // Exact given name (first name or nickname), with last-name agreement when both are present
+    if (givenExact) {
       if (!normInLast || !normRowLast) {
         score += 50;
         reasons.push("name_fuzzy");
@@ -120,42 +146,39 @@ export function findPossibleDuplicates(
       }
     }
 
-    // Misspelled first or last name (Levenshtein distance <= 2)
-    if (normInFirst && normRowFirst) {
-      const firstDist = levenshtein(normInFirst, normRowFirst);
-      if (firstDist > 0 && firstDist <= 2) {
-        if (normInLast && normRowLast && normInLast === normRowLast) {
-          score += 70;
-          reasons.push("name_fuzzy");
-        } else if (!normInLast || !normRowLast) {
-          score += 45;
-          reasons.push("name_fuzzy");
-        }
+    // Misspelled first name or nickname (Levenshtein distance <= 2)
+    if (givenDist > 0 && givenDist <= 2) {
+      if (normInLast && normRowLast && normInLast === normRowLast) {
+        score += 70;
+        reasons.push("name_fuzzy");
+      } else if (!normInLast || !normRowLast) {
+        score += 45;
+        reasons.push("name_fuzzy");
       }
     }
 
-    if (normInLast && normRowLast) {
+    if (normInLast && normRowLast && givenExact) {
       const lastDist = levenshtein(normInLast, normRowLast);
-      if (lastDist > 0 && lastDist <= 2 && normInFirst === normRowFirst && normInFirst) {
+      if (lastDist > 0 && lastDist <= 2) {
         score += 65;
         reasons.push("name_fuzzy");
       }
     }
 
-    // Last name used as first name (swapped or partial)
-    if (normInFirst && normRowLast && normInFirst === normRowLast) {
+    // Last name used as a given name (first name or nickname), or the reverse
+    if (normRowLast && inGiven.includes(normRowLast)) {
       score += 55;
       reasons.push("name_fuzzy");
     }
-    if (normInLast && normRowFirst && normInLast === normRowFirst) {
+    if (normInLast && rowGiven.includes(normInLast)) {
       score += 55;
       reasons.push("name_fuzzy");
     }
-    if (normInFirst && normRowFirst && normInFirst === normRowFirst && !normInLast && normRowLast) {
+    if (givenExact && !normInLast && normRowLast) {
       score += 40;
       reasons.push("name_fuzzy");
     }
-    if (normInFirst && normRowFirst && normInFirst === normRowFirst && normInLast && !normRowLast) {
+    if (givenExact && normInLast && !normRowLast) {
       score += 40;
       reasons.push("name_fuzzy");
     }
@@ -193,6 +216,7 @@ export function findMergeSuggestions(
     id: number;
     firstName: string;
     lastName?: string | null;
+    nickname?: string | null;
     igHandle?: string | null;
     phone?: string | null;
     email?: string | null;

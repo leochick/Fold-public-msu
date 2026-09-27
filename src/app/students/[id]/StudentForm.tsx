@@ -134,9 +134,10 @@ export default function StudentForm({
       {saveError && (
         <p className="text-xs text-red-600 dark:text-red-400">{saveError}</p>
       )}
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-3 gap-3">
         <Field label="First name" name="firstName" defaultValue={s.firstName ?? ""} required />
         <Field label="Last name" name="lastName" defaultValue={s.lastName ?? ""} />
+        <Field label="Nickname" name="nickname" defaultValue={s.nickname ?? ""} />
       </div>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <Select label="Gender" name="gender" defaultValue={s.gender ?? ""} options={[["", "—"], ["M", "Male"], ["F", "Female"]]} />
@@ -265,7 +266,8 @@ export default function StudentForm({
           defaultValue={s.salvationDecisionNotes ?? ""}
         />
       </div>
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-3 gap-3 items-end">
+        <Checkbox label="Christian" name="christian" defaultChecked={s.christian ?? false} />
         <Field
           label="Baptism Date"
           name="baptismDate"

@@ -192,6 +192,22 @@ MJ`;
     expect(result[3]).toMatchObject({ firstName: "Michael", lastName: "James", groupme: true });
   });
 
+  it("matches a pasted nickname to the roster student's first and last name", () => {
+    const rosterWithNick = [
+      { id: 1, firstName: "Robert", lastName: "Smith", nickname: "Bobby", igHandle: null, phone: null, email: null },
+      { id: 2, firstName: "Katie", lastName: "Lee", igHandle: null, phone: null, email: null },
+    ];
+    const text = `Mark subscribed to newsletter for:
+
+Bobby Smith
+Katie Lee`;
+
+    const result = normalizeBatchStudentsInput(text, [], rosterWithNick);
+    expect(result).toHaveLength(2);
+    expect(result[0]).toMatchObject({ firstName: "Robert", lastName: "Smith", newsletter: true });
+    expect(result[1]).toMatchObject({ firstName: "Katie", lastName: "Lee", newsletter: true });
+  });
+
   it("parses tab-separated salvation decision rosters locally", () => {
     const decisionRoster = [
       { id: 1, firstName: "Jayden", lastName: "Hawthorne", igHandle: null, phone: null, email: null },
