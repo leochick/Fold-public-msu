@@ -288,6 +288,13 @@
       "when": 1782600000000,
       "tag": "0040_student_nickname_christian",
       "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "6",
+      "when": 1782700000000,
+      "tag": "0041_student_christian_status",
+      "breakpoints": true
     }
   ]
 }

@@ -20,6 +20,11 @@ function parsePersonRef(raw: string | null): {
   return { studentId: null, staffId: id };
 }
 
+function parseChristianStatus(raw: string | null): "christian" | "non-christian" | null {
+  if (raw === "christian" || raw === "non-christian") return raw;
+  return null;
+}
+
 function parseDate(raw: string | null): Date | null {
   if (!raw) return null;
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(raw);
@@ -116,7 +121,7 @@ export function parseStudent(f: FormData, options: ParseStudentOptions = {}) {
     salvationDecisionAt: parseDate(v("salvationDecisionAt")),
     salvationDecisionType: (v("salvationDecisionType") as "salvation" | "lordship" | null) ?? null,
     salvationDecisionNotes: v("salvationDecisionNotes"),
-    christian: b("christian"),
+    christian: parseChristianStatus(v("christian")),
     baptismDate: parseDate(v("baptismDate")),
   };
 }

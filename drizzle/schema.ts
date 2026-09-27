@@ -168,7 +168,7 @@ export const students = sqliteTable("students", {
   salvationDecisionAt: integer("salvation_decision_at", { mode: "timestamp" }),
   salvationDecisionType: text("salvation_decision_type", { enum: ["salvation", "lordship"] }),
   salvationDecisionNotes: text("salvation_decision_notes"),
-  christian: integer("christian", { mode: "boolean" }).notNull().default(false),
+  christian: text("christian", { enum: ["christian", "non-christian"] }),
   baptismDate: integer("baptism_date", { mode: "timestamp" }),
   // --- /HEALTH METRICS ---
   createdAt: integer("created_at", { mode: "timestamp" })

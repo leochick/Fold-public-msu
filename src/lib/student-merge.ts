@@ -80,7 +80,7 @@ export type MergePreviewValues = {
   salvationDecisionAt: Date | null;
   salvationDecisionType: Student["salvationDecisionType"];
   salvationDecisionNotes: string | null;
-  christian: boolean;
+  christian: Student["christian"];
   baptismDate: Date | null;
 };
 
@@ -194,6 +194,12 @@ function remapPersonRef(ref: string | null, mergeId: number, keepId: number): st
   const parsed = parsePersonRef(ref);
   if (parsed.studentId === mergeId || parsed.studentId === keepId) return null;
   return ref;
+}
+
+function christianLabel(value: string | null | undefined): string {
+  if (value === "christian") return "Christian";
+  if (value === "non-christian") return "Non-Christian";
+  return "—";
 }
 
 function salvationTypeLabel(value: string | null | undefined): string {
@@ -339,7 +345,7 @@ export function buildMergePreview(
   const decisionType = pickText(keep.salvationDecisionType, merge.salvationDecisionType);
   const decisionAt = pickDate(keep.salvationDecisionAt, merge.salvationDecisionAt);
   const baptismDate = pickDate(keep.baptismDate, merge.baptismDate);
-  const christian = mergeBoolean(keep.christian, merge.christian);
+  const christian = pickText(keep.christian, merge.christian);
   const eventInvited = pickNumber(keep.eventInvitedToId, merge.eventInvitedToId);
 
   const keepInvitedRef = personRef(keep.invitedByStudentId, keep.invitedByStaffId);
@@ -403,7 +409,7 @@ export function buildMergePreview(
     salvationDecisionAt: decisionAt.value,
     salvationDecisionType: (decisionType.value as Student["salvationDecisionType"]) ?? null,
     salvationDecisionNotes: mergedDecisionNotes,
-    christian,
+    christian: (christian.value as Student["christian"]) ?? null,
     baptismDate: baptismDate.value,
   };
 
@@ -481,15 +487,14 @@ export function buildMergePreview(
       mergedDecisionNotes,
       false
     ),
-    {
-      key: "christian",
-      label: "Christian",
-      left: keep.christian ? "Yes" : "No",
-      right: merge.christian ? "Yes" : "No",
-      value: values.christian ? "Yes" : "No",
-      conflict: keep.christian !== merge.christian,
-      editable: false,
-    },
+    previewTextField(
+      "christian",
+      "Christian",
+      christianLabel(keep.christian),
+      christianLabel(merge.christian),
+      christianLabel(christian.value),
+      christian.conflict
+    ),
     {
       key: "baptismDate",
       label: "Baptism date",

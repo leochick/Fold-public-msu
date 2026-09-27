@@ -266,8 +266,17 @@ export default function StudentForm({
           defaultValue={s.salvationDecisionNotes ?? ""}
         />
       </div>
-      <div className="grid grid-cols-3 gap-3 items-end">
-        <Checkbox label="Christian" name="christian" defaultChecked={s.christian ?? false} />
+      <div className="grid grid-cols-3 gap-3">
+        <Select
+          label="Christian"
+          name="christian"
+          defaultValue={s.christian ?? ""}
+          options={[
+            ["", "—"],
+            ["christian", "Christian"],
+            ["non-christian", "Non-Christian"],
+          ]}
+        />
         <Field
           label="Baptism Date"
           name="baptismDate"
