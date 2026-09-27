@@ -6,6 +6,7 @@ import {
   shouldShowContainerInsertGap,
 } from "@/lib/container-board";
 import {
+  christianGroups,
   genderGroups,
   groupEventsByType,
   insertEvent,
@@ -18,9 +19,9 @@ import {
 } from "@/lib/regulars";
 
 const students: RegularsStudent[] = [
-  { id: 1, firstName: "Alex", lastName: "Kim", gender: "M", year: "freshman" },
-  { id: 2, firstName: "Jordan", lastName: "Lee", gender: "F", year: "senior" },
-  { id: 3, firstName: "Sam", lastName: null, gender: null, year: "grad" },
+  { id: 1, firstName: "Alex", lastName: "Kim", gender: "M", year: "freshman", christian: "christian" },
+  { id: 2, firstName: "Jordan", lastName: "Lee", gender: "F", year: "senior", christian: "non-christian" },
+  { id: 3, firstName: "Sam", lastName: null, gender: null, year: "grad", christian: null },
 ];
 
 const events: RegularsEvent[] = [
@@ -82,6 +83,15 @@ describe("normalizeRegularsContainers", () => {
       { title: "Weekly", eventIds: [1, 2] },
       { title: "Social", eventIds: [3] },
     ]);
+  });
+});
+
+describe("christianGroups", () => {
+  it("splits regulars into Christian, Non-Christian, and Unknown", () => {
+    const groups = christianGroups(students);
+    expect(groups.christian.map((student) => student.id)).toEqual([1]);
+    expect(groups.nonChristian.map((student) => student.id)).toEqual([2]);
+    expect(groups.unknown.map((student) => student.id)).toEqual([3]);
   });
 });
 

@@ -9,12 +9,15 @@ export type RegularsClassYear =
   | "other"
   | null;
 
+export type RegularsChristian = "christian" | "non-christian" | null;
+
 export type RegularsStudent = {
   id: number;
   firstName: string;
   lastName: string | null;
   gender: RegularsGender;
   year: RegularsClassYear;
+  christian: RegularsChristian;
 };
 
 export type RegularsEvent = {
@@ -83,6 +86,22 @@ export type GenderGroups = {
   female: RegularsStudent[];
   unspecified: RegularsStudent[];
 };
+
+export type ChristianGroups = {
+  christian: RegularsStudent[];
+  nonChristian: RegularsStudent[];
+  unknown: RegularsStudent[];
+};
+
+export function christianGroups(regulars: RegularsStudent[]): ChristianGroups {
+  const groups: ChristianGroups = { christian: [], nonChristian: [], unknown: [] };
+  for (const student of regulars) {
+    if (student.christian === "christian") groups.christian.push(student);
+    else if (student.christian === "non-christian") groups.nonChristian.push(student);
+    else groups.unknown.push(student);
+  }
+  return groups;
+}
 
 export function genderGroups(regulars: RegularsStudent[]): GenderGroups {
   const groups: GenderGroups = { male: [], female: [], unspecified: [] };

@@ -2,6 +2,7 @@
 
 import type { ReactNode } from "react";
 import {
+  christianGroups,
   containerDisplayTitle,
   genderGroups,
   REGULAR_YEAR_ROWS,
@@ -145,6 +146,7 @@ export default function RegularsMetrics({
               minimum
             );
             const groups = genderGroups(regulars);
+            const faith = christianGroups(regulars);
             const regularNames = regulars.map(studentDisplayName);
             const summary = regularNames.length > 0 ? regularNames.join(", ") : "No students";
             const years = yearGroups(regulars);
@@ -160,6 +162,11 @@ export default function RegularsMetrics({
             ]
               .filter(Boolean)
               .join(". ");
+            const faithSummary = [
+              `Christian: ${faith.christian.map(studentDisplayName).join(", ") || "none"}`,
+              `Non-Christian: ${faith.nonChristian.map(studentDisplayName).join(", ") || "none"}`,
+              `Unknown: ${faith.unknown.map(studentDisplayName).join(", ") || "none"}`,
+            ].join(". ");
             const genderSummary = [
               groups.male.length
                 ? `Male: ${groups.male.map(studentDisplayName).join(", ")}`
@@ -210,6 +217,18 @@ export default function RegularsMetrics({
                 </CountCard>
                 <CountCard
                   title={title}
+                  caption="Christian"
+                  summary={faithSummary}
+                  tooltip={<ChristianTooltip groups={faith} />}
+                >
+                  <ul className="space-y-1 text-sm">
+                    <FaithRow label="Christian" count={faith.christian.length} />
+                    <FaithRow label="Non-Christian" count={faith.nonChristian.length} />
+                    <FaithRow label="Unknown" count={faith.unknown.length} />
+                  </ul>
+                </CountCard>
+                <CountCard
+                  title={title}
                   caption="Year"
                   summary={yearSummary || "No students"}
                   tooltip={<YearTooltip groups={years} />}
@@ -234,6 +253,38 @@ export default function RegularsMetrics({
           })}
         </div>
       )}
+    </div>
+  );
+}
+
+function FaithRow({ label, count }: { label: string; count: number }) {
+  return (
+    <li className="flex items-baseline justify-between gap-4">
+      <span className="text-black/60 dark:text-white/60">{label}</span>
+      <span className="font-semibold tabular-nums">{count}</span>
+    </li>
+  );
+}
+
+function ChristianTooltip({ groups }: { groups: ReturnType<typeof christianGroups> }) {
+  const sections = [
+    { label: "Christian", people: groups.christian },
+    { label: "Non-Christian", people: groups.nonChristian },
+    { label: "Unknown", people: groups.unknown },
+  ].filter((section) => section.people.length > 0);
+
+  if (sections.length === 0) {
+    return <p className="text-black/50 dark:text-white/50">No students</p>;
+  }
+
+  return (
+    <div className="space-y-2">
+      {sections.map((section) => (
+        <div key={section.label}>
+          <p className="font-medium">{section.label}</p>
+          <NameList names={section.people.map(studentDisplayName)} />
+        </div>
+      ))}
     </div>
   );
 }

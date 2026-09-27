@@ -57,6 +57,7 @@ export async function getRegularsPayload(): Promise<RegularsPayload | null> {
       lastName: students.lastName,
       gender: students.gender,
       year: students.year,
+      christian: students.christian,
       eventId: attendances.eventId,
     })
     .from(attendances)
@@ -78,6 +79,7 @@ export async function getRegularsPayload(): Promise<RegularsPayload | null> {
         lastName: row.lastName,
         gender: row.gender,
         year: row.year,
+        christian: row.christian,
       });
     }
     attendanceRows.push({ studentId: row.studentId, eventId: row.eventId });
