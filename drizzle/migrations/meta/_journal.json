@@ -295,6 +295,13 @@
       "when": 1782700000000,
       "tag": "0041_student_christian_status",
       "breakpoints": true
+    },
+    {
+      "idx": 42,
+      "version": "6",
+      "when": 1782800000000,
+      "tag": "0042_christian_from_salvation_date",
+      "breakpoints": true
     }
   ]
 }
