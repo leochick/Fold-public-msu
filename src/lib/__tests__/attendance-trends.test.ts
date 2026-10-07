@@ -79,9 +79,9 @@ describe("buildAttendanceTrendsChart", () => {
     const chart = buildAttendanceTrendsChart({
       semesters: [fall2025, fall2026],
       events: [
-        { id: 1, startDate: date("2025-08-26"), type: "Weekly", totalStudents: 20 },
-        { id: 2, startDate: date("2025-08-28"), type: "Social", totalStudents: 5 },
-        { id: 3, startDate: date("2026-08-25"), type: "Weekly", totalStudents: 18 },
+        { name: "Large Group", id: 1, startDate: date("2025-08-26"), type: "Weekly", totalStudents: 20 },
+        { name: "Welcome Social", id: 2, startDate: date("2025-08-28"), type: "Social", totalStudents: 5 },
+        { name: "Large Group", id: 3, startDate: date("2026-08-25"), type: "Weekly", totalStudents: 18 },
       ],
       records: [],
     });
@@ -92,12 +92,21 @@ describe("buildAttendanceTrendsChart", () => {
     expect(chart.points[1]?.["year-1"]).toBe(25);
     expect(chart.points[1]?.["year-2"]).toBe(18);
     expect(chart.points[16]?.["year-2"]).toBeNull();
+    expect(chart.eventsBySeries["year-1"]?.[1]?.map((event) => event.name)).toEqual([
+      "Large Group",
+      "Welcome Social",
+    ]);
+    expect(chart.eventsBySeries["year-2"]?.[1]?.map((event) => event.name)).toEqual([
+      "Large Group",
+    ]);
+    expect(chart.eventsBySeries["year-1"]?.[0]).toEqual([]);
+    expect(chart.eventsBySeries["year-2"]?.[16]).toEqual([]);
   });
 
   it("skips years with no events in the semester week range", () => {
     const chart = buildAttendanceTrendsChart({
       semesters: [fall2025],
-      events: [{ id: 9, startDate: date("2026-02-01"), type: "Weekly", totalStudents: 10 }],
+      events: [{ name: "Weekly", id: 9, startDate: date("2026-02-01"), type: "Weekly", totalStudents: 10 }],
       records: [],
     });
     expect(chart.series).toEqual([]);
@@ -107,7 +116,7 @@ describe("buildAttendanceTrendsChart", () => {
   it("uses recorded attendance when totalStudents is missing", () => {
     const chart = buildAttendanceTrendsChart({
       semesters: [fall2025],
-      events: [{ id: 1, startDate: date("2025-08-26"), type: "Weekly", totalStudents: null }],
+      events: [{ name: "Weekly", id: 1, startDate: date("2025-08-26"), type: "Weekly", totalStudents: null }],
       records: [
         { eventId: 1, studentId: 1, gender: "M", year: "freshman" },
         { eventId: 1, studentId: 2, gender: "F", year: "sophomore" },
@@ -120,19 +129,20 @@ describe("buildAttendanceTrendsChart", () => {
     const chart = buildAttendanceTrendsChart({
       semesters: [fall2025],
       events: [
-        { id: 1, startDate: date("2025-08-26"), type: "Weekly", totalStudents: 20 },
-        { id: 2, startDate: date("2025-08-26"), type: "Retreat", totalStudents: 40 },
+        { name: "Weekly", id: 1, startDate: date("2025-08-26"), type: "Weekly", totalStudents: 20 },
+        { name: "Retreat", id: 2, startDate: date("2025-08-26"), type: "Retreat", totalStudents: 40 },
       ],
       records: [],
       filters: { eventTypes: ["Weekly"], genders: [], years: [] },
     });
     expect(chart.points[1]?.["year-1"]).toBe(20);
+    expect(chart.eventsBySeries["year-1"]?.[1]?.map((event) => event.name)).toEqual(["Weekly"]);
   });
 
   it("counts matching students instead of totalStudents when gender or year is filtered", () => {
     const chart = buildAttendanceTrendsChart({
       semesters: [fall2025],
-      events: [{ id: 1, startDate: date("2025-08-26"), type: "Weekly", totalStudents: 50 }],
+      events: [{ name: "Weekly", id: 1, startDate: date("2025-08-26"), type: "Weekly", totalStudents: 50 }],
       records: [
         { eventId: 1, studentId: 1, gender: "M", year: "freshman" },
         { eventId: 1, studentId: 2, gender: "M", year: "senior" },
@@ -147,7 +157,7 @@ describe("buildAttendanceTrendsChart", () => {
   it("treats empty filters as all categories", () => {
     const chart = buildAttendanceTrendsChart({
       semesters: [fall2025],
-      events: [{ id: 1, startDate: date("2025-08-26"), type: "Weekly", totalStudents: 8 }],
+      events: [{ name: "Weekly", id: 1, startDate: date("2025-08-26"), type: "Weekly", totalStudents: 8 }],
       records: [
         { eventId: 1, studentId: 1, gender: "F", year: "junior" },
         { eventId: 1, studentId: 2, gender: "M", year: "senior" },
@@ -161,8 +171,8 @@ describe("buildAttendanceTrendsChart", () => {
     const chart = buildAttendanceTrendsChart({
       semesters: [fall2025],
       events: [
-        { id: 1, startDate: date("2025-08-26"), type: "Weekly", totalStudents: 3 },
-        { id: 2, startDate: date("2025-08-28"), type: "Social", totalStudents: 2 },
+        { name: "Weekly", id: 1, startDate: date("2025-08-26"), type: "Weekly", totalStudents: 3 },
+        { name: "Social", id: 2, startDate: date("2025-08-28"), type: "Social", totalStudents: 2 },
       ],
       records: [
         { eventId: 1, studentId: 1, gender: "M", year: "freshman" },
@@ -180,8 +190,8 @@ describe("buildAttendanceTrendsChart", () => {
     const chart = buildAttendanceTrendsChart({
       semesters: [fall2025],
       events: [
-        { id: 1, startDate: date("2025-08-26"), type: "Weekly", totalStudents: 1 },
-        { id: 2, startDate: date("2025-09-02"), type: "Social", totalStudents: 1 },
+        { name: "Weekly", id: 1, startDate: date("2025-08-26"), type: "Weekly", totalStudents: 1 },
+        { name: "Social", id: 2, startDate: date("2025-09-02"), type: "Social", totalStudents: 1 },
       ],
       records: [
         { eventId: 1, studentId: 1, gender: "F", year: "junior" },
@@ -196,8 +206,8 @@ describe("buildAttendanceTrendsChart", () => {
     const chart = buildAttendanceTrendsChart({
       semesters: [fall2025],
       events: [
-        { id: 1, startDate: date("2025-08-26"), type: "Weekly", totalStudents: 10 },
-        { id: 2, startDate: date("2025-08-28"), type: "Social", totalStudents: 10 },
+        { name: "Weekly", id: 1, startDate: date("2025-08-26"), type: "Weekly", totalStudents: 10 },
+        { name: "Social", id: 2, startDate: date("2025-08-28"), type: "Social", totalStudents: 10 },
       ],
       records: [
         { eventId: 1, studentId: 1, gender: "M", year: "freshman" },
@@ -208,5 +218,30 @@ describe("buildAttendanceTrendsChart", () => {
       filters: { eventTypes: [], genders: ["M"], years: ["freshman"] },
     });
     expect(chart.points[1]?.["year-1"]).toBe(1);
+  });
+
+  it("lists contributing events under each year for the hovered week", () => {
+    const chart = buildAttendanceTrendsChart({
+      semesters: [fall2025, fall2026],
+      events: [
+        { name: "Large Group", id: 1, startDate: date("2025-08-26"), type: "Weekly", totalStudents: 2 },
+        { name: "Fall Retreat", id: 2, startDate: date("2025-08-27"), type: "Retreat", totalStudents: 10 },
+        { name: "Welcome Social", id: 3, startDate: date("2025-08-28"), type: "Social", totalStudents: 1 },
+        { name: "Next Year Group", id: 4, startDate: date("2026-08-25"), type: "Weekly", totalStudents: 1 },
+      ],
+      records: [
+        { eventId: 1, studentId: 1, gender: "M", year: "freshman" },
+        { eventId: 3, studentId: 2, gender: "F", year: "senior" },
+        { eventId: 4, studentId: 1, gender: "M", year: "freshman" },
+      ],
+      filters: { eventTypes: ["Weekly", "Social"], genders: ["M"], years: [] },
+    });
+
+    expect(chart.eventsBySeries["year-1"]?.[1]?.map((event) => event.name)).toEqual([
+      "Large Group",
+    ]);
+    expect(chart.eventsBySeries["year-2"]?.[1]?.map((event) => event.name)).toEqual([
+      "Next Year Group",
+    ]);
   });
 });

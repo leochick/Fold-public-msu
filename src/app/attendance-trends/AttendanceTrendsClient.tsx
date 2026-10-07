@@ -18,7 +18,9 @@ import {
   ATTENDANCE_TREND_YEARS,
   EMPTY_ATTENDANCE_TRENDS_FILTERS,
   buildAttendanceTrendsChart,
+  type AttendanceTrendChartEvent,
   type AttendanceTrendGender,
+  type AttendanceTrendSeries,
   type AttendanceTrendYear,
   type AttendanceTrendsFilters,
 } from "@/lib/attendance-trends";
@@ -35,6 +37,85 @@ const LINE_COLORS = [
   "#14b8a6",
   "#f97316",
 ];
+
+function formatTrendEventDate(iso: string): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toLocaleDateString("en-US", {
+    timeZone: "UTC",
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
+function AttendanceTrendsTooltip({
+  active,
+  label,
+  payload,
+  series,
+  eventsBySeries,
+}: {
+  active?: boolean;
+  label?: string | number;
+  payload?: ReadonlyArray<{ dataKey?: string | number; value?: unknown }>;
+  series: AttendanceTrendSeries[];
+  eventsBySeries: Record<string, AttendanceTrendChartEvent[][]>;
+}) {
+  if (!active || label == null || label === "") return null;
+  const week = Number(label);
+  if (!Number.isFinite(week)) return null;
+
+  const rows = series.flatMap((entry, index) => {
+    const match = payload?.find((item) => item.dataKey === entry.key);
+    const value = typeof match?.value === "number" ? match.value : null;
+    if (value == null) return [];
+    return [
+      {
+        key: entry.key,
+        label: entry.label,
+        value,
+        color: LINE_COLORS[index % LINE_COLORS.length],
+        events: eventsBySeries[entry.key]?.[week] ?? [],
+      },
+    ];
+  });
+
+  return (
+    <div className="max-h-72 max-w-sm overflow-y-auto rounded-lg border border-black/10 bg-white px-3 py-2 text-xs shadow-lg dark:border-white/10 dark:bg-neutral-900">
+      <p className="font-semibold">Week {week}</p>
+      {rows.length === 0 ? (
+        <p className="mt-1 text-black/50 dark:text-white/50">No events this week.</p>
+      ) : (
+        <div className="mt-2 space-y-3">
+          {rows.map((row) => (
+            <div key={row.key}>
+              <div className="flex items-baseline justify-between gap-4">
+                <span className="font-medium" style={{ color: row.color }}>
+                  {row.label}
+                </span>
+                <span className="tabular-nums">{row.value}</span>
+              </div>
+              {row.events.length > 0 && (
+                <ul className="mt-1 space-y-1">
+                  {row.events.map((event) => (
+                    <li key={event.id} className="text-black/70 dark:text-white/70">
+                      <span className="text-black dark:text-white">{event.name}</span>
+                      <span className="block">
+                        {formatTrendEventDate(event.startDate)}
+                        {event.type ? ` · ${event.type}` : ""}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function AttendanceTrendsClient({
   payload,
@@ -62,6 +143,7 @@ export default function AttendanceTrendsClient({
       })),
       events: payload.events.map((event) => ({
         id: event.id,
+        name: event.name,
         startDate: new Date(event.startDate),
         type: event.type,
         totalStudents: event.totalStudents,
@@ -157,8 +239,12 @@ export default function AttendanceTrendsClient({
                 label={{ value: "Attendance", angle: -90, position: "insideLeft", style: { fontSize: 11 } }}
               />
               <Tooltip
-                labelFormatter={(week) => `Week ${week}`}
-                formatter={(value, name) => [value ?? "—", name]}
+                content={
+                  <AttendanceTrendsTooltip
+                    series={chart.series}
+                    eventsBySeries={chart.eventsBySeries}
+                  />
+                }
               />
               <Legend />
               {chart.series.map((series, index) => (

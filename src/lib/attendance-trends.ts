@@ -55,6 +55,7 @@ export type AttendanceTrendSemesterInput = {
 
 export type AttendanceTrendEventInput = {
   id: number;
+  name: string;
   startDate: Date;
   type: string | null;
   totalStudents: number | null;
@@ -78,10 +79,19 @@ export type AttendanceTrendsChartPoint = {
   weekLabel: string;
 } & Record<string, string | number | null>;
 
+export type AttendanceTrendChartEvent = {
+  id: number;
+  name: string;
+  type: string | null;
+  startDate: string;
+};
+
 export type AttendanceTrendsChart = {
   weeks: number[];
   series: AttendanceTrendSeries[];
   points: AttendanceTrendsChartPoint[];
+  /** Series key, then week index: events that contribute to that point. */
+  eventsBySeries: Record<string, AttendanceTrendChartEvent[][]>;
 };
 
 export function parseAttendanceTrendsSeason(value: string | undefined): SemesterSeason {
@@ -134,28 +144,55 @@ function demographicFiltersActive(filters: AttendanceTrendsFilters): boolean {
   return filters.genders.length > 0 || filters.years.length > 0;
 }
 
-/** Distinct students at the week's events. Headcount is used only when an event has no roster. */
-function uniqueStudentsForWeek(
+function eventContributesToPoint(
+  records: AttendanceTrendRecordInput[],
+  matching: AttendanceTrendRecordInput[],
+  filters: AttendanceTrendsFilters
+): boolean {
+  if (matching.length > 0) return true;
+  return records.length === 0 && !demographicFiltersActive(filters);
+}
+
+function chartEvent(event: AttendanceTrendEventInput): AttendanceTrendChartEvent {
+  const name = event.name.trim();
+  return {
+    id: event.id,
+    name: name || "Untitled event",
+    type: event.type,
+    startDate: event.startDate.toISOString(),
+  };
+}
+
+/** Distinct students at the week's events, plus the events that contribute to that count. */
+function summarizeWeek(
   events: AttendanceTrendEventInput[],
   recordsByEvent: Map<number, AttendanceTrendRecordInput[]>,
   filters: AttendanceTrendsFilters
-): number {
+): { count: number; events: AttendanceTrendChartEvent[] } {
   const studentIds = new Set<number>();
   let unrecorded = 0;
+  const contributing: AttendanceTrendEventInput[] = [];
 
   for (const event of events) {
     const records = recordsByEvent.get(event.id) ?? [];
     const matching = records.filter((record) => recordMatchesFilters(record, filters));
+    if (!eventContributesToPoint(records, matching, filters)) continue;
+    contributing.push(event);
     if (matching.length > 0) {
       for (const record of matching) studentIds.add(record.studentId);
-      continue;
-    }
-    if (records.length === 0 && !demographicFiltersActive(filters)) {
+    } else {
       unrecorded += event.totalStudents ?? 0;
     }
   }
 
-  return studentIds.size + unrecorded;
+  contributing.sort(
+    (a, b) => a.startDate.getTime() - b.startDate.getTime() || a.name.localeCompare(b.name)
+  );
+
+  return {
+    count: studentIds.size + unrecorded,
+    events: contributing.map(chartEvent),
+  };
 }
 
 export function buildAttendanceTrendsChart(args: {
@@ -197,7 +234,7 @@ export function buildAttendanceTrendsChart(args: {
     .sort((a, b) => a.sortYear - b.sortYear || a.label.localeCompare(b.label));
 
   if (prepared.length === 0) {
-    return { weeks: [], series: [], points: [] };
+    return { weeks: [], series: [], points: [], eventsBySeries: {} };
   }
 
   const maxWeek = Math.max(...prepared.map((entry) => entry.lastWeek));
@@ -209,6 +246,7 @@ export function buildAttendanceTrendsChart(args: {
   }));
 
   const valuesBySeries = new Map<string, Array<number | null>>();
+  const eventsBySeries: Record<string, AttendanceTrendChartEvent[][]> = {};
   for (const entry of prepared) {
     const eventsByWeek = new Map<number, AttendanceTrendEventInput[]>();
     for (const event of entry.events) {
@@ -219,11 +257,15 @@ export function buildAttendanceTrendsChart(args: {
       list.push(event);
       eventsByWeek.set(week, list);
     }
-    const values: Array<number | null> = weeks.map((week) => {
+    const summaries = weeks.map((week) => {
       if (week > entry.lastWeek) return null;
-      return uniqueStudentsForWeek(eventsByWeek.get(week) ?? [], recordsByEvent, filters);
+      return summarizeWeek(eventsByWeek.get(week) ?? [], recordsByEvent, filters);
     });
-    valuesBySeries.set(entry.key, values);
+    valuesBySeries.set(
+      entry.key,
+      summaries.map((summary) => summary?.count ?? null)
+    );
+    eventsBySeries[entry.key] = summaries.map((summary) => summary?.events ?? []);
   }
 
   const points: AttendanceTrendsChartPoint[] = weeks.map((week) => {
@@ -237,5 +279,5 @@ export function buildAttendanceTrendsChart(args: {
     return point;
   });
 
-  return { weeks, series, points };
+  return { weeks, series, points, eventsBySeries };
 }

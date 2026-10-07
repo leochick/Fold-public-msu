@@ -21,6 +21,7 @@ export type AttendanceTrendsSemesterPayload = {
 
 export type AttendanceTrendsEventPayload = {
   id: number;
+  name: string;
   startDate: string;
   type: string | null;
   totalStudents: number | null;
@@ -89,6 +90,7 @@ export async function getAttendanceTrendsPayload(
   const eventRows = await db
     .select({
       id: events.id,
+      name: events.name,
       startDate: events.startDate,
       type: events.type,
       totalStudents: events.totalStudents,
@@ -99,6 +101,7 @@ export async function getAttendanceTrendsPayload(
 
   const eventPayload: AttendanceTrendsEventPayload[] = eventRows.map((row) => ({
     id: row.id,
+    name: row.name,
     startDate: new Date(row.startDate).toISOString(),
     type: row.type,
     totalStudents: row.totalStudents,
