@@ -94,6 +94,17 @@ export type AttendanceTrendsChart = {
   eventsBySeries: Record<string, AttendanceTrendChartEvent[][]>;
 };
 
+/** Split tooltip blocks into two columns, keeping a year heading with the events that follow it. */
+export function splitAttendanceTooltipColumns<T extends { kind: "header" | "event" }>(
+  items: readonly T[]
+): [T[], T[]] {
+  if (items.length < 2) return [items.slice(), []];
+  let split = Math.ceil(items.length / 2);
+  if (items[split - 1]?.kind === "header") split -= 1;
+  if (split < 1) split = 1;
+  return [items.slice(0, split), items.slice(split)];
+}
+
 export function parseAttendanceTrendsSeason(value: string | undefined): SemesterSeason {
   return value === "spring" ? "spring" : "fall";
 }

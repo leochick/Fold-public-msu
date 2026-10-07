@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -18,6 +18,7 @@ import {
   ATTENDANCE_TREND_YEARS,
   EMPTY_ATTENDANCE_TRENDS_FILTERS,
   buildAttendanceTrendsChart,
+  splitAttendanceTooltipColumns,
   type AttendanceTrendChartEvent,
   type AttendanceTrendGender,
   type AttendanceTrendSeries,
@@ -47,6 +48,141 @@ function formatTrendEventDate(iso: string): string {
     day: "numeric",
     year: "numeric",
   });
+}
+
+type AttendanceTooltipRow = {
+  key: string;
+  label: string;
+  value: number;
+  color: string;
+  events: AttendanceTrendChartEvent[];
+};
+
+type AttendanceTooltipBlock =
+  | { kind: "header"; key: string; row: AttendanceTooltipRow }
+  | { kind: "event"; key: string; event: AttendanceTrendChartEvent };
+
+function tooltipBlocks(rows: AttendanceTooltipRow[]): AttendanceTooltipBlock[] {
+  const blocks: AttendanceTooltipBlock[] = [];
+  for (const row of rows) {
+    blocks.push({ kind: "header", key: `header-${row.key}`, row });
+    for (const event of row.events) {
+      blocks.push({ kind: "event", key: `event-${event.id}`, event });
+    }
+  }
+  return blocks;
+}
+
+function TooltipYearHeader({ row, spread = true }: { row: AttendanceTooltipRow; spread?: boolean }) {
+  return (
+    <div className={spread ? "flex items-baseline justify-between gap-4" : "flex items-baseline gap-2"}>
+      <span className="font-medium" style={{ color: row.color }}>
+        {row.label}
+      </span>
+      <span className="tabular-nums">{row.value}</span>
+    </div>
+  );
+}
+
+function TooltipEventLine({ event }: { event: AttendanceTrendChartEvent }) {
+  return (
+    <div className="text-black/70 dark:text-white/70">
+      <span className="text-black dark:text-white">{event.name}</span>
+      <span className="block">
+        {formatTrendEventDate(event.startDate)}
+        {event.type ? ` · ${event.type}` : ""}
+      </span>
+    </div>
+  );
+}
+
+function AttendanceTrendsTooltipBody({
+  week,
+  rows,
+}: {
+  week: number;
+  rows: AttendanceTooltipRow[];
+}) {
+  const contentKey = `${week}:${rows
+    .map((row) => `${row.key}:${row.events.map((event) => event.id).join(",")}`)
+    .join("|")}`;
+  const scrollerRef = useRef<HTMLDivElement>(null);
+  const [layout, setLayout] = useState({ key: contentKey, columns: 1 as 1 | 2 });
+
+  if (layout.key !== contentKey) {
+    setLayout({ key: contentKey, columns: 1 });
+  }
+
+  const columns = layout.key === contentKey ? layout.columns : 1;
+  const blocks = tooltipBlocks(rows);
+
+  useLayoutEffect(() => {
+    const el = scrollerRef.current;
+    if (!el || columns !== 1) return;
+
+    const measure = () => {
+      if (el.clientHeight === 0 || blocks.length < 2) return;
+      if (el.scrollHeight > el.clientHeight + 1) {
+        setLayout({ key: contentKey, columns: 2 });
+      }
+    };
+
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [blocks.length, columns, contentKey]);
+
+  const [leftColumn, rightColumn] = splitAttendanceTooltipColumns(blocks);
+
+  return (
+    <div
+      ref={scrollerRef}
+      className={
+        columns === 2
+          ? "w-[36rem] max-w-[calc(100vw-1.5rem)] overflow-visible rounded-lg border border-black/10 bg-white px-3 py-2 text-xs shadow-lg dark:border-white/10 dark:bg-neutral-900"
+          : "max-h-72 max-w-sm overflow-y-auto rounded-lg border border-black/10 bg-white px-3 py-2 text-xs shadow-lg dark:border-white/10 dark:bg-neutral-900"
+      }
+    >
+      <p className="font-semibold">Week {week}</p>
+      {rows.length === 0 ? (
+        <p className="mt-1 text-black/50 dark:text-white/50">No events this week.</p>
+      ) : columns === 2 ? (
+        <div className="mt-2 grid grid-cols-2 items-start gap-x-5">
+          {[leftColumn, rightColumn].map((column, index) => (
+            <div key={index} className="space-y-1">
+              {column.map((block, blockIndex) =>
+                block.kind === "header" ? (
+                  <div key={block.key} className={blockIndex === 0 ? undefined : "pt-2"}>
+                    <TooltipYearHeader row={block.row} spread={false} />
+                  </div>
+                ) : (
+                  <TooltipEventLine key={block.key} event={block.event} />
+                )
+              )}
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="mt-2 space-y-3">
+          {rows.map((row) => (
+            <div key={row.key}>
+              <TooltipYearHeader row={row} />
+              {row.events.length > 0 && (
+                <ul className="mt-1 space-y-1">
+                  {row.events.map((event) => (
+                    <li key={event.id}>
+                      <TooltipEventLine event={event} />
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
 function AttendanceTrendsTooltip({
@@ -81,40 +217,7 @@ function AttendanceTrendsTooltip({
     ];
   });
 
-  return (
-    <div className="max-h-72 max-w-sm overflow-y-auto rounded-lg border border-black/10 bg-white px-3 py-2 text-xs shadow-lg dark:border-white/10 dark:bg-neutral-900">
-      <p className="font-semibold">Week {week}</p>
-      {rows.length === 0 ? (
-        <p className="mt-1 text-black/50 dark:text-white/50">No events this week.</p>
-      ) : (
-        <div className="mt-2 space-y-3">
-          {rows.map((row) => (
-            <div key={row.key}>
-              <div className="flex items-baseline justify-between gap-4">
-                <span className="font-medium" style={{ color: row.color }}>
-                  {row.label}
-                </span>
-                <span className="tabular-nums">{row.value}</span>
-              </div>
-              {row.events.length > 0 && (
-                <ul className="mt-1 space-y-1">
-                  {row.events.map((event) => (
-                    <li key={event.id} className="text-black/70 dark:text-white/70">
-                      <span className="text-black dark:text-white">{event.name}</span>
-                      <span className="block">
-                        {formatTrendEventDate(event.startDate)}
-                        {event.type ? ` · ${event.type}` : ""}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
+  return <AttendanceTrendsTooltipBody week={week} rows={rows} />;
 }
 
 export default function AttendanceTrendsClient({

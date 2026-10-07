@@ -4,12 +4,50 @@ import {
   buildAttendanceTrendsChart,
   lastWeekNumberForSemester,
   parseAttendanceTrendsSeason,
+  splitAttendanceTooltipColumns,
 } from "@/lib/attendance-trends";
 import { emptyAcademicSemester } from "../../../drizzle/schema";
 
 function date(iso: string) {
   return parseDashboardDateStart(iso)!;
 }
+
+describe("splitAttendanceTooltipColumns", () => {
+  it("keeps a short list in one column", () => {
+    expect(splitAttendanceTooltipColumns([{ kind: "header" as const }])).toEqual([
+      [{ kind: "header" }],
+      [],
+    ]);
+  });
+
+  it("splits events into two columns and keeps a year heading with the events after it", () => {
+    const items = [
+      { kind: "header" as const, key: "2025" },
+      { kind: "event" as const, key: "a" },
+      { kind: "event" as const, key: "b" },
+      { kind: "header" as const, key: "2026" },
+      { kind: "event" as const, key: "c" },
+      { kind: "event" as const, key: "d" },
+    ];
+    const [left, right] = splitAttendanceTooltipColumns(items);
+    expect(left.map((item) => item.key)).toEqual(["2025", "a", "b"]);
+    expect(right.map((item) => item.key)).toEqual(["2026", "c", "d"]);
+    expect(right[0]?.kind).toBe("header");
+  });
+
+  it("moves a year heading into the second column instead of leaving it alone at the bottom of the first", () => {
+    const items = [
+      { kind: "header" as const, key: "2025" },
+      { kind: "event" as const, key: "a" },
+      { kind: "header" as const, key: "2026" },
+      { kind: "event" as const, key: "b" },
+      { kind: "event" as const, key: "c" },
+    ];
+    const [left, right] = splitAttendanceTooltipColumns(items);
+    expect(left.map((item) => item.key)).toEqual(["2025", "a"]);
+    expect(right.map((item) => item.key)).toEqual(["2026", "b", "c"]);
+  });
+});
 
 describe("parseAttendanceTrendsSeason", () => {
   it("defaults to fall and only accepts spring as the other value", () => {
