@@ -109,8 +109,8 @@ describe("buildAttendanceTrendsChart", () => {
       semesters: [fall2025],
       events: [{ id: 1, startDate: date("2025-08-26"), type: "Weekly", totalStudents: null }],
       records: [
-        { eventId: 1, gender: "M", year: "freshman" },
-        { eventId: 1, gender: "F", year: "sophomore" },
+        { eventId: 1, studentId: 1, gender: "M", year: "freshman" },
+        { eventId: 1, studentId: 2, gender: "F", year: "sophomore" },
       ],
     });
     expect(chart.points[1]?.["year-1"]).toBe(2);
@@ -134,10 +134,10 @@ describe("buildAttendanceTrendsChart", () => {
       semesters: [fall2025],
       events: [{ id: 1, startDate: date("2025-08-26"), type: "Weekly", totalStudents: 50 }],
       records: [
-        { eventId: 1, gender: "M", year: "freshman" },
-        { eventId: 1, gender: "M", year: "senior" },
-        { eventId: 1, gender: "F", year: "freshman" },
-        { eventId: 1, gender: null, year: "freshman" },
+        { eventId: 1, studentId: 1, gender: "M", year: "freshman" },
+        { eventId: 1, studentId: 2, gender: "M", year: "senior" },
+        { eventId: 1, studentId: 3, gender: "F", year: "freshman" },
+        { eventId: 1, studentId: 4, gender: null, year: "freshman" },
       ],
       filters: { eventTypes: [], genders: ["M"], years: ["freshman"] },
     });
@@ -148,9 +148,65 @@ describe("buildAttendanceTrendsChart", () => {
     const chart = buildAttendanceTrendsChart({
       semesters: [fall2025],
       events: [{ id: 1, startDate: date("2025-08-26"), type: "Weekly", totalStudents: 8 }],
-      records: [{ eventId: 1, gender: "F", year: "junior" }],
+      records: [
+        { eventId: 1, studentId: 1, gender: "F", year: "junior" },
+        { eventId: 1, studentId: 2, gender: "M", year: "senior" },
+      ],
       filters: { eventTypes: [], genders: [], years: [] },
     });
-    expect(chart.points[1]?.["year-1"]).toBe(8);
+    expect(chart.points[1]?.["year-1"]).toBe(2);
+  });
+
+  it("counts each student once when they attend multiple event types in the same week", () => {
+    const chart = buildAttendanceTrendsChart({
+      semesters: [fall2025],
+      events: [
+        { id: 1, startDate: date("2025-08-26"), type: "Weekly", totalStudents: 3 },
+        { id: 2, startDate: date("2025-08-28"), type: "Social", totalStudents: 2 },
+      ],
+      records: [
+        { eventId: 1, studentId: 1, gender: "M", year: "freshman" },
+        { eventId: 1, studentId: 2, gender: "F", year: "sophomore" },
+        { eventId: 1, studentId: 3, gender: "M", year: "junior" },
+        { eventId: 2, studentId: 1, gender: "M", year: "freshman" },
+        { eventId: 2, studentId: 4, gender: "F", year: "senior" },
+      ],
+      filters: { eventTypes: ["Weekly", "Social"], genders: [], years: [] },
+    });
+    expect(chart.points[1]?.["year-1"]).toBe(4);
+  });
+
+  it("counts a student in each week they attend", () => {
+    const chart = buildAttendanceTrendsChart({
+      semesters: [fall2025],
+      events: [
+        { id: 1, startDate: date("2025-08-26"), type: "Weekly", totalStudents: 1 },
+        { id: 2, startDate: date("2025-09-02"), type: "Social", totalStudents: 1 },
+      ],
+      records: [
+        { eventId: 1, studentId: 1, gender: "F", year: "junior" },
+        { eventId: 2, studentId: 1, gender: "F", year: "junior" },
+      ],
+    });
+    expect(chart.points[1]?.["year-1"]).toBe(1);
+    expect(chart.points[2]?.["year-1"]).toBe(1);
+  });
+
+  it("still dedupes students when a gender or year filter is on", () => {
+    const chart = buildAttendanceTrendsChart({
+      semesters: [fall2025],
+      events: [
+        { id: 1, startDate: date("2025-08-26"), type: "Weekly", totalStudents: 10 },
+        { id: 2, startDate: date("2025-08-28"), type: "Social", totalStudents: 10 },
+      ],
+      records: [
+        { eventId: 1, studentId: 1, gender: "M", year: "freshman" },
+        { eventId: 1, studentId: 2, gender: "F", year: "freshman" },
+        { eventId: 2, studentId: 1, gender: "M", year: "freshman" },
+        { eventId: 2, studentId: 3, gender: "M", year: "senior" },
+      ],
+      filters: { eventTypes: [], genders: ["M"], years: ["freshman"] },
+    });
+    expect(chart.points[1]?.["year-1"]).toBe(1);
   });
 });

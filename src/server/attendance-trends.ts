@@ -28,6 +28,7 @@ export type AttendanceTrendsEventPayload = {
 
 export type AttendanceTrendsRecordPayload = {
   eventId: number;
+  studentId: number;
   gender: "M" | "F" | null;
   year: string | null;
 };
@@ -110,6 +111,7 @@ export async function getAttendanceTrendsPayload(
       : await db
           .select({
             eventId: attendances.eventId,
+            studentId: attendances.studentId,
             gender: students.gender,
             year: students.year,
           })
@@ -124,6 +126,7 @@ export async function getAttendanceTrendsPayload(
     events: eventPayload,
     records: recordRows.map((row) => ({
       eventId: row.eventId,
+      studentId: row.studentId,
       gender: row.gender,
       year: row.year,
     })),

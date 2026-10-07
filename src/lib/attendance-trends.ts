@@ -62,6 +62,7 @@ export type AttendanceTrendEventInput = {
 
 export type AttendanceTrendRecordInput = {
   eventId: number;
+  studentId: number;
   gender: AttendanceTrendGender | null;
   year: string | null;
 };
@@ -133,16 +134,28 @@ function demographicFiltersActive(filters: AttendanceTrendsFilters): boolean {
   return filters.genders.length > 0 || filters.years.length > 0;
 }
 
-function attendanceForEvent(
-  event: AttendanceTrendEventInput,
-  records: AttendanceTrendRecordInput[],
+/** Distinct students at the week's events. Headcount is used only when an event has no roster. */
+function uniqueStudentsForWeek(
+  events: AttendanceTrendEventInput[],
+  recordsByEvent: Map<number, AttendanceTrendRecordInput[]>,
   filters: AttendanceTrendsFilters
 ): number {
-  if (demographicFiltersActive(filters)) {
-    return records.filter((record) => recordMatchesFilters(record, filters)).length;
+  const studentIds = new Set<number>();
+  let unrecorded = 0;
+
+  for (const event of events) {
+    const records = recordsByEvent.get(event.id) ?? [];
+    const matching = records.filter((record) => recordMatchesFilters(record, filters));
+    if (matching.length > 0) {
+      for (const record of matching) studentIds.add(record.studentId);
+      continue;
+    }
+    if (records.length === 0 && !demographicFiltersActive(filters)) {
+      unrecorded += event.totalStudents ?? 0;
+    }
   }
-  const recorded = records.length;
-  return event.totalStudents ?? recorded;
+
+  return studentIds.size + unrecorded;
 }
 
 export function buildAttendanceTrendsChart(args: {
@@ -197,14 +210,19 @@ export function buildAttendanceTrendsChart(args: {
 
   const valuesBySeries = new Map<string, Array<number | null>>();
   for (const entry of prepared) {
-    const values: Array<number | null> = weeks.map((week) => (week > entry.lastWeek ? null : 0));
+    const eventsByWeek = new Map<number, AttendanceTrendEventInput[]>();
     for (const event of entry.events) {
       if (!eventMatchesType(event, filters)) continue;
       const week = weekNumberForDate(entry.classesBegin, event.startDate);
       if (week == null || week > entry.lastWeek) continue;
-      const records = recordsByEvent.get(event.id) ?? [];
-      values[week] = (values[week] ?? 0) + attendanceForEvent(event, records, filters);
+      const list = eventsByWeek.get(week) ?? [];
+      list.push(event);
+      eventsByWeek.set(week, list);
     }
+    const values: Array<number | null> = weeks.map((week) => {
+      if (week > entry.lastWeek) return null;
+      return uniqueStudentsForWeek(eventsByWeek.get(week) ?? [], recordsByEvent, filters);
+    });
     valuesBySeries.set(entry.key, values);
   }
 

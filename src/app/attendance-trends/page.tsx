@@ -29,7 +29,8 @@ export default async function AttendanceTrendsPage({
         <h1 className="text-2xl font-semibold tracking-tight">Year Over Year</h1>
         <p className="mt-1 text-sm text-black/60 dark:text-white/60">
           Compare weekly attendance across {season === "fall" ? "Fall" : "Spring"} semesters.
-          This view is not limited to the current semester.
+          This view is not limited to the current semester. The chart reflects the unique
+          number of students across event types.
         </p>
       </div>
 
