@@ -1,6 +1,6 @@
-import { and, asc, gte, lte } from "drizzle-orm";
+import { and, asc, eq, gte, lte, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { events } from "../../drizzle/schema";
+import { attendances, events } from "../../drizzle/schema";
 import { parseDashboardDateStart } from "@/lib/dashboard-date-range";
 import {
   buildSemesterColumn,
@@ -39,9 +39,13 @@ export async function getSemesterPlanningColumns(
       name: events.name,
       startDate: events.startDate,
       notes: events.notes,
+      totalStudents: events.totalStudents,
+      attendanceCount: sql<number>`count(${attendances.id})`.as("attendance_count"),
     })
     .from(events)
+    .leftJoin(attendances, eq(attendances.eventId, events.id))
     .where(and(gte(events.startDate, from), lte(events.startDate, to)))
+    .groupBy(events.id)
     .orderBy(asc(events.startDate));
 
   const planningEvents = eventRows.map((row) => ({
@@ -49,6 +53,8 @@ export async function getSemesterPlanningColumns(
     name: row.name,
     startDate: new Date(row.startDate),
     notes: row.notes,
+    totalStudents: row.totalStudents,
+    attendanceCount: Number(row.attendanceCount) || 0,
   }));
 
   return candidates

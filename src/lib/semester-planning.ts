@@ -4,7 +4,11 @@ import {
   parseDashboardDateEnd,
   parseDashboardDateStart,
 } from "@/lib/dashboard-date-range";
-import type { AcademicHoliday, AcademicSemesterData } from "../../drizzle/schema";
+import type {
+  AcademicFootballGame,
+  AcademicHoliday,
+  AcademicSemesterData,
+} from "../../drizzle/schema";
 
 export const SEMESTER_WEEK_MAX = 16;
 
@@ -16,6 +20,13 @@ export type ParsedAcademicYearName = {
 };
 
 const DAY_MS = 86400_000;
+const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
+
+/** "Fri - Aug 29, 2025" */
+export function formatSemesterPlanningDateLabel(date: Date): string {
+  const weekday = WEEKDAY_LABELS[date.getUTCDay()];
+  return `${weekday} - ${formatDashboardDateLabel(date)}`;
+}
 
 /** Parse names like "2025-26" or "2025-2026" into start/end calendar years. */
 export function parseAcademicYearName(name: string): ParsedAcademicYearName | null {
@@ -107,11 +118,18 @@ export function formatSpecialLabel(name: string, startIso: string | null, endIso
   if (!startIso) return trimmed;
   const start = parseDashboardDateStart(startIso);
   if (!start) return trimmed;
-  const startLabel = formatDashboardDateLabel(start);
+  const startLabel = formatSemesterPlanningDateLabel(start);
   if (!endIso || endIso === startIso) return `${trimmed} (${startLabel})`;
   const end = parseDashboardDateStart(endIso) ?? parseDashboardDateEnd(endIso);
   if (!end) return `${trimmed} (${startLabel})`;
-  return `${trimmed} (${startLabel} – ${formatDashboardDateLabel(end)})`;
+  return `${trimmed} (${startLabel} – ${formatSemesterPlanningDateLabel(end)})`;
+}
+
+function footballGameTitle(game: AcademicFootballGame): string {
+  const name = game.name.trim() || "Football";
+  if (game.venue === "home") return `${name} (Home)`;
+  if (game.venue === "away") return `${name} (Away)`;
+  return name;
 }
 
 /** Holidays and finals that overlap a given week. */
@@ -129,6 +147,21 @@ export function specialsForWeek(
     if (!range) continue;
     if (!rangesOverlap(range.start, range.end, weekStart, weekEnd)) continue;
     labels.push(formatSpecialLabel(holiday.name, holiday.startDate, holiday.endDate));
+  }
+
+  const footballGames = [...(semester.footballGames ?? [])].sort((a, b) => {
+    if (a.date && b.date && a.date !== b.date) return a.date < b.date ? -1 : 1;
+    if (a.date && !b.date) return -1;
+    if (!a.date && b.date) return 1;
+    return a.name.localeCompare(b.name);
+  });
+  for (const game of footballGames) {
+    if (!game.date) continue;
+    const start = parseDashboardDateStart(game.date);
+    const end = parseDashboardDateEnd(game.date);
+    if (!start || !end) continue;
+    if (!rangesOverlap(start, end, weekStart, weekEnd)) continue;
+    labels.push(formatSpecialLabel(footballGameTitle(game), game.date, null));
   }
 
   if (semester.finalExamsStart) {
@@ -155,7 +188,17 @@ export type SemesterPlanningEvent = {
   name: string;
   startDate: Date;
   notes: string | null;
+  /** Recorded headcount. Null when the event has no total-students value. */
+  totalStudents: number | null;
+  /** Students linked to the event through attendance. */
+  attendanceCount: number;
 };
+
+/** Prefer the recorded total. Otherwise count associated students. */
+export function eventAttendanceTotal(event: Pick<SemesterPlanningEvent, "totalStudents" | "attendanceCount">): number {
+  if (event.totalStudents != null && Number.isFinite(event.totalStudents)) return event.totalStudents;
+  return event.attendanceCount;
+}
 
 export type SemesterWeekCell = {
   weekNumber: number;
@@ -163,6 +206,8 @@ export type SemesterWeekCell = {
   events: Array<{
     id: number;
     name: string;
+    /** People who attended: recorded total, or associated students when that is blank. */
+    attendance: number;
     date: string;
     dateLabel: string;
     notes: string | null;
@@ -199,8 +244,9 @@ export function buildSemesterColumn(args: {
       .map((event) => ({
         id: event.id,
         name: event.name,
+        attendance: eventAttendanceTotal(event),
         date: formatDashboardDate(event.startDate),
-        dateLabel: formatDashboardDateLabel(event.startDate),
+        dateLabel: formatSemesterPlanningDateLabel(event.startDate),
         notes: event.notes,
       }));
 

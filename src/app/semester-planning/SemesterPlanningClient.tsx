@@ -128,7 +128,7 @@ function SubHeaders() {
     "px-3 py-2 text-left font-medium text-xs text-black/60 dark:text-white/60 border-l border-black/5 dark:border-white/10 whitespace-nowrap";
   return (
     <>
-      <th className={className}>Holidays/Special</th>
+      <th className={className}>Holidays/Special/Football</th>
       <th className={className}>Event</th>
       <th className={className}>Date</th>
       <th className={className}>Notes</th>
@@ -145,7 +145,7 @@ function SemesterCells({
   holidaysSpecial: string[];
   showHolidays: boolean;
   holidaysRowSpan: number;
-  event: { id: number; name: string; dateLabel: string; notes: string | null } | null;
+  event: { id: number; name: string; attendance: number; dateLabel: string; notes: string | null } | null;
 }) {
   const cell =
     "px-3 py-2 border-l border-black/5 dark:border-white/10 align-top min-w-[8rem]";
@@ -169,7 +169,7 @@ function SemesterCells({
       <td className={cell}>
         {event ? (
           <Link href={`/events/${event.id}`} className="hover:underline font-medium">
-            {event.name}
+            {event.name} ({event.attendance})
           </Link>
         ) : (
           <span className="text-black/30 dark:text-white/30">—</span>

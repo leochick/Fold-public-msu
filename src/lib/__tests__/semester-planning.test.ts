@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import { parseDashboardDateStart } from "@/lib/dashboard-date-range";
 import {
   buildSemesterColumn,
+  eventAttendanceTotal,
+  formatSemesterPlanningDateLabel,
   getWeek1Start,
   getWeekEnd,
   getWeekStart,
@@ -65,20 +67,53 @@ describe("specialsForWeek", () => {
       finalExamsStart: "2025-12-08",
       finalExamsEnd: "2025-12-12",
       holidays: [
+        { name: "Labor Day", startDate: "2025-09-01", endDate: null },
         { name: "Thanksgiving Break", startDate: "2025-11-27", endDate: "2025-11-28" },
+      ],
+      footballGames: [
+        { name: "MSU vs. UCLA", date: "2025-09-06", startTime: "15:30", venue: "home" },
+        { name: "MSU vs. Iowa", date: "2025-10-04", startTime: "12:00", venue: "away" },
       ],
     };
 
+    const laborDayWeek = weekNumberForDate(classesBegin, parseDashboardDateStart("2025-09-01")!)!;
+    const uclaWeek = weekNumberForDate(classesBegin, parseDashboardDateStart("2025-09-06")!)!;
     const thanksgivingWeek = weekNumberForDate(classesBegin, parseDashboardDateStart("2025-11-27")!)!;
     const finalsWeek = weekNumberForDate(classesBegin, parseDashboardDateStart("2025-12-08")!)!;
 
-    expect(specialsForWeek(semester, classesBegin, thanksgivingWeek).some((label) =>
-      label.includes("Thanksgiving")
-    )).toBe(true);
-    expect(specialsForWeek(semester, classesBegin, finalsWeek).some((label) =>
-      label.includes("Final Exams")
-    )).toBe(true);
+    expect(specialsForWeek(semester, classesBegin, laborDayWeek)).toContain(
+      "Labor Day (Mon - Sep 1, 2025)"
+    );
+    expect(specialsForWeek(semester, classesBegin, uclaWeek)).toContain(
+      "MSU vs. UCLA (Home) (Sat - Sep 6, 2025)"
+    );
+    expect(specialsForWeek(semester, classesBegin, thanksgivingWeek)).toContain(
+      "Thanksgiving Break (Thu - Nov 27, 2025 – Fri - Nov 28, 2025)"
+    );
+    const iowaWeek = weekNumberForDate(classesBegin, parseDashboardDateStart("2025-10-04")!)!;
+    expect(specialsForWeek(semester, classesBegin, iowaWeek)).toContain(
+      "MSU vs. Iowa (Away) (Sat - Oct 4, 2025)"
+    );
+    expect(specialsForWeek(semester, classesBegin, finalsWeek)).toContain(
+      "Final Exams (Mon - Dec 8, 2025 – Fri - Dec 12, 2025)"
+    );
     expect(specialsForWeek(semester, classesBegin, 1)).toEqual([]);
+  });
+});
+
+describe("eventAttendanceTotal", () => {
+  it("uses the recorded total when present, otherwise associated students", () => {
+    expect(eventAttendanceTotal({ totalStudents: 10, attendanceCount: 4 })).toBe(10);
+    expect(eventAttendanceTotal({ totalStudents: 0, attendanceCount: 4 })).toBe(0);
+    expect(eventAttendanceTotal({ totalStudents: null, attendanceCount: 7 })).toBe(7);
+  });
+});
+
+describe("formatSemesterPlanningDateLabel", () => {
+  it("prefixes the weekday", () => {
+    expect(formatSemesterPlanningDateLabel(parseDashboardDateStart("2025-08-29")!)).toBe(
+      "Fri - Aug 29, 2025"
+    );
   });
 });
 
@@ -108,21 +143,30 @@ describe("buildSemesterColumn", () => {
           name: "Welcome BBQ",
           startDate: parseDashboardDateStart("2025-08-26")!,
           notes: "Bring sides",
+          totalStudents: null,
+          attendanceCount: 12,
         },
         {
           id: 11,
-          name: "Core Meeting",
-          startDate: parseDashboardDateStart("2025-08-28")!,
+          name: "Anchor Friday",
+          startDate: parseDashboardDateStart("2025-08-29")!,
           notes: null,
+          totalStudents: 10,
+          attendanceCount: 3,
         },
       ],
     });
 
     expect(column?.label).toBe("Fall 2025");
     expect(column?.weeks).toHaveLength(17);
-    expect(column?.weeks[1]?.events.map((event) => event.name)).toEqual([
-      "Welcome BBQ",
-      "Core Meeting",
+    expect(
+      column?.weeks[1]?.events.map((event) => ({
+        label: `${event.name} (${event.attendance})`,
+        dateLabel: event.dateLabel,
+      }))
+    ).toEqual([
+      { label: "Welcome BBQ (12)", dateLabel: "Tue - Aug 26, 2025" },
+      { label: "Anchor Friday (10)", dateLabel: "Fri - Aug 29, 2025" },
     ]);
   });
 });
