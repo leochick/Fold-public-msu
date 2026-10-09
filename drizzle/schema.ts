@@ -383,6 +383,18 @@ export type AcademicHoliday = {
   endDate: string | null;
 };
 
+export type AcademicFootballVenue = "home" | "away";
+
+export type AcademicFootballGame = {
+  /** e.g. "MSU vs. Notre Dame" */
+  name: string;
+  /** YYYY-MM-DD */
+  date: string | null;
+  /** Kickoff as HH:MM (24-hour). Null when unannounced. */
+  startTime: string | null;
+  venue: AcademicFootballVenue | null;
+};
+
 export type AcademicSemesterData = {
   /** YYYY-MM-DD */
   newStudentsMoveIn: string | null;
@@ -395,6 +407,10 @@ export type AcademicSemesterData = {
   /** YYYY-MM-DD */
   finalExamsEnd: string | null;
   holidays: AcademicHoliday[];
+  /**
+   * Used on the fall semester. Omitted on older rows and unused on spring.
+   */
+  footballGames?: AcademicFootballGame[];
 };
 
 /** Break periods (Winter / Summer) store holidays only; date ranges are derived. */
@@ -409,6 +425,7 @@ export const emptyAcademicSemester = (): AcademicSemesterData => ({
   finalExamsStart: null,
   finalExamsEnd: null,
   holidays: [],
+  footballGames: [],
 });
 
 export const emptyAcademicBreak = (): AcademicBreakData => ({

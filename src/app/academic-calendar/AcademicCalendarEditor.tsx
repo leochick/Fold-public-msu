@@ -6,6 +6,8 @@ import {
   emptyAcademicBreak,
   emptyAcademicSemester,
   type AcademicBreakData,
+  type AcademicFootballGame,
+  type AcademicFootballVenue,
   type AcademicHoliday,
   type AcademicSemesterData,
 } from "../../../drizzle/schema";
@@ -24,17 +26,22 @@ function emptyHoliday(): AcademicHoliday {
   return { name: "", startDate: null, endDate: null };
 }
 
-function createHolidayKey() {
+function createLineKey() {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
     return crypto.randomUUID();
   }
-  return `holiday-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+  return `line-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+}
+
+function emptyFootballGame(): AcademicFootballGame {
+  return { name: "", date: null, startTime: null, venue: null };
 }
 
 function cloneSemester(semester: AcademicSemesterData): AcademicSemesterData {
   return {
     ...semester,
     holidays: semester.holidays.map((holiday) => ({ ...holiday })),
+    footballGames: (semester.footballGames ?? []).map((game) => ({ ...game })),
   };
 }
 
@@ -67,7 +74,7 @@ function HolidaysSection({
 
   function addHoliday() {
     onChange([...holidays, emptyHoliday()]);
-    onHolidayKeysChange([...holidayKeys, createHolidayKey()]);
+    onHolidayKeysChange([...holidayKeys, createLineKey()]);
   }
 
   function removeHoliday(index: number) {
@@ -155,6 +162,180 @@ function HolidaysSection({
   );
 }
 
+function FootballScheduleSection({
+  games,
+  gameKeys,
+  academicYearId,
+  onChange,
+  onGameKeysChange,
+}: {
+  games: AcademicFootballGame[];
+  gameKeys: string[];
+  academicYearId: number;
+  onChange: (next: AcademicFootballGame[]) => void;
+  onGameKeysChange: (next: string[]) => void;
+}) {
+  const [populating, setPopulating] = useState(false);
+  const [status, setStatus] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  function updateGame(index: number, patch: Partial<AcademicFootballGame>) {
+    onChange(games.map((game, gameIndex) => (gameIndex === index ? { ...game, ...patch } : game)));
+  }
+
+  function addGame() {
+    onChange([...games, emptyFootballGame()]);
+    onGameKeysChange([...gameKeys, createLineKey()]);
+    setStatus(null);
+    setError(null);
+  }
+
+  function removeGame(index: number) {
+    onChange(games.filter((_, gameIndex) => gameIndex !== index));
+    onGameKeysChange(gameKeys.filter((_, gameIndex) => gameIndex !== index));
+  }
+
+  async function autoPopulate() {
+    setPopulating(true);
+    setError(null);
+    setStatus(null);
+    try {
+      const response = await fetch("/api/academic-calendar/football-schedule", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ academicYearId }),
+      });
+      const data = (await response.json()) as {
+        error?: string;
+        school?: string;
+        games?: AcademicFootballGame[];
+      };
+      if (!response.ok) throw new Error(data.error ?? "Could not auto-populate the schedule");
+      const nextGames = data.games ?? [];
+      onChange(nextGames);
+      onGameKeysChange(nextGames.map(() => createLineKey()));
+      const countLabel = nextGames.length === 1 ? "1 game" : `${nextGames.length} games`;
+      setStatus(data.school ? `Filled ${countLabel} for ${data.school}.` : `Filled ${countLabel}.`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not auto-populate the schedule");
+    } finally {
+      setPopulating(false);
+    }
+  }
+
+  return (
+    <section className="space-y-3 border-t border-black/5 dark:border-white/10 pt-5">
+      <div className="flex items-start justify-between gap-3">
+        <h3 className="text-sm font-semibold">Football Schedule</h3>
+        <div className="flex flex-col items-end gap-2">
+          <button type="button" className="btn btn-ghost text-xs px-2 py-1" onClick={addGame}>
+            Add Football Game
+          </button>
+          <button
+            type="button"
+            className="btn btn-primary text-xs px-2 py-1"
+            onClick={autoPopulate}
+            disabled={populating}
+          >
+            {populating ? "Populating…" : "Auto-populate"}
+          </button>
+        </div>
+      </div>
+
+      {error ? (
+        <p className="text-sm text-red-600 dark:text-red-400" role="alert">
+          {error}
+        </p>
+      ) : status ? (
+        <p className="text-sm text-black/60 dark:text-white/60" aria-live="polite">
+          {status}
+        </p>
+      ) : null}
+
+      {games.length === 0 ? (
+        <p className="text-sm text-black/50 dark:text-white/50">
+          No football games yet. Add a game or auto-populate the schedule.
+        </p>
+      ) : (
+        <ul className="m-0 list-none space-y-3 p-0">
+          {games.map((game, index) => (
+            <li
+              key={gameKeys[index]}
+              className="grid grid-cols-1 lg:grid-cols-[minmax(12rem,1.4fr)_auto_auto_9rem_auto] gap-2 items-end"
+            >
+              <div>
+                <label className="label block mb-1" htmlFor={`fall-game-name-${index}`}>
+                  Game
+                </label>
+                <input
+                  id={`fall-game-name-${index}`}
+                  type="text"
+                  className="input"
+                  placeholder="e.g. MSU vs. Notre Dame"
+                  value={game.name}
+                  onChange={(event) => updateGame(index, { name: event.target.value })}
+                />
+              </div>
+              <div>
+                <label className="label block mb-1" htmlFor={`fall-game-date-${index}`}>
+                  Date
+                </label>
+                <input
+                  id={`fall-game-date-${index}`}
+                  type="date"
+                  className="input"
+                  value={game.date ?? ""}
+                  onChange={(event) => updateGame(index, { date: event.target.value || null })}
+                />
+              </div>
+              <div>
+                <label className="label block mb-1" htmlFor={`fall-game-time-${index}`}>
+                  Start time
+                </label>
+                <input
+                  id={`fall-game-time-${index}`}
+                  type="time"
+                  className="input"
+                  value={game.startTime ?? ""}
+                  onChange={(event) =>
+                    updateGame(index, { startTime: event.target.value || null })
+                  }
+                />
+              </div>
+              <div>
+                <label className="label block mb-1" htmlFor={`fall-game-venue-${index}`}>
+                  Home or Away
+                </label>
+                <select
+                  id={`fall-game-venue-${index}`}
+                  className="input"
+                  value={game.venue ?? ""}
+                  onChange={(event) =>
+                    updateGame(index, {
+                      venue: (event.target.value || null) as AcademicFootballVenue | null,
+                    })
+                  }
+                >
+                  <option value="">Home or Away</option>
+                  <option value="home">Home</option>
+                  <option value="away">Away</option>
+                </select>
+              </div>
+              <button
+                type="button"
+                className="btn btn-ghost text-xs px-2 py-1 text-red-600 dark:text-red-400"
+                onClick={() => removeGame(index)}
+              >
+                Remove
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
 function DerivedRangeDisplay({ range }: { range: DerivedDateRange }) {
   if (range.kind === "ready") {
     return (
@@ -180,15 +361,21 @@ function SemesterCard({
   semesterKey,
   semester,
   holidayKeys,
+  academicYearId,
+  footballKeys,
   onChange,
   onHolidayKeysChange,
+  onFootballKeysChange,
 }: {
   title: string;
   semesterKey: SemesterKey;
   semester: AcademicSemesterData;
   holidayKeys: string[];
+  academicYearId?: number;
+  footballKeys?: string[];
   onChange: (next: AcademicSemesterData) => void;
   onHolidayKeysChange: (next: string[]) => void;
+  onFootballKeysChange?: (next: string[]) => void;
 }) {
   const idPrefix = semesterKey;
 
@@ -273,6 +460,16 @@ function SemesterCard({
         onChange={(holidays) => updateField("holidays", holidays)}
         onHolidayKeysChange={onHolidayKeysChange}
       />
+
+      {semesterKey === "fall" && academicYearId != null && footballKeys && onFootballKeysChange && (
+        <FootballScheduleSection
+          academicYearId={academicYearId}
+          games={semester.footballGames ?? []}
+          gameKeys={footballKeys}
+          onChange={(footballGames) => updateField("footballGames", footballGames)}
+          onGameKeysChange={onFootballKeysChange}
+        />
+      )}
     </div>
   );
 }
@@ -315,16 +512,19 @@ export default function AcademicCalendarEditor({ year }: { year: AcademicYearDet
   const [winter, setWinter] = useState(() => cloneBreak(year.winter));
   const [summer, setSummer] = useState(() => cloneBreak(year.summer));
   const [fallHolidayKeys, setFallHolidayKeys] = useState(() =>
-    year.fall.holidays.map(() => createHolidayKey())
+    year.fall.holidays.map(() => createLineKey())
+  );
+  const [fallFootballKeys, setFallFootballKeys] = useState(() =>
+    (year.fall.footballGames ?? []).map(() => createLineKey())
   );
   const [springHolidayKeys, setSpringHolidayKeys] = useState(() =>
-    year.spring.holidays.map(() => createHolidayKey())
+    year.spring.holidays.map(() => createLineKey())
   );
   const [winterHolidayKeys, setWinterHolidayKeys] = useState(() =>
-    year.winter.holidays.map(() => createHolidayKey())
+    year.winter.holidays.map(() => createLineKey())
   );
   const [summerHolidayKeys, setSummerHolidayKeys] = useState(() =>
-    year.summer.holidays.map(() => createHolidayKey())
+    year.summer.holidays.map(() => createLineKey())
   );
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -345,10 +545,11 @@ export default function AcademicCalendarEditor({ year }: { year: AcademicYearDet
     setSpring(nextSpring);
     setWinter(nextWinter);
     setSummer(nextSummer);
-    setFallHolidayKeys(nextFall.holidays.map(() => createHolidayKey()));
-    setSpringHolidayKeys(nextSpring.holidays.map(() => createHolidayKey()));
-    setWinterHolidayKeys(nextWinter.holidays.map(() => createHolidayKey()));
-    setSummerHolidayKeys(nextSummer.holidays.map(() => createHolidayKey()));
+    setFallHolidayKeys(nextFall.holidays.map(() => createLineKey()));
+    setFallFootballKeys((nextFall.footballGames ?? []).map(() => createLineKey()));
+    setSpringHolidayKeys(nextSpring.holidays.map(() => createLineKey()));
+    setWinterHolidayKeys(nextWinter.holidays.map(() => createLineKey()));
+    setSummerHolidayKeys(nextSummer.holidays.map(() => createLineKey()));
     setSaveStatus("idle");
     setSaveError(null);
   }, [year.id]);
@@ -410,8 +611,11 @@ export default function AcademicCalendarEditor({ year }: { year: AcademicYearDet
         semesterKey="fall"
         semester={fall}
         holidayKeys={fallHolidayKeys}
+        academicYearId={year.id}
+        footballKeys={fallFootballKeys}
         onChange={setFall}
         onHolidayKeysChange={setFallHolidayKeys}
+        onFootballKeysChange={setFallFootballKeys}
       />
 
       <BreakCard

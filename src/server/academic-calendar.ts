@@ -1,6 +1,7 @@
 import { desc, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { findNextAcademicYear } from "@/lib/academic-calendar-breaks";
+import { normalizeFootballGames } from "@/lib/football-schedule";
 import {
   academicYears,
   emptyAcademicBreak,
@@ -64,6 +65,7 @@ function normalizeSemester(value: AcademicSemesterData | null | undefined): Acad
               : null,
         }))
       : [],
+    footballGames: normalizeFootballGames(value.footballGames),
   };
 }
 

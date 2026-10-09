@@ -13,6 +13,7 @@ import {
   type AcademicSemesterData,
 } from "../../drizzle/schema";
 import { isValidAcademicYearName } from "@/lib/academic-year-name";
+import { normalizeFootballGames } from "@/lib/football-schedule";
 
 function normalizeHolidays(holidays: AcademicHoliday[]): AcademicHoliday[] {
   if (!Array.isArray(holidays)) return [];
@@ -52,6 +53,7 @@ function normalizeSemester(semester: AcademicSemesterData): AcademicSemesterData
         ? semester.finalExamsEnd.trim()
         : null,
     holidays: normalizeHolidays(semester?.holidays ?? []),
+    footballGames: normalizeFootballGames(semester?.footballGames),
   };
 }
 
