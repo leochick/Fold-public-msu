@@ -33,10 +33,11 @@ const navItems: NavItem[] = [
     ],
   },
   {
-    label: "Attendance Trends",
+    label: "Reporting",
     items: [
       { href: "/attendance-trends", label: "Year Over Year" },
       { href: "/regulars", label: "Regulars (Current Semester)" },
+      { href: "/decisions", label: "Decisions" },
     ],
   },
   { href: "/staff-allocation", label: "Staff Allocation" },
