@@ -32,7 +32,7 @@ import CheckboxDropdown from "./CheckboxDropdown";
 
 const INCOMPLETE_POINT_COLOR = "#dc2626";
 const INCOMPLETE_POINT_LEGEND =
-  "Red points mean that student data is not fully captured for reported events.";
+  "Red points - Events do not have fully captured student data. Total count may contain duplicated students.";
 
 const LINE_COLORS = [
   "#7c3aed",
