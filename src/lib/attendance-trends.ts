@@ -77,7 +77,12 @@ export type AttendanceTrendSeries = {
 export type AttendanceTrendsChartPoint = {
   week: number;
   weekLabel: string;
-} & Record<string, string | number | null>;
+} & Record<string, string | number | boolean | null>;
+
+/** Chart-point field set when a multi-event week cannot fully de-duplicate reported attendance. */
+export function attendanceTrendIncompleteKey(seriesKey: string): string {
+  return `${seriesKey}Incomplete`;
+}
 
 export type AttendanceTrendChartEvent = {
   id: number;
@@ -174,35 +179,107 @@ function chartEvent(event: AttendanceTrendEventInput): AttendanceTrendChartEvent
   };
 }
 
-/** Distinct students at the week's events, plus the events that contribute to that count. */
+type WeekEventAttendance = {
+  event: AttendanceTrendEventInput;
+  /** Distinct associated students that count toward this point. */
+  studentIds: number[];
+};
+
+function distinctStudentIds(records: AttendanceTrendRecordInput[]): number[] {
+  return [...new Set(records.map((record) => record.studentId))];
+}
+
+/** Reported headcount when the event has one. Otherwise the associated-student count. */
+function reportedHeadcount(event: AttendanceTrendEventInput, studentIds: readonly number[]): number {
+  if (event.totalStudents != null && Number.isFinite(event.totalStudents)) return event.totalStudents;
+  return studentIds.length;
+}
+
+/**
+ * True when the reported headcount agrees with the associated students.
+ * Events with no reported headcount are treated as captured, because the count is those students.
+ */
+function reportedHeadcountMatchesAssociated(
+  event: AttendanceTrendEventInput,
+  studentIds: readonly number[]
+): boolean {
+  if (event.totalStudents == null || !Number.isFinite(event.totalStudents)) return true;
+  return event.totalStudents === studentIds.length;
+}
+
+/**
+ * Attendance for the events in one week.
+ *
+ * One event uses the reported headcount. Several events sum those headcounts and subtract
+ * students known to appear at more than one of them. That point is incomplete when a
+ * reported headcount does not match the students associated with that event, so the
+ * overlap cannot be fully removed.
+ *
+ * Gender and year filters count distinct matching students instead, because reported
+ * headcounts are not split by those fields.
+ */
 function summarizeWeek(
   events: AttendanceTrendEventInput[],
   recordsByEvent: Map<number, AttendanceTrendRecordInput[]>,
   filters: AttendanceTrendsFilters
-): { count: number; events: AttendanceTrendChartEvent[] } {
-  const studentIds = new Set<number>();
-  let unrecorded = 0;
-  const contributing: AttendanceTrendEventInput[] = [];
+): { count: number; events: AttendanceTrendChartEvent[]; incomplete: boolean } {
+  const contributing: WeekEventAttendance[] = [];
 
   for (const event of events) {
     const records = recordsByEvent.get(event.id) ?? [];
     const matching = records.filter((record) => recordMatchesFilters(record, filters));
     if (!eventContributesToPoint(records, matching, filters)) continue;
-    contributing.push(event);
-    if (matching.length > 0) {
-      for (const record of matching) studentIds.add(record.studentId);
-    } else {
-      unrecorded += event.totalStudents ?? 0;
-    }
+    contributing.push({ event, studentIds: distinctStudentIds(matching) });
   }
 
   contributing.sort(
-    (a, b) => a.startDate.getTime() - b.startDate.getTime() || a.name.localeCompare(b.name)
+    (a, b) =>
+      a.event.startDate.getTime() - b.event.startDate.getTime() ||
+      a.event.name.localeCompare(b.event.name)
   );
 
+  const chartEvents = contributing.map((row) => chartEvent(row.event));
+  if (contributing.length === 0) {
+    return { count: 0, events: chartEvents, incomplete: false };
+  }
+
+  if (demographicFiltersActive(filters)) {
+    const studentIds = new Set<number>();
+    for (const row of contributing) {
+      for (const studentId of row.studentIds) studentIds.add(studentId);
+    }
+    return { count: studentIds.size, events: chartEvents, incomplete: false };
+  }
+
+  const only = contributing[0];
+  if (contributing.length === 1 && only) {
+    return {
+      count: reportedHeadcount(only.event, only.studentIds),
+      events: chartEvents,
+      incomplete: false,
+    };
+  }
+
+  let reportedSum = 0;
+  let incomplete = false;
+  const appearances = new Map<number, number>();
+  for (const row of contributing) {
+    reportedSum += reportedHeadcount(row.event, row.studentIds);
+    if (!reportedHeadcountMatchesAssociated(row.event, row.studentIds)) incomplete = true;
+    for (const studentId of row.studentIds) {
+      appearances.set(studentId, (appearances.get(studentId) ?? 0) + 1);
+    }
+  }
+
+  let duplicateAppearances = 0;
+  for (const appearancesAtEvents of appearances.values()) {
+    if (appearancesAtEvents > 1) duplicateAppearances += appearancesAtEvents - 1;
+  }
+
   return {
-    count: studentIds.size + unrecorded,
-    events: contributing.map(chartEvent),
+    count: Math.max(0, reportedSum - duplicateAppearances),
+    events: chartEvents,
+    incomplete,
   };
 }
 
@@ -257,6 +334,7 @@ export function buildAttendanceTrendsChart(args: {
   }));
 
   const valuesBySeries = new Map<string, Array<number | null>>();
+  const incompleteBySeries = new Map<string, boolean[]>();
   const eventsBySeries: Record<string, AttendanceTrendChartEvent[][]> = {};
   for (const entry of prepared) {
     const eventsByWeek = new Map<number, AttendanceTrendEventInput[]>();
@@ -274,7 +352,11 @@ export function buildAttendanceTrendsChart(args: {
     });
     valuesBySeries.set(
       entry.key,
-      summaries.map((summary) => summary?.count ?? null)
+      summaries.map((summary) => (summary == null ? null : summary.count))
+    );
+    incompleteBySeries.set(
+      entry.key,
+      summaries.map((summary) => summary?.incomplete ?? false)
     );
     eventsBySeries[entry.key] = summaries.map((summary) => summary?.events ?? []);
   }
@@ -286,6 +368,8 @@ export function buildAttendanceTrendsChart(args: {
     };
     for (const entry of prepared) {
       point[entry.key] = valuesBySeries.get(entry.key)?.[week] ?? null;
+      point[attendanceTrendIncompleteKey(entry.key)] =
+        incompleteBySeries.get(entry.key)?.[week] ?? false;
     }
     return point;
   });

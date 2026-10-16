@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { parseDashboardDateStart } from "@/lib/dashboard-date-range";
 import {
+  attendanceTrendIncompleteKey,
   buildAttendanceTrendsChart,
   lastWeekNumberForSemester,
   parseAttendanceTrendsSeason,
@@ -128,7 +129,9 @@ describe("buildAttendanceTrendsChart", () => {
     expect(chart.points[0]?.weekLabel).toBe("Week 0");
     expect(chart.points.at(-1)?.weekLabel).toBe("Week 16");
     expect(chart.points[1]?.["year-1"]).toBe(25);
+    expect(chart.points[1]?.[attendanceTrendIncompleteKey("year-1")]).toBe(true);
     expect(chart.points[1]?.["year-2"]).toBe(18);
+    expect(chart.points[1]?.[attendanceTrendIncompleteKey("year-2")]).toBe(false);
     expect(chart.points[16]?.["year-2"]).toBeNull();
     expect(chart.eventsBySeries["year-1"]?.[1]?.map((event) => event.name)).toEqual([
       "Large Group",
@@ -192,7 +195,7 @@ describe("buildAttendanceTrendsChart", () => {
     expect(chart.points[1]?.["year-1"]).toBe(1);
   });
 
-  it("treats empty filters as all categories", () => {
+  it("uses reported attendance for a single event even when fewer students are associated", () => {
     const chart = buildAttendanceTrendsChart({
       semesters: [fall2025],
       events: [{ name: "Weekly", id: 1, startDate: date("2025-08-26"), type: "Weekly", totalStudents: 8 }],
@@ -202,7 +205,66 @@ describe("buildAttendanceTrendsChart", () => {
       ],
       filters: { eventTypes: [], genders: [], years: [] },
     });
+    expect(chart.points[1]?.["year-1"]).toBe(8);
+    expect(chart.points[1]?.[attendanceTrendIncompleteKey("year-1")]).toBe(false);
+  });
+
+  it("dedupes known students across events and flags the point when a reported headcount does not match", () => {
+    const chart = buildAttendanceTrendsChart({
+      semesters: [fall2025],
+      events: [
+        { name: "Weekly", id: 1, startDate: date("2025-08-26"), type: "Weekly", totalStudents: 10 },
+        { name: "Social", id: 2, startDate: date("2025-08-28"), type: "Social", totalStudents: 4 },
+      ],
+      records: [
+        { eventId: 1, studentId: 1, gender: "M", year: "freshman" },
+        { eventId: 1, studentId: 2, gender: "F", year: "sophomore" },
+        { eventId: 1, studentId: 3, gender: "M", year: "junior" },
+        { eventId: 2, studentId: 1, gender: "M", year: "freshman" },
+        { eventId: 2, studentId: 4, gender: "F", year: "senior" },
+        { eventId: 2, studentId: 5, gender: "M", year: "junior" },
+        { eventId: 2, studentId: 6, gender: "F", year: "sophomore" },
+      ],
+    });
+    // 10 + 4, minus the one student recorded at both events.
+    expect(chart.points[1]?.["year-1"]).toBe(13);
+    expect(chart.points[1]?.[attendanceTrendIncompleteKey("year-1")]).toBe(true);
+  });
+
+  it("does not flag a multi-event point when every reported headcount matches its students", () => {
+    const chart = buildAttendanceTrendsChart({
+      semesters: [fall2025],
+      events: [
+        { name: "Weekly", id: 1, startDate: date("2025-08-26"), type: "Weekly", totalStudents: 3 },
+        { name: "Social", id: 2, startDate: date("2025-08-28"), type: "Social", totalStudents: 2 },
+      ],
+      records: [
+        { eventId: 1, studentId: 1, gender: "M", year: "freshman" },
+        { eventId: 1, studentId: 2, gender: "F", year: "sophomore" },
+        { eventId: 1, studentId: 3, gender: "M", year: "junior" },
+        { eventId: 2, studentId: 1, gender: "M", year: "freshman" },
+        { eventId: 2, studentId: 4, gender: "F", year: "senior" },
+      ],
+    });
+    expect(chart.points[1]?.["year-1"]).toBe(4);
+    expect(chart.points[1]?.[attendanceTrendIncompleteKey("year-1")]).toBe(false);
+  });
+
+  it("dedupes associated students when several events have no reported headcount", () => {
+    const chart = buildAttendanceTrendsChart({
+      semesters: [fall2025],
+      events: [
+        { name: "Weekly", id: 1, startDate: date("2025-08-26"), type: "Weekly", totalStudents: null },
+        { name: "Social", id: 2, startDate: date("2025-08-28"), type: "Social", totalStudents: null },
+      ],
+      records: [
+        { eventId: 1, studentId: 1, gender: "M", year: "freshman" },
+        { eventId: 1, studentId: 2, gender: "F", year: "sophomore" },
+        { eventId: 2, studentId: 1, gender: "M", year: "freshman" },
+      ],
+    });
     expect(chart.points[1]?.["year-1"]).toBe(2);
+    expect(chart.points[1]?.[attendanceTrendIncompleteKey("year-1")]).toBe(false);
   });
 
   it("counts each student once when they attend multiple event types in the same week", () => {

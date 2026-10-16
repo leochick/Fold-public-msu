@@ -17,22 +17,28 @@ import {
   ATTENDANCE_TREND_GENDERS,
   ATTENDANCE_TREND_YEARS,
   EMPTY_ATTENDANCE_TRENDS_FILTERS,
+  attendanceTrendIncompleteKey,
   buildAttendanceTrendsChart,
   splitAttendanceTooltipColumns,
   type AttendanceTrendChartEvent,
   type AttendanceTrendGender,
   type AttendanceTrendSeries,
   type AttendanceTrendYear,
+  type AttendanceTrendsChartPoint,
   type AttendanceTrendsFilters,
 } from "@/lib/attendance-trends";
 import type { AttendanceTrendsPayload } from "@/server/attendance-trends";
 import CheckboxDropdown from "./CheckboxDropdown";
 
+const INCOMPLETE_POINT_COLOR = "#dc2626";
+const INCOMPLETE_POINT_LEGEND =
+  "Red points mean that student data is not fully captured for reported events.";
+
 const LINE_COLORS = [
   "#7c3aed",
   "#10b981",
   "#f59e0b",
-  "#ef4444",
+  "#6366f1",
   "#3b82f6",
   "#a855f7",
   "#14b8a6",
@@ -185,6 +191,79 @@ function AttendanceTrendsTooltipBody({
   );
 }
 
+type TrendDotProps = {
+  cx?: number;
+  cy?: number;
+  stroke?: string;
+  value?: unknown;
+  payload?: AttendanceTrendsChartPoint;
+};
+
+function TrendPointDot({
+  cx,
+  cy,
+  stroke,
+  value,
+  payload,
+  incompleteKey,
+  active = false,
+}: {
+  cx?: number;
+  cy?: number;
+  stroke?: string;
+  value?: unknown;
+  payload?: AttendanceTrendsChartPoint;
+  incompleteKey: string;
+  active?: boolean;
+}) {
+  if (typeof cx !== "number" || typeof cy !== "number" || typeof value !== "number") {
+    return <g />;
+  }
+  const incomplete = payload?.[incompleteKey] === true;
+  const radius = incomplete ? (active ? 6 : 4.5) : active ? 5 : 3;
+  return (
+    <circle
+      cx={cx}
+      cy={cy}
+      r={radius}
+      fill={incomplete ? INCOMPLETE_POINT_COLOR : stroke}
+      stroke={incomplete ? "#171717" : stroke}
+      strokeWidth={incomplete ? 1.5 : 1}
+    />
+  );
+}
+
+function AttendanceChartLegend({
+  payload,
+}: {
+  payload?: ReadonlyArray<{ value?: string; color?: string; dataKey?: unknown }>;
+}) {
+  return (
+    <div className="pt-1 text-center text-xs">
+      <ul className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1">
+        {(payload ?? []).map((entry) => (
+          <li key={String(entry.dataKey ?? entry.value)} className="inline-flex items-center gap-1.5">
+            <span
+              className="inline-block h-0.5 w-3.5 rounded-full"
+              style={{ backgroundColor: entry.color }}
+              aria-hidden
+            />
+            <span>{entry.value}</span>
+          </li>
+        ))}
+      </ul>
+      <p className="mx-auto mt-2 flex max-w-xl items-start justify-center gap-2 text-black/60 dark:text-white/60">
+        <span
+          className="mt-0.5 inline-block h-2.5 w-2.5 shrink-0 rounded-full border-2 border-neutral-900 dark:border-white"
+          style={{ backgroundColor: INCOMPLETE_POINT_COLOR }}
+          aria-hidden
+        />
+        <span>{INCOMPLETE_POINT_LEGEND}</span>
+      </p>
+    </div>
+  );
+}
+
 function AttendanceTrendsTooltip({
   active,
   label,
@@ -326,7 +405,7 @@ export default function AttendanceTrendsClient({
             )}
           </div>
         ) : (
-          <ResponsiveContainer width="100%" height={420}>
+          <ResponsiveContainer width="100%" height={460}>
             <LineChart data={chart.points} margin={{ top: 8, right: 24, left: 8, bottom: 8 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.06)" />
               <XAxis
@@ -349,19 +428,27 @@ export default function AttendanceTrendsClient({
                   />
                 }
               />
-              <Legend />
-              {chart.series.map((series, index) => (
-                <Line
-                  key={series.key}
-                  type="monotone"
-                  dataKey={series.key}
-                  name={series.label}
-                  stroke={LINE_COLORS[index % LINE_COLORS.length]}
-                  strokeWidth={2}
-                  dot={{ r: 3 }}
-                  connectNulls={false}
-                />
-              ))}
+              <Legend content={<AttendanceChartLegend />} />
+              {chart.series.map((series, index) => {
+                const incompleteKey = attendanceTrendIncompleteKey(series.key);
+                return (
+                  <Line
+                    key={series.key}
+                    type="monotone"
+                    dataKey={series.key}
+                    name={series.label}
+                    stroke={LINE_COLORS[index % LINE_COLORS.length]}
+                    strokeWidth={2}
+                    dot={(dotProps: TrendDotProps) => (
+                      <TrendPointDot {...dotProps} incompleteKey={incompleteKey} />
+                    )}
+                    activeDot={(dotProps: TrendDotProps) => (
+                      <TrendPointDot {...dotProps} incompleteKey={incompleteKey} active />
+                    )}
+                    connectNulls={false}
+                  />
+                );
+              })}
             </LineChart>
           </ResponsiveContainer>
         )}
