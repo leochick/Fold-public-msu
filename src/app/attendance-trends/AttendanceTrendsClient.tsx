@@ -1,6 +1,6 @@
 "use client";
 
-import { useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -9,7 +9,6 @@ import {
   Line,
   LineChart,
   ResponsiveContainer,
-  Tooltip,
   XAxis,
   YAxis,
 } from "recharts";
@@ -19,10 +18,8 @@ import {
   EMPTY_ATTENDANCE_TRENDS_FILTERS,
   attendanceTrendIncompleteKey,
   buildAttendanceTrendsChart,
-  splitAttendanceTooltipColumns,
   type AttendanceTrendChartEvent,
   type AttendanceTrendGender,
-  type AttendanceTrendSeries,
   type AttendanceTrendYear,
   type AttendanceTrendsChartPoint,
   type AttendanceTrendsFilters,
@@ -56,7 +53,7 @@ function formatTrendEventDate(iso: string): string {
   });
 }
 
-type AttendanceTooltipRow = {
+type AttendancePointRow = {
   key: string;
   label: string;
   value: number;
@@ -64,24 +61,16 @@ type AttendanceTooltipRow = {
   events: AttendanceTrendChartEvent[];
 };
 
-type AttendanceTooltipBlock =
-  | { kind: "header"; key: string; row: AttendanceTooltipRow }
-  | { kind: "event"; key: string; event: AttendanceTrendChartEvent };
+type SelectedTrendPoint = {
+  seriesKey: string;
+  week: number;
+  clientX: number;
+  clientY: number;
+};
 
-function tooltipBlocks(rows: AttendanceTooltipRow[]): AttendanceTooltipBlock[] {
-  const blocks: AttendanceTooltipBlock[] = [];
-  for (const row of rows) {
-    blocks.push({ kind: "header", key: `header-${row.key}`, row });
-    for (const event of row.events) {
-      blocks.push({ kind: "event", key: `event-${event.id}`, event });
-    }
-  }
-  return blocks;
-}
-
-function TooltipYearHeader({ row, spread = true }: { row: AttendanceTooltipRow; spread?: boolean }) {
+function TooltipYearHeader({ row }: { row: AttendancePointRow }) {
   return (
-    <div className={spread ? "flex items-baseline justify-between gap-4" : "flex items-baseline gap-2"}>
+    <div className="flex items-baseline justify-between gap-4">
       <span className="font-medium" style={{ color: row.color }}>
         {row.label}
       </span>
@@ -91,102 +80,113 @@ function TooltipYearHeader({ row, spread = true }: { row: AttendanceTooltipRow; 
 }
 
 function TooltipEventLine({ event }: { event: AttendanceTrendChartEvent }) {
+  const incomplete = event.studentDataIncomplete;
+  const text = incomplete ? "text-red-600 dark:text-red-400" : "text-black dark:text-white";
+  const meta = incomplete ? "text-red-600/80 dark:text-red-400/80" : "text-black/70 dark:text-white/70";
   return (
-    <div className="text-black/70 dark:text-white/70">
-      <span className="text-black dark:text-white">{event.name}</span>
-      <span className="block">
+    <Link href={`/events/${event.id}`} className={`block rounded-sm ${text}`}>
+      <span className="hover:underline">{event.name}</span>
+      <span className={`block no-underline ${meta}`}>
         {formatTrendEventDate(event.startDate)}
         {event.type ? ` · ${event.type}` : ""}
       </span>
-    </div>
+    </Link>
   );
 }
 
-function AttendanceTrendsTooltipBody({
+function placePointPopover(clientX: number, clientY: number, width: number, height: number) {
+  const margin = 8;
+  const offset = 12;
+  let left = clientX + offset;
+  let top = clientY + offset;
+  if (left + width > window.innerWidth - margin) left = clientX - width - offset;
+  if (top + height > window.innerHeight - margin) top = clientY - height - offset;
+  return {
+    left: Math.max(margin, Math.min(left, window.innerWidth - width - margin)),
+    top: Math.max(margin, Math.min(top, window.innerHeight - height - margin)),
+  };
+}
+
+function YearPointPopover({
   week,
-  rows,
+  row,
+  clientX,
+  clientY,
+  onClose,
 }: {
   week: number;
-  rows: AttendanceTooltipRow[];
+  row: AttendancePointRow;
+  clientX: number;
+  clientY: number;
+  onClose: () => void;
 }) {
-  const contentKey = `${week}:${rows
-    .map((row) => `${row.key}:${row.events.map((event) => event.id).join(",")}`)
-    .join("|")}`;
-  const scrollerRef = useRef<HTMLDivElement>(null);
-  const [layout, setLayout] = useState({ key: contentKey, columns: 1 as 1 | 2 });
-
-  if (layout.key !== contentKey) {
-    setLayout({ key: contentKey, columns: 1 });
-  }
-
-  const columns = layout.key === contentKey ? layout.columns : 1;
-  const blocks = tooltipBlocks(rows);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const [position, setPosition] = useState<{ left: number; top: number } | null>(null);
+  const contentKey = `${week}:${row.key}:${row.events.map((event) => event.id).join(",")}`;
 
   useLayoutEffect(() => {
-    const el = scrollerRef.current;
-    if (!el || columns !== 1) return;
+    const el = panelRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    setPosition(placePointPopover(clientX, clientY, rect.width, rect.height));
+  }, [clientX, clientY, contentKey]);
 
-    const measure = () => {
-      if (el.clientHeight === 0 || blocks.length < 2) return;
-      if (el.scrollHeight > el.clientHeight + 1) {
-        setLayout({ key: contentKey, columns: 2 });
-      }
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") onClose();
+    }
+    function onPointerDown(event: PointerEvent) {
+      const target = event.target;
+      if (!(target instanceof Node)) return;
+      if (panelRef.current?.contains(target)) return;
+      if (target instanceof Element && target.closest("[data-trend-point]")) return;
+      onClose();
+    }
+    document.addEventListener("keydown", onKeyDown);
+    document.addEventListener("pointerdown", onPointerDown);
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+      document.removeEventListener("pointerdown", onPointerDown);
     };
-
-    measure();
-    const observer = new ResizeObserver(measure);
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, [blocks.length, columns, contentKey]);
-
-  const [leftColumn, rightColumn] = splitAttendanceTooltipColumns(blocks);
+  }, [onClose]);
 
   return (
     <div
-      ref={scrollerRef}
-      className={
-        columns === 2
-          ? "w-[36rem] max-w-[calc(100vw-1.5rem)] overflow-visible rounded-lg border border-black/10 bg-white px-3 py-2 text-xs shadow-lg dark:border-white/10 dark:bg-neutral-900"
-          : "max-h-72 max-w-sm overflow-y-auto rounded-lg border border-black/10 bg-white px-3 py-2 text-xs shadow-lg dark:border-white/10 dark:bg-neutral-900"
-      }
+      ref={panelRef}
+      role="dialog"
+      aria-label={`${row.label}, week ${week}`}
+      className="fixed z-50 max-h-72 max-w-sm overflow-y-auto rounded-lg border border-black/10 bg-white px-3 py-2 text-xs shadow-lg dark:border-white/10 dark:bg-neutral-900"
+      style={{
+        left: position?.left ?? clientX + 12,
+        top: position?.top ?? clientY + 12,
+        visibility: position ? "visible" : "hidden",
+      }}
     >
-      <p className="font-semibold">Week {week}</p>
-      {rows.length === 0 ? (
-        <p className="mt-1 text-black/50 dark:text-white/50">No events this week.</p>
-      ) : columns === 2 ? (
-        <div className="mt-2 grid grid-cols-2 items-start gap-x-5">
-          {[leftColumn, rightColumn].map((column, index) => (
-            <div key={index} className="space-y-1">
-              {column.map((block, blockIndex) =>
-                block.kind === "header" ? (
-                  <div key={block.key} className={blockIndex === 0 ? undefined : "pt-2"}>
-                    <TooltipYearHeader row={block.row} spread={false} />
-                  </div>
-                ) : (
-                  <TooltipEventLine key={block.key} event={block.event} />
-                )
-              )}
-            </div>
-          ))}
-        </div>
-      ) : (
-        <div className="mt-2 space-y-3">
-          {rows.map((row) => (
-            <div key={row.key}>
-              <TooltipYearHeader row={row} />
-              {row.events.length > 0 && (
-                <ul className="mt-1 space-y-1">
-                  {row.events.map((event) => (
-                    <li key={event.id}>
-                      <TooltipEventLine event={event} />
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
+      <div className="flex items-start justify-between gap-3">
+        <p className="font-semibold">Week {week}</p>
+        <button
+          type="button"
+          onClick={onClose}
+          className="text-sm leading-none text-black/50 hover:text-black dark:text-white/50 dark:hover:text-white"
+          aria-label="Close"
+        >
+          ×
+        </button>
+      </div>
+      <div className="mt-2">
+        <TooltipYearHeader row={row} />
+        {row.events.length > 0 ? (
+          <ul className="mt-1 space-y-1">
+            {row.events.map((event) => (
+              <li key={event.id}>
+                <TooltipEventLine event={event} />
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="mt-1 text-black/50 dark:text-white/50">No events this week.</p>
+        )}
+      </div>
     </div>
   );
 }
@@ -206,7 +206,9 @@ function TrendPointDot({
   value,
   payload,
   incompleteKey,
-  active = false,
+  seriesKey,
+  selected = false,
+  onSelect,
 }: {
   cx?: number;
   cy?: number;
@@ -214,22 +216,36 @@ function TrendPointDot({
   value?: unknown;
   payload?: AttendanceTrendsChartPoint;
   incompleteKey: string;
-  active?: boolean;
+  seriesKey: string;
+  selected?: boolean;
+  onSelect: (point: SelectedTrendPoint) => void;
 }) {
   if (typeof cx !== "number" || typeof cy !== "number" || typeof value !== "number") {
     return <g />;
   }
+  const week = payload?.week;
   const incomplete = payload?.[incompleteKey] === true;
-  const radius = incomplete ? (active ? 6 : 4.5) : active ? 5 : 3;
+  const radius = incomplete ? (selected ? 6 : 4.5) : selected ? 5 : 3;
   return (
-    <circle
-      cx={cx}
-      cy={cy}
-      r={radius}
-      fill={incomplete ? INCOMPLETE_POINT_COLOR : stroke}
-      stroke={incomplete ? "#171717" : stroke}
-      strokeWidth={incomplete ? 1.5 : 1}
-    />
+    <g
+      data-trend-point=""
+      style={{ cursor: "pointer" }}
+      onClick={(event) => {
+        event.stopPropagation();
+        if (typeof week !== "number") return;
+        onSelect({ seriesKey, week, clientX: event.clientX, clientY: event.clientY });
+      }}
+    >
+      <circle cx={cx} cy={cy} r={10} fill="transparent" />
+      <circle
+        cx={cx}
+        cy={cy}
+        r={radius}
+        fill={incomplete ? INCOMPLETE_POINT_COLOR : stroke}
+        stroke={incomplete ? "#171717" : stroke}
+        strokeWidth={incomplete ? 1.5 : 1}
+      />
+    </g>
   );
 }
 
@@ -264,41 +280,6 @@ function AttendanceChartLegend({
   );
 }
 
-function AttendanceTrendsTooltip({
-  active,
-  label,
-  payload,
-  series,
-  eventsBySeries,
-}: {
-  active?: boolean;
-  label?: string | number;
-  payload?: ReadonlyArray<{ dataKey?: string | number; value?: unknown }>;
-  series: AttendanceTrendSeries[];
-  eventsBySeries: Record<string, AttendanceTrendChartEvent[][]>;
-}) {
-  if (!active || label == null || label === "") return null;
-  const week = Number(label);
-  if (!Number.isFinite(week)) return null;
-
-  const rows = series.flatMap((entry, index) => {
-    const match = payload?.find((item) => item.dataKey === entry.key);
-    const value = typeof match?.value === "number" ? match.value : null;
-    if (value == null) return [];
-    return [
-      {
-        key: entry.key,
-        label: entry.label,
-        value,
-        color: LINE_COLORS[index % LINE_COLORS.length],
-        events: eventsBySeries[entry.key]?.[week] ?? [],
-      },
-    ];
-  });
-
-  return <AttendanceTrendsTooltipBody week={week} rows={rows} />;
-}
-
 export default function AttendanceTrendsClient({
   payload,
 }: {
@@ -306,7 +287,19 @@ export default function AttendanceTrendsClient({
 }) {
   const router = useRouter();
   const [filters, setFilters] = useState<AttendanceTrendsFilters>(EMPTY_ATTENDANCE_TRENDS_FILTERS);
+  const [selectedPoint, setSelectedPoint] = useState<SelectedTrendPoint | null>(null);
   const seasonLabel = payload.season === "fall" ? "Fall" : "Spring";
+
+  function changeFilters(patch: Partial<AttendanceTrendsFilters>) {
+    setSelectedPoint(null);
+    setFilters((current) => ({ ...current, ...patch }));
+  }
+
+  function selectPoint(next: SelectedTrendPoint) {
+    setSelectedPoint((current) =>
+      current && current.seriesKey === next.seriesKey && current.week === next.week ? null : next
+    );
+  }
 
   const chart = useMemo(() => {
     return buildAttendanceTrendsChart({
@@ -335,6 +328,28 @@ export default function AttendanceTrendsClient({
     });
   }, [payload, filters]);
 
+  const selectedDetail = useMemo(() => {
+    if (!selectedPoint) return null;
+    const index = chart.series.findIndex((entry) => entry.key === selectedPoint.seriesKey);
+    const entry = chart.series[index];
+    if (!entry) return null;
+    const value = chart.points[selectedPoint.week]?.[entry.key];
+    if (typeof value !== "number") return null;
+    const row: AttendancePointRow = {
+      key: entry.key,
+      label: entry.label,
+      value,
+      color: LINE_COLORS[index % LINE_COLORS.length],
+      events: chart.eventsBySeries[entry.key]?.[selectedPoint.week] ?? [],
+    };
+    return {
+      week: selectedPoint.week,
+      clientX: selectedPoint.clientX,
+      clientY: selectedPoint.clientY,
+      row,
+    };
+  }, [chart, selectedPoint]);
+
   return (
     <div className="space-y-4">
       <section className="card space-y-3">
@@ -358,29 +373,19 @@ export default function AttendanceTrendsClient({
             label="Event Type"
             options={payload.eventTypes.map((type) => ({ value: type, label: type }))}
             selected={filters.eventTypes}
-            onChange={(eventTypes) => setFilters((current) => ({ ...current, eventTypes }))}
+            onChange={(eventTypes) => changeFilters({ eventTypes })}
           />
           <CheckboxDropdown
             label="Gender"
             options={ATTENDANCE_TREND_GENDERS}
             selected={filters.genders}
-            onChange={(genders) =>
-              setFilters((current) => ({
-                ...current,
-                genders: genders as AttendanceTrendGender[],
-              }))
-            }
+            onChange={(genders) => changeFilters({ genders: genders as AttendanceTrendGender[] })}
           />
           <CheckboxDropdown
             label="Year"
             options={ATTENDANCE_TREND_YEARS}
             selected={filters.years}
-            onChange={(years) =>
-              setFilters((current) => ({
-                ...current,
-                years: years as AttendanceTrendYear[],
-              }))
-            }
+            onChange={(years) => changeFilters({ years: years as AttendanceTrendYear[] })}
           />
         </div>
       </section>
@@ -389,6 +394,7 @@ export default function AttendanceTrendsClient({
         <h2 className="font-semibold mb-1">Attendance</h2>
         <p className="text-xs text-black/50 dark:text-white/50 mb-4">
           Weekly {seasonLabel} attendance across years. Week 1 starts the Sunday of classes begin.
+          Click a point to see that year's events.
         </p>
         {chart.series.length === 0 ? (
           <div className="h-[360px] flex items-center justify-center text-sm text-black/40 dark:text-white/40">
@@ -420,14 +426,6 @@ export default function AttendanceTrendsClient({
                 allowDecimals={false}
                 label={{ value: "Attendance", angle: -90, position: "insideLeft", style: { fontSize: 11 } }}
               />
-              <Tooltip
-                content={
-                  <AttendanceTrendsTooltip
-                    series={chart.series}
-                    eventsBySeries={chart.eventsBySeries}
-                  />
-                }
-              />
               <Legend content={<AttendanceChartLegend />} />
               {chart.series.map((series, index) => {
                 const incompleteKey = attendanceTrendIncompleteKey(series.key);
@@ -439,18 +437,39 @@ export default function AttendanceTrendsClient({
                     name={series.label}
                     stroke={LINE_COLORS[index % LINE_COLORS.length]}
                     strokeWidth={2}
-                    dot={(dotProps: TrendDotProps) => (
-                      <TrendPointDot {...dotProps} incompleteKey={incompleteKey} />
-                    )}
-                    activeDot={(dotProps: TrendDotProps) => (
-                      <TrendPointDot {...dotProps} incompleteKey={incompleteKey} active />
-                    )}
+                    isAnimationActive={false}
+                    dot={(dotProps: TrendDotProps & { key?: string | number }) => {
+                      const { key, ...pointProps } = dotProps;
+                      return (
+                        <TrendPointDot
+                          key={key}
+                          {...pointProps}
+                          incompleteKey={incompleteKey}
+                          seriesKey={series.key}
+                          selected={
+                            selectedPoint?.seriesKey === series.key &&
+                            selectedPoint.week === dotProps.payload?.week
+                          }
+                          onSelect={selectPoint}
+                        />
+                      );
+                    }}
+                    activeDot={false}
                     connectNulls={false}
                   />
                 );
               })}
             </LineChart>
           </ResponsiveContainer>
+        )}
+        {selectedDetail && (
+          <YearPointPopover
+            week={selectedDetail.week}
+            row={selectedDetail.row}
+            clientX={selectedDetail.clientX}
+            clientY={selectedDetail.clientY}
+            onClose={() => setSelectedPoint(null)}
+          />
         )}
       </section>
     </div>

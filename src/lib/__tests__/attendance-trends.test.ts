@@ -193,6 +193,7 @@ describe("buildAttendanceTrendsChart", () => {
       filters: { eventTypes: [], genders: ["M"], years: ["freshman"] },
     });
     expect(chart.points[1]?.["year-1"]).toBe(1);
+    expect(chart.eventsBySeries["year-1"]?.[1]?.[0]?.studentDataIncomplete).toBe(true);
   });
 
   it("uses reported attendance for a single event even when fewer students are associated", () => {
@@ -207,6 +208,7 @@ describe("buildAttendanceTrendsChart", () => {
     });
     expect(chart.points[1]?.["year-1"]).toBe(8);
     expect(chart.points[1]?.[attendanceTrendIncompleteKey("year-1")]).toBe(false);
+    expect(chart.eventsBySeries["year-1"]?.[1]?.[0]?.studentDataIncomplete).toBe(true);
   });
 
   it("dedupes known students across events and flags the point when a reported headcount does not match", () => {
@@ -229,6 +231,10 @@ describe("buildAttendanceTrendsChart", () => {
     // 10 + 4, minus the one student recorded at both events.
     expect(chart.points[1]?.["year-1"]).toBe(13);
     expect(chart.points[1]?.[attendanceTrendIncompleteKey("year-1")]).toBe(true);
+    expect(chart.eventsBySeries["year-1"]?.[1]?.map((event) => event.studentDataIncomplete)).toEqual([
+      true,
+      false,
+    ]);
   });
 
   it("does not flag a multi-event point when every reported headcount matches its students", () => {
@@ -248,6 +254,9 @@ describe("buildAttendanceTrendsChart", () => {
     });
     expect(chart.points[1]?.["year-1"]).toBe(4);
     expect(chart.points[1]?.[attendanceTrendIncompleteKey("year-1")]).toBe(false);
+    expect(chart.eventsBySeries["year-1"]?.[1]?.every((event) => !event.studentDataIncomplete)).toBe(
+      true
+    );
   });
 
   it("dedupes associated students when several events have no reported headcount", () => {
@@ -265,6 +274,9 @@ describe("buildAttendanceTrendsChart", () => {
     });
     expect(chart.points[1]?.["year-1"]).toBe(2);
     expect(chart.points[1]?.[attendanceTrendIncompleteKey("year-1")]).toBe(false);
+    expect(chart.eventsBySeries["year-1"]?.[1]?.every((event) => !event.studentDataIncomplete)).toBe(
+      true
+    );
   });
 
   it("counts each student once when they attend multiple event types in the same week", () => {

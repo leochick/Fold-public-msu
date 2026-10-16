@@ -89,6 +89,8 @@ export type AttendanceTrendChartEvent = {
   name: string;
   type: string | null;
   startDate: string;
+  /** Reported headcount does not match the students associated with this event. */
+  studentDataIncomplete: boolean;
 };
 
 export type AttendanceTrendsChart = {
@@ -169,13 +171,17 @@ function eventContributesToPoint(
   return records.length === 0 && !demographicFiltersActive(filters);
 }
 
-function chartEvent(event: AttendanceTrendEventInput): AttendanceTrendChartEvent {
+function chartEvent(
+  event: AttendanceTrendEventInput,
+  associatedCount: number
+): AttendanceTrendChartEvent {
   const name = event.name.trim();
   return {
     id: event.id,
     name: name || "Untitled event",
     type: event.type,
     startDate: event.startDate.toISOString(),
+    studentDataIncomplete: !reportedHeadcountMatchesAssociated(event, associatedCount),
   };
 }
 
@@ -183,6 +189,8 @@ type WeekEventAttendance = {
   event: AttendanceTrendEventInput;
   /** Distinct associated students that count toward this point. */
   studentIds: number[];
+  /** Distinct students associated with the event, before demographic filters. */
+  associatedCount: number;
 };
 
 function distinctStudentIds(records: AttendanceTrendRecordInput[]): number[] {
@@ -201,10 +209,10 @@ function reportedHeadcount(event: AttendanceTrendEventInput, studentIds: readonl
  */
 function reportedHeadcountMatchesAssociated(
   event: AttendanceTrendEventInput,
-  studentIds: readonly number[]
+  associatedCount: number
 ): boolean {
   if (event.totalStudents == null || !Number.isFinite(event.totalStudents)) return true;
-  return event.totalStudents === studentIds.length;
+  return event.totalStudents === associatedCount;
 }
 
 /**
@@ -229,7 +237,11 @@ function summarizeWeek(
     const records = recordsByEvent.get(event.id) ?? [];
     const matching = records.filter((record) => recordMatchesFilters(record, filters));
     if (!eventContributesToPoint(records, matching, filters)) continue;
-    contributing.push({ event, studentIds: distinctStudentIds(matching) });
+    contributing.push({
+      event,
+      studentIds: distinctStudentIds(matching),
+      associatedCount: distinctStudentIds(records).length,
+    });
   }
 
   contributing.sort(
@@ -238,7 +250,7 @@ function summarizeWeek(
       a.event.name.localeCompare(b.event.name)
   );
 
-  const chartEvents = contributing.map((row) => chartEvent(row.event));
+  const chartEvents = contributing.map((row) => chartEvent(row.event, row.associatedCount));
   if (contributing.length === 0) {
     return { count: 0, events: chartEvents, incomplete: false };
   }
@@ -265,7 +277,7 @@ function summarizeWeek(
   const appearances = new Map<number, number>();
   for (const row of contributing) {
     reportedSum += reportedHeadcount(row.event, row.studentIds);
-    if (!reportedHeadcountMatchesAssociated(row.event, row.studentIds)) incomplete = true;
+    if (!reportedHeadcountMatchesAssociated(row.event, row.associatedCount)) incomplete = true;
     for (const studentId of row.studentIds) {
       appearances.set(studentId, (appearances.get(studentId) ?? 0) + 1);
     }
